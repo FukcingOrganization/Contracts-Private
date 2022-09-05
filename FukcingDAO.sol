@@ -3,6 +3,44 @@ pragma solidity ^0.8.4;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
 
+/*
+
+
+                                ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣶⣶⣤⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+                                ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⣿⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀
+                                ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⣀⣉⣉⠉⠻⠿⠿⠇⠀⠀⠀⠀⠀⠀
+                                ⠀⠀⠀⠀⠀⠀⠀⠀⣠⣴⣿⣿⣿⣿⣿⣿⣦⣄⠀⠀⠀⠀⠀⠀⠀⠀
+                                ⠀⠀⠀⠀⠀⢠⣤⣴⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣦⣤⡄⠀⠀⠀⠀⠀
+                                ⠀⠀⠀⠀⠀⠸⢿⣿⣿⡿⠿⢿⣿⣿⡿⠿⢿⣿⣿⡿⠇⠀⠀⠀⠀⠀
+                                ⠀⠀⠀⠀⠀⠀⢸⣿⣿⠀⠀⢸⣿⣿⡇⠀⠀⣿⣿⡇⠀⠀⠀⠀⠀⠀
+                                ⠀⠀⠀⠀⠀⠀⠸⠿⠿⠀⠀⠸⠿⠿⠇⠀⠀⠿⠿⠇⠀⠀⠀⠀⠀⠀
+                                ⢠⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⣤⡄
+                                ⢸⣿⣿⣿⡿⠿⢿⣿⣿⠿⠿⢿⣿⣿⡿⠿⠿⣿⣿⡿⠿⢿⣿⣿⣿⡇
+                                ⢸⣿⣿⣿⡇⠀⢸⣿⣿⠀⠀ ⢸⣿⣿⡇⠀ ⣿⣿⡇  ⢸⣿⣿⣿⡇
+                                ⢸⣿⣿⣿⣧⣤⣼⣿⣿⣤⣤⣼⣿⣿⣧⣤⣤⣿⣿⣧⣤⣼⣿⣿⣿⡇
+                                ⠀⠛⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠿⠛⠀                                                         
+                      
+                    MMP""MM""YMM `7MM          db              `7MMF'                                    
+                    P'   MM   `7   MM                            MM                                      
+                         MM        MMpMMMb.  `7MM  ,pP"Ybd       MM  ,pP"Ybd                             
+                         MM        MM    MM    MM  8I   `"       MM  8I   `"                             
+                         MM        MM    MM    MM  `YMMMa.       MM  `YMMMa.                             
+                         MM        MM    MM    MM  L.   I8       MM  L.   I8                             
+                       .JMML.    .JMML  JMML..JMML.M9mmmP'     .JMML.M9mmmP'                             
+                                                                                                          
+`7MM"""YMM           `7MM               db                           `7MM"""Yb.      db       .g8""8q.   
+  MM    `7             MM                                              MM    `Yb.   ;MM:    .dP'    `YM. 
+  MM   d `7MM  `7MM    MM  ,MP',p6"bo `7MM  `7MMpMMMb.  .P"Ybmmm       MM     `Mb  ,V^MM.   dM'      `MM 
+  MM""MM   MM    MM    MM ;Y  6M'  OO   MM    MM    MM :MI  I8         MM      MM ,M  `MM   MM        MM 
+  MM   Y   MM    MM    MM;Mm  8M        MM    MM    MM  WmmmP"         MM     ,MP AbmmmqMA  MM.      ,MP 
+  MM       MM    MM    MM `Mb.YM.    ,  MM    MM    MM 8M              MM    ,dP'A'     VML `Mb.    ,dP' 
+.JMML.     `Mbod"YML..JMML. YA.YMbmd' .JMML..JMML  JMML.YMMMMMb      .JMMmmmdP'.AMA.   .AMMA. `"bmmd"'   
+                                                       6'     dP                                         
+                                                       Ybmmmd'                                           
+
+
+*/
+
 /**
  * @dev Interface of the Fukcing DAO.
  */
@@ -368,5 +406,22 @@ function resultOfProposal (uint256 _proposalID) view public returns(bool){
 
   return proposal.yayCounts > proposal.nayCounts;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 */
