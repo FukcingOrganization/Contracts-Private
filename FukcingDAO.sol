@@ -41,6 +41,21 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 
 */
 
+/*
+    We are the FukcingDAO. We make our changes as possible as on-chain and fair!
+    
+    The Fukcing DAO tokens are not transferable!
+    Therefore you can't buy them, you have to earn them!
+    FDAO token is based on ERC-20 standard and manipulated to be non-transferable.
+
+    What does DAO do?
+    - Issues new FDAO tokens.
+    - Approves all economic changes in WeFukc.
+    - Gives a voting mechanism for both off-chain and on-chain proposals.
+    - The Fucking Lords represent 50% of the DAO.
+
+*/
+
 /**
  * @dev Interface of the Fukcing DAO.
  */
