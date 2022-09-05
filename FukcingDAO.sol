@@ -7,7 +7,15 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
  * @dev Interface of the Fukcing DAO.
  */
 interface IFDAO {
-
+    function propose(string memory _decription) external returns (bool);
+    
+    function vote(uint256 _proposalID, bool _isVotingFor) external returns (bool);
+    
+    function lordVote(uint256 _proposalID, bool _isVotingFor) external returns (bool);
+    
+    function newMint() external returns (bool);
+    
+    function proposalResult(uint256 _proposalID) external returns (bool);
 }
 
 /**
@@ -498,9 +506,23 @@ contract FukcingDAO is ERC20, AccessControl, IFDAO {
         _mint(to, amount);
     }
 
-    function transfer(address to, uint256 amount) public virtual override onlyRole(MINTER_ROLE)returns (bool) {
-        address owner = _msgSender();
-        _transfer(owner, to, amount);
+    function propose(string memory _decription) public virtual override  returns (bool){
+        return true;
+    }
+    
+    function vote(uint256 _proposalID, bool _isVotingFor) public virtual override  returns (bool){
+        return true;
+    }
+    
+    function lordVote(uint256 _proposalID, bool _isVotingFor) public virtual override  returns (bool){
+        return true;
+    }
+    
+    function newMint() public virtual override  returns (bool){
+        return true;
+    }
+    
+    function proposalResult(uint256 _proposalID) public virtual override  returns (bool){
         return true;
     }
 }
