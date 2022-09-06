@@ -20,14 +20,16 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
                                 ⣿⣿⣿⣿   ⣿⣿⣿   ⣿⣿⣿   ⣿⣿⣿   ⣿⣿⣿⣿
                                 ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿                                                         
                       
-                    MMP""MM""YMM `7MM          db              `7MMF'                                    
-                    P'   MM   `7   MM                            MM                                      
-                         MM        MMpMMMb.  `7MM  ,pP"Ybd       MM  ,pP"Ybd                             
-                         MM        MM    MM    MM  8I   `"       MM  8I   `"                             
-                         MM        MM    MM    MM  `YMMMa.       MM  `YMMMa.                             
-                         MM        MM    MM    MM  L.   I8       MM  L.   I8                             
-                       .JMML.    .JMML  JMML..JMML.M9mmmP'     .JMML.M9mmmP'                             
-                                                                                                          
+                                                                                                                              
+    MMP""MM""YMM `7MM          db              `7MMF'            MMP""MM""YMM `7MM                       
+    P'   MM   `7   MM                            MM              P'   MM   `7   MM                       
+         MM        MMpMMMb.  `7MM  ,pP"Ybd       MM  ,pP"Ybd          MM        MMpMMMb.  .gP"Ya         
+         MM        MM    MM    MM  8I   `"       MM  8I   `"          MM        MM    MM ,M'   Yb        
+         MM        MM    MM    MM  `YMMMa.       MM  `YMMMa.          MM        MM    MM 8M""""""        
+         MM        MM    MM    MM  L.   I8       MM  L.   I8          MM        MM    MM YM.    ,        
+       .JMML.    .JMML  JMML..JMML.M9mmmP'     .JMML.M9mmmP'        .JMML.    .JMML  JMML.`Mbmmd'        
+                                                                                                         
+                                                                                                                                                                   
 `7MM"""YMM           `7MM               db                           `7MM"""Yb.      db       .g8""8q.   
   MM    `7             MM                                              MM    `Yb.   ;MM:    .dP'    `YM. 
   MM   d `7MM  `7MM    MM  ,MP',p6"bo `7MM  `7MMpMMMb.  .P"Ybmmm       MM     `Mb  ,V^MM.   dM'      `MM 
@@ -36,14 +38,14 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
   MM       MM    MM    MM `Mb.YM.    ,  MM    MM    MM 8M              MM    ,dP'A'     VML `Mb.    ,dP' 
 .JMML.     `Mbod"YML..JMML. YA.YMbmd' .JMML..JMML  JMML.YMMMMMb      .JMMmmmdP'.AMA.   .AMMA. `"bmmd"'   
                                                        6'     dP                                         
-                                                       Ybmmmd'                                           
+                                                       Ybmmmd'                                                                                 
 
 
 */
 
 /*
     We are the FukcingDAO. We make our changes as possible as on-chain and fair!
-    
+
     The Fukcing DAO tokens are not transferable!
     Therefore you can't buy them, you have to earn them!
     FDAO token is based on ERC-20 standard and manipulated to be non-transferable.
@@ -51,9 +53,12 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
     What does DAO do?
     - Issues new FDAO tokens.
     - Approves all economic changes in WeFukc.
-    - Gives a voting mechanism for both off-chain and on-chain proposals.
+    - Gives a voting mechanism for both off-chain and on-chain changes.
     - The Fucking Lords represent 50% of the DAO.
 
+    Jump to line X to see the codes of the DAO.
+    The other codes are updated openzepplin contracts to be a non-transferable token.
+    We simply removed transfer, approve, allowance functions and events.
 */
 
 /**
@@ -129,15 +134,6 @@ interface IERC20Metadata is IERC20 {
  * instead returning `false` on failure. This behavior is nonetheless
  * conventional and does not conflict with the expectations of ERC20
  * applications.
- *
- * Additionally, an {Approval} event is emitted on calls to {transferFrom}.
- * This allows applications to reconstruct the allowance for all accounts just
- * by listening to said events. Other implementations of the EIP may not emit
- * these events, as it isn't required by the specification.
- *
- * Finally, the non-standard {decreaseAllowance} and {increaseAllowance}
- * functions have been added to mitigate the well-known issues around setting
- * allowances. See {IERC20-approve}.
  */
 contract ERC20 is Context, IERC20, IERC20Metadata {
 
@@ -421,22 +417,5 @@ function resultOfProposal (uint256 _proposalID) view public returns(bool){
 
   return proposal.yayCounts > proposal.nayCounts;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 */
