@@ -327,13 +327,14 @@ contract FukcingDAO is ERC20, AccessControl, IFDAO {
         ProposalType proposalType;
         mapping (address => bool) isVoted; // Voted EOAs
         mapping (uint256 => bool) isLordVoted; // Voted Lords
-    }
-    
+    } 
 
     
     mapping (uint256 => Proposal) proposals; // proposalID => Proposal
 
     Counters.Counter proposalCounter;
+
+    uint256 minBalanceToPropose;
 
     constructor() ERC20("FukcingDAO", "FDAO") {
         // The owner starts with a small balance to approve the first mint issuance. 
@@ -350,46 +351,46 @@ contract FukcingDAO is ERC20, AccessControl, IFDAO {
 
     // Voting mechanism
     // New Proposal method returns the created proposal ID for the caller to track the result
-    function newProposal (string storage _description, uint256 _lenght) public returns(uint256) {
-        require(owner || balances[sender] > minBalanceToPropose, "You don't have enough voting power to propose");
+    function newProposal (string calldata _description, uint256 _lenght) public returns(uint256) {
+        require(hasRole(MINTER_ROLE, _msgSender()) || balanceOf(_msgSender()) > minBalanceToPropose, "You don't have enough voting power to propose");
+
+        Proposal storage newProposal = proposals[proposalCounter];
 
         // create new proposal
-        newProposal.ID = proposalCounter;
+        newProposal.ID = proposalCounter._value;
         proposalCounter.increment;
+
         newProposal.description = _description;
-        newProposal.startTime = now;
-        newProposal.lenght = _lenght;
+        newProposal.startTime = block.timestamp;
+        newProposal.proposalType = _lenght;
 
-        // Write the proposal to the mapping
-        Proposals[newProposal.ID] = newProposal;
-
-        return proposalCounter - 1; // return the current proposal ID
+        return newProposal.ID; // return the current proposal ID
     }
 
     function voteForProposal (uint256 _proposalID, bool isApproving) public {
-    require(balances[sender] > 0, "You don't have any voting power!");
+        require(balanceOf(_msgSender()) > 0, "You don't have any voting power!");
 
-    Proposal storage proposal = proposals[_proposalID]; 
+        Proposal storage proposal = proposals[_proposalID]; 
 
-    require(proposal.isVoted[sender] == false, "You already voted!");
+        require(proposal.isVoted[_msgSender()] == false, "You already voted!");
         require(proposal.startTime + proposal.lenght < now, "Proposal time has expired!");
 
-        proposal.isVoted[sender] = true;
+        proposal.isVoted[_msgSender()] = true;
 
         if (isApproving){
-            proposal.yayCount += balances[_msgSender()];
+            proposal.yayCount += balanceOf(_msgSender());
         }
         else {    
-            proposal.nayCount += balances[sender];
+            proposal.nayCount += balanceOf(_msgSender());
         }
     }
 
-    function descriptionOfProposal (uint256 _proposalID) view public returns(string){
+    function descriptionOfProposal (uint256 _proposalID) view public returns(string memory){
         return proposals[_proposalID].description;
     }
 
     function resultOfProposal (uint256 _proposalID) view public returns(bool){
-        Proposal proposal = proposals[_proposalID];
+        Proposal storage proposal = proposals[_proposalID];
         require (proposal.startTime + proposal.lenght > now, "Proposal is still going on!");
 
         return proposal.yayCounts > proposal.nayCounts;
@@ -403,7 +404,12 @@ contract FukcingDAO is ERC20, AccessControl, IFDAO {
 
     }
     
-    function lordVote(uint256 _lordID, uint256 _proposalID, bool _isVotingFor) public {
+    function lordVote(uint256 _proposalID, bool _isVotingFor) public {
+        // Check the caller has lord nft
+        // How many lords the caller has?
+        // Total supply of lords and balance of lords?
+        // proposal.isLordVoted true
+        // proposal.yay/nay count
         
     }
     
