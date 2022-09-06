@@ -2,6 +2,8 @@
 pragma solidity ^0.8.4;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/utils/Counters.sol";
+
 
 /*
 
@@ -65,15 +67,19 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
  * @dev Interface of the Fukcing DAO.
  */
 interface IFDAO {
-    function propose(string memory _decription) external returns (bool);
+    /*
+    function propose(string memory _decription) external;
     
-    function vote(uint256 _proposalID, bool _isVotingFor) external returns (bool);
+    function vote(uint256 _proposalID, bool _isVotingFor) external;
     
-    function lordVote(uint256 _proposalID, bool _isVotingFor) external returns (bool);
+    function lordVote(uint256 _proposalID, bool _isVotingFor) external;
     
-    function newMint() external returns (bool);
+    function newMint() external;
+
+    function claimToken(uint256 _mintProposalID) external;
     
     function proposalResult(uint256 _proposalID) external returns (bool);
+    */
 }
 
 /**
@@ -301,121 +307,118 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
 }
 
 contract FukcingDAO is ERC20, AccessControl, IFDAO {
+
+    using Counters for Counters.Counter;
+    
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
 
+    struct ProposalType{
+        uint256 lenght;
+        uint256 requiredApprovalRate;
+        uint256 requiredTokenAmount;
+        uint256 requiredParticipantAmount;
+    }
+    struct Proposal {
+        uint256 ID;
+        string description;
+        uint256 yayCount;
+        uint256 nayCount;
+        uint256 startTime;
+        ProposalType proposalType;
+        mapping (address => bool) isVoted; // Voted EOAs
+        mapping (uint256 => bool) isLordVoted; // Voted Lords
+    }
+    
+
+    
+    mapping (uint256 => Proposal) proposals; // proposalID => Proposal
+
+    Counters.Counter proposalCounter;
+
     constructor() ERC20("FukcingDAO", "FDAO") {
-        _mint(msg.sender, 100 * 10 ** decimals());
+        // The owner starts with a small balance to approve the first mint issuance. 
+        // Will change with a new mint approval in the first place to start decentralized.
+        _mint(msg.sender, 100 * 10 ** decimals()); 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(MINTER_ROLE, msg.sender);
     }
 
+    // Will be entegrated to the new mint funtion
     function mint(address to, uint256 amount) public onlyRole(MINTER_ROLE) {
         _mint(to, amount);
     }
 
-    function propose(string memory _decription) public virtual override  returns (bool){
-        return true;
+    // Voting mechanism
+    // New Proposal method returns the created proposal ID for the caller to track the result
+    function newProposal (string storage _description, uint256 _lenght) public returns(uint256) {
+        require(owner || balances[sender] > minBalanceToPropose, "You don't have enough voting power to propose");
+
+        // create new proposal
+        newProposal.ID = proposalCounter;
+        proposalCounter.increment;
+        newProposal.description = _description;
+        newProposal.startTime = now;
+        newProposal.lenght = _lenght;
+
+        // Write the proposal to the mapping
+        Proposals[newProposal.ID] = newProposal;
+
+        return proposalCounter - 1; // return the current proposal ID
+    }
+
+    function voteForProposal (uint256 _proposalID, bool isApproving) public {
+    require(balances[sender] > 0, "You don't have any voting power!");
+
+    Proposal storage proposal = proposals[_proposalID]; 
+
+    require(proposal.isVoted[sender] == false, "You already voted!");
+        require(proposal.startTime + proposal.lenght < now, "Proposal time has expired!");
+
+        proposal.isVoted[sender] = true;
+
+        if (isApproving){
+            proposal.yayCount += balances[_msgSender()];
+        }
+        else {    
+            proposal.nayCount += balances[sender];
+        }
+    }
+
+    function descriptionOfProposal (uint256 _proposalID) view public returns(string){
+        return proposals[_proposalID].description;
+    }
+
+    function resultOfProposal (uint256 _proposalID) view public returns(bool){
+        Proposal proposal = proposals[_proposalID];
+        require (proposal.startTime + proposal.lenght > now, "Proposal is still going on!");
+
+        return proposal.yayCounts > proposal.nayCounts;
+    }
+
+    function propose(string memory _decription) public {
+
     }
     
-    function vote(uint256 _proposalID, bool _isVotingFor) public virtual override  returns (bool){
-        return true;
+    function vote(uint256 _proposalID, bool _isVotingFor) public {
+
     }
     
-    function lordVote(uint256 _proposalID, bool _isVotingFor) public virtual override  returns (bool){
-        return true;
+    function lordVote(uint256 _lordID, uint256 _proposalID, bool _isVotingFor) public {
+        
     }
     
-    function newMint() public virtual override  returns (bool){
+    function proposalResult(uint256 _proposalID) public returns (bool){
         return true;
-    }
+    }    
     
-    function proposalResult(uint256 _proposalID) public virtual override  returns (bool){
-        return true;
+    function newMint() public {
+        // Check 
+
+    }
+
+    function claimToken(uint256 _mintProposalID) public {
+        // Check the mintproposalID
+        // If there is a allowance, transfer the balance 
+        // If no, revert
     }
 }
-
-// Psudo code of FuckingDAO (FDAO) contract
-
-// Remove all the transfer methods by overriding them with an empty method or copy past the other methods from the base contract
-
-
-
-/*
-
-// Proposal structure
-Struct Proposal{
-  uint256 ID;
-  string description;
-  uint256 yayCount;
-  uint256 nayCount;
-  timeUnit startTime;
-  timeUnit lenght;
-  mapping (address voter => bool isVoted) isVoted;
-}
-
-Counter proposalCounter;
-
-uint256 minBalanceToPropose
-
-mapping (uint256 proposalID => struct Proposal) proposals
-
-// Access Modifiers
-
-// mint new tokens
-  // Propose new mint
-  // Mint on result
-
-
-// claim tokens
-  // EOA claim
-  // Lord claim
-
-
-// Voting mechanism
-// New Proposal method returns the created proposal ID for the caller to track the result
-function newProposal (string storage _description, timeUnit storage _lenght) public returns(uint256) {
-  require(owner || balances[sender] > minBalanceToPropose, "You don't have enough voting power to propose");
-
-  // create new proposal
-  newProposal.ID = proposalCounter;
-  proposalCounter.increment;
-  newProposal.description = _description;
-  newProposal.startTime = now;
-  newProposal.lenght = _lenght;
-
-  // Write the proposal to the mapping
-  Proposals[newProposal.ID] = newProposal;
-
-  return proposalCounter - 1; // return the current proposal ID
-}
-
-function voteForProposal (uint256 _proposalID, bool isApproving) public {
-  require(balances[sender] > 0, "You don't have any voting power!");
-
-  Proposal storage proposal = proposals[_proposalID]; 
-
-  require(proposal.isVoted[sender] == false, "You already voted!");
-  require(proposal.startTime + proposal.lenght < now, "Proposal time has expired!");
-
-  proposal.isVoted[sender] = true;
-
-  if (isApproving){
-    proposal.yayCount += balances[sender];
-  }
-  else {    
-    proposal.nayCount += balances[sender];
-  }
-}
-
-function descriptionOfProposal (uint256 _proposalID) view public returns(String){
-  return proposals[_proposalID].description;
-}
-
-function resultOfProposal (uint256 _proposalID) view public returns(bool){
-  Proposal proposal = proposals[_proposalID];
-  require (proposal.startTime + proposal.lenght > now, "Proposal is still going on!");
-
-  return proposal.yayCounts > proposal.nayCounts;
-}
-
-*/
