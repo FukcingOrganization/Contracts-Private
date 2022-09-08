@@ -331,11 +331,15 @@ contract FukcingDAO is ERC20, AccessControl, IFDAO {
         string description;
         uint256 startTime;
         uint256 proposalType;
+        uint256 status;
+        uint256 participants;
+        uint256 totalVotes;
         uint256 yayCount;
         uint256 nayCount;
         mapping (address => bool) isVoted; // Voted EOAs
         mapping (uint256 => bool) isLordVoted; // Voted Lords lordID => true/false
     }
+
     /*
         @dev Depending on the desired proposal lenght, there will be required conditions
         like approval rate, token amount, participant amount to make that proposal valid.
@@ -392,7 +396,7 @@ contract FukcingDAO is ERC20, AccessControl, IFDAO {
 
     // Voting mechanism
     // New Proposal method returns the created proposal ID for the caller to track the result
-    function newProposal (string calldata _description, uint256 _lenght) public returns(uint256) {
+    function newProposal (string calldata _description, uint256 _proposalType) public returns(uint256) {
         require(hasRole(MINTER_ROLE, _msgSender()) || balanceOf(_msgSender()) > minBalanceToPropose, "You don't have enough voting power to propose");
 
         // Start with the current empty proposal
@@ -403,7 +407,8 @@ contract FukcingDAO is ERC20, AccessControl, IFDAO {
 
         newProposal.description = _description;
         newProposal.startTime = block.timestamp;
-        newProposal.proposalType = _lenght;
+        newProposal.proposalType = _proposalType;
+        newProposal.status = uint256(ProposalStatus.OnGoing);        
 
         return newProposal.ID; // return the current proposal ID
     }
@@ -411,10 +416,11 @@ contract FukcingDAO is ERC20, AccessControl, IFDAO {
     function voteForProposal (uint256 _proposalID, bool isApproving) public {
         require(balanceOf(_msgSender()) > 0, "You don't have any voting power!");
 
+        updateProposalStatus(_proposalID);
         Proposal storage currentProposal = proposals[_proposalID]; 
 
         require(currentProposal.isVoted[_msgSender()] == false, "You already voted!");
-        require(currentProposal.startTime + currentProposal.lenght < now, "Proposal time has expired!");
+        require(currentProposal.Status == ProposalStatus.OnGoing, "The proposal has ended!");
 
         currentProposal.isVoted[_msgSender()] = true;
 
@@ -424,17 +430,19 @@ contract FukcingDAO is ERC20, AccessControl, IFDAO {
         else {    
             currentProposal.nayCount += balanceOf(_msgSender());
         }
+                
+        currentProposal.totalVotes += balanceOf(_msgSender());
     }
 
     function descriptionOfProposal (uint256 _proposalID) view public returns(string memory){
         return proposals[_proposalID].description;
     }
 
-    function resultOfProposal (uint256 _proposalID) view public returns(bool){
-        Proposal storage currentProposal = proposals[_proposalID];
-        require (currentProposal.startTime + currentProposal.lenght > now, "Proposal is still going on!");
+    function resultOfProposal (uint256 _proposalID) view public returns(uint256){
+        Proposal storage prop = proposals[_proposalID];
+        require (prop.status <= 1, "Proposal is still going on or not even started!");
 
-        return currentProposal.yayCounts > currentProposal.nayCounts;
+        return prop.status;
     }
 
     function propose(string memory _decription) public {
@@ -474,8 +482,40 @@ contract FukcingDAO is ERC20, AccessControl, IFDAO {
         uint256 _requiredTokenAmount, uint256 _requiredParticipantAmount)
         public {
         
-        /*
-            Change mechanism goes here
-        */
+            /*
+                Change mechanism goes here
+            */
+    }
+
+    function updateProposalStatus(uint256 _proposalID) internal {
+        require(proposals[_proposalID].proposalStatus != 0, 
+            "This proposal ID has not been assigned to any proposal yet!");
+
+        Proposal storage propToUpdate = proposals[_proposalID];
+        uint256 currentApprovalRate = 
+            propToUpdate.yayCount * 100 / propToUpdate.yayCount + propToUpdate.nayCount;
+
+        // Find the proposal Type
+        for (int256 i = 0; i < proposalTypes; i++){
+            if (propToUpdate.proposalType == i){
+                // Change status ONLY IF the time is up
+                if (propToUpdate.startTime + proposalTypes[i].lenght > block.timestamp){
+                    // Check if it is valid
+                    if (proposalTypes[i].requiredParticipants > propToUpdate.participants) {
+                        propToUpdate.status = ProposalStatus.NotValid;
+                    }
+                    else if (proposalTypes[i].requiredTokenAmount > propToUpdate.totalVotes) {
+                        propToUpdate.status = ProposalStatus.NotValid;
+                    }
+                    // Check if approved or denied by DAO
+                    else if (proposalTypes[i].requiredApprovalRate > currentApprovalRate) {
+                        propToUpdate.status = ProposalStatus.Denied;
+                    }
+                    else {
+                        propToUpdate.status = ProposalStatus.Approved;
+                    }
+                }
+            }
+        }
     }
 }
