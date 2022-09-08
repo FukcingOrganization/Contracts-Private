@@ -23,13 +23,13 @@ import "@openzeppelin/contracts/utils/Counters.sol";
                                 ⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿                                                         
                       
                                                                                                                               
-    MMP""MM""YMM `7MM          db              `7MMF'            MMP""MM""YMM `7MM                       
-    P'   MM   `7   MM                            MM              P'   MM   `7   MM                       
-         MM        MMpMMMb.  `7MM  ,pP"Ybd       MM  ,pP"Ybd          MM        MMpMMMb.  .gP"Ya         
-         MM        MM    MM    MM  8I   `"       MM  8I   `"          MM        MM    MM ,M'   Yb        
-         MM        MM    MM    MM  `YMMMa.       MM  `YMMMa.          MM        MM    MM 8M""""""        
-         MM        MM    MM    MM  L.   I8       MM  L.   I8          MM        MM    MM YM.    ,        
-       .JMML.    .JMML  JMML..JMML.M9mmmP'     .JMML.M9mmmP'        .JMML.    .JMML  JMML.`Mbmmd'        
+                        MMP""MM""YMM `7MM          db              `7MMF'                                   
+                        P'   MM   `7   MM                            MM                                     
+                             MM        MMpMMMb.  `7MM  ,pP"Ybd       MM  ,pP"Ybd              
+                             MM        MM    MM    MM  8I   `"       MM  8I   `"             
+                             MM        MM    MM    MM  `YMMMa.       MM  `YMMMa.     
+                             MM        MM    MM    MM  L.   I8       MM  L.   I8             
+                           .JMML.    .JMML  JMML..JMML.M9mmmP'     .JMML.M9mmmP'             
                                                                                                          
                                                                                                                                                                    
 `7MM"""YMM           `7MM               db                           `7MM"""Yb.      db       .g8""8q.   
@@ -312,6 +312,14 @@ contract FukcingDAO is ERC20, AccessControl, IFDAO {
     
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
 
+    enum ProposalStatus{
+        NotStarted,
+        OnGoing,
+        Approved,
+        Denied,
+        NotValid
+    }
+
     struct ProposalType{
         uint256 lenght;
         uint256 requiredApprovalRate;
@@ -321,18 +329,51 @@ contract FukcingDAO is ERC20, AccessControl, IFDAO {
     struct Proposal {
         uint256 ID;
         string description;
+        uint256 startTime;
+        uint256 proposalType;
         uint256 yayCount;
         uint256 nayCount;
-        uint256 startTime;
-        ProposalType proposalType;
         mapping (address => bool) isVoted; // Voted EOAs
-        mapping (uint256 => bool) isLordVoted; // Voted Lords
-    } 
+        mapping (uint256 => bool) isLordVoted; // Voted Lords lordID => true/false
+    }
+    /*
+        @dev Depending on the desired proposal lenght, there will be required conditions
+        like approval rate, token amount, participant amount to make that proposal valid.
+
+        If there a emergency situation, an urgent proposal with 10 minutes await time
+        will need higher approval rate to be valid.
+    */
+    ProposalType[] proposalTypes = [
+        ProposalType({
+            lenght : 10 minutes,
+            requiredApprovalRate : 95,
+            requiredTokenAmount : 1000 ether,
+            requiredParticipantAmount : 50
+        }),
+        ProposalType({
+            lenght : 1 hours,
+            requiredApprovalRate : 90,
+            requiredTokenAmount : 2000 ether,
+            requiredParticipantAmount : 100
+        }),
+        ProposalType({
+            lenght : 1 days,
+            requiredApprovalRate : 80,
+            requiredTokenAmount : 3000 ether,
+            requiredParticipantAmount : 150
+        }),
+        ProposalType({
+            lenght : 3 days,
+            requiredApprovalRate : 70,
+            requiredTokenAmount : 1000 ether,
+            requiredParticipantAmount : 50
+        })
+    ];
 
     
     mapping (uint256 => Proposal) proposals; // proposalID => Proposal
 
-    Counters.Counter proposalCounter;
+    Counters.Counter private proposalCounter;
 
     uint256 minBalanceToPropose;
 
@@ -354,11 +395,11 @@ contract FukcingDAO is ERC20, AccessControl, IFDAO {
     function newProposal (string calldata _description, uint256 _lenght) public returns(uint256) {
         require(hasRole(MINTER_ROLE, _msgSender()) || balanceOf(_msgSender()) > minBalanceToPropose, "You don't have enough voting power to propose");
 
-        Proposal storage newProposal = proposals[proposalCounter];
+        // Start with the current empty proposal
+        Proposal storage newProposal = proposals[proposalCounter.current()];
 
-        // create new proposal
-        newProposal.ID = proposalCounter._value;
-        proposalCounter.increment;
+        newProposal.ID = proposalCounter.current();
+        proposalCounter.increment();
 
         newProposal.description = _description;
         newProposal.startTime = block.timestamp;
@@ -370,18 +411,18 @@ contract FukcingDAO is ERC20, AccessControl, IFDAO {
     function voteForProposal (uint256 _proposalID, bool isApproving) public {
         require(balanceOf(_msgSender()) > 0, "You don't have any voting power!");
 
-        Proposal storage proposal = proposals[_proposalID]; 
+        Proposal storage currentProposal = proposals[_proposalID]; 
 
-        require(proposal.isVoted[_msgSender()] == false, "You already voted!");
-        require(proposal.startTime + proposal.lenght < now, "Proposal time has expired!");
+        require(currentProposal.isVoted[_msgSender()] == false, "You already voted!");
+        require(currentProposal.startTime + currentProposal.lenght < now, "Proposal time has expired!");
 
-        proposal.isVoted[_msgSender()] = true;
+        currentProposal.isVoted[_msgSender()] = true;
 
         if (isApproving){
-            proposal.yayCount += balanceOf(_msgSender());
+            currentProposal.yayCount += balanceOf(_msgSender());
         }
         else {    
-            proposal.nayCount += balanceOf(_msgSender());
+            currentProposal.nayCount += balanceOf(_msgSender());
         }
     }
 
@@ -390,10 +431,10 @@ contract FukcingDAO is ERC20, AccessControl, IFDAO {
     }
 
     function resultOfProposal (uint256 _proposalID) view public returns(bool){
-        Proposal storage proposal = proposals[_proposalID];
-        require (proposal.startTime + proposal.lenght > now, "Proposal is still going on!");
+        Proposal storage currentProposal = proposals[_proposalID];
+        require (currentProposal.startTime + currentProposal.lenght > now, "Proposal is still going on!");
 
-        return proposal.yayCounts > proposal.nayCounts;
+        return currentProposal.yayCounts > currentProposal.nayCounts;
     }
 
     function propose(string memory _decription) public {
@@ -426,5 +467,15 @@ contract FukcingDAO is ERC20, AccessControl, IFDAO {
         // Check the mintproposalID
         // If there is a allowance, transfer the balance 
         // If no, revert
+    }
+
+    function modifyProposalType (
+        uint256 _proposalTypeNumber, uint256 _lenght, uint256 _requiredApprovalRate, 
+        uint256 _requiredTokenAmount, uint256 _requiredParticipantAmount)
+        public {
+        
+        /*
+            Change mechanism goes here
+        */
     }
 }
