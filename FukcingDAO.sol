@@ -307,10 +307,7 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
 }
 
 contract FukcingDAO is ERC20, AccessControl, IFDAO {
-
-    using Counters for Counters.Counter;
-    
-    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+    using Counters for Counters.Counter;   
 
     enum ProposalStatus{
         NotStarted,
@@ -331,7 +328,7 @@ contract FukcingDAO is ERC20, AccessControl, IFDAO {
         string description;
         uint256 startTime;
         uint256 proposalType;
-        uint256 status;
+        ProposalStatus status;
         uint256 participants;
         uint256 totalVotes;
         uint256 yayCount;
@@ -371,22 +368,34 @@ contract FukcingDAO is ERC20, AccessControl, IFDAO {
             requiredApprovalRate : 70,
             requiredTokenAmount : 1000 ether,
             requiredParticipantAmount : 50
+        }),
+        // Test lenght
+        ProposalType({
+            lenght : 3 minutes,
+            requiredApprovalRate : 75,
+            requiredTokenAmount : 1 ether,
+            requiredParticipantAmount : 1
         })
-    ];
-
+    ];   
+ 
+    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+    bytes32 public constant EXECUTER_ROLE = keccak256("EXECUTER_ROLE");
+    bytes32 public constant LORD_ROLE = keccak256("LORD_ROLE");
     
-    mapping (uint256 => Proposal) proposals; // proposalID => Proposal
+    mapping (uint256 => Proposal) public proposals; // proposalID => Proposal
 
     Counters.Counter private proposalCounter;
 
-    uint256 minBalanceToPropose;
+    address public fukcingLordContract;
+    uint256 public minBalanceToPropose;
 
     constructor() ERC20("FukcingDAO", "FDAO") {
         // The owner starts with a small balance to approve the first mint issuance. 
         // Will change with a new mint approval in the first place to start decentralized.
-        _mint(msg.sender, 100 * 10 ** decimals()); 
+        _mint(msg.sender, 1024 ether); // Start with 1024 token. 1 for each lord NFT
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(MINTER_ROLE, msg.sender);
+        _grantRole(EXECUTER_ROLE, msg.sender);
     }
 
     // Will be entegrated to the new mint funtion
@@ -394,10 +403,11 @@ contract FukcingDAO is ERC20, AccessControl, IFDAO {
         _mint(to, amount);
     }
 
-    // Voting mechanism
     // New Proposal method returns the created proposal ID for the caller to track the result
-    function newProposal (string calldata _description, uint256 _proposalType) public returns(uint256) {
-        require(hasRole(MINTER_ROLE, _msgSender()) || balanceOf(_msgSender()) > minBalanceToPropose, "You don't have enough voting power to propose");
+    function newProposal (string memory _description, uint256 _proposalType) public returns(uint256) {
+        // Only exetures and the ones who has enough balance to propose can propose
+        require(hasRole(EXECUTER_ROLE, _msgSender()) || balanceOf(_msgSender()) > minBalanceToPropose, "You don't have enough voting power to propose");
+        require(_proposalType > 0 && _proposalType < proposalTypes.length, "Invalid proposal type!");
 
         // Start with the current empty proposal
         Proposal storage newProposal = proposals[proposalCounter.current()];
@@ -408,30 +418,57 @@ contract FukcingDAO is ERC20, AccessControl, IFDAO {
         newProposal.description = _description;
         newProposal.startTime = block.timestamp;
         newProposal.proposalType = _proposalType;
-        newProposal.status = uint256(ProposalStatus.OnGoing);        
+        newProposal.status = ProposalStatus.OnGoing;        
 
         return newProposal.ID; // return the current proposal ID
     }
 
-    function voteForProposal (uint256 _proposalID, bool isApproving) public {
+    function vote (uint256 _proposalID, bool _isApproving) public {
         require(balanceOf(_msgSender()) > 0, "You don't have any voting power!");
 
         updateProposalStatus(_proposalID);
         Proposal storage currentProposal = proposals[_proposalID]; 
 
+        require(currentProposal.status == ProposalStatus.OnGoing, "The proposal has ended!");
         require(currentProposal.isVoted[_msgSender()] == false, "You already voted!");
-        require(currentProposal.Status == ProposalStatus.OnGoing, "The proposal has ended!");
 
         currentProposal.isVoted[_msgSender()] = true;
 
-        if (isApproving){
+        if (_isApproving){
             currentProposal.yayCount += balanceOf(_msgSender());
         }
         else {    
             currentProposal.nayCount += balanceOf(_msgSender());
         }
                 
+        currentProposal.participants++;
         currentProposal.totalVotes += balanceOf(_msgSender());
+    }
+
+    /*
+        @dev Only the Fukcing Lord Contract can call this function to vote.
+    */
+    function lordVote(uint256 _proposalID, bool _isApproving, uint256 _lordID, uint256 _lordTotalSupply) public onlyRole(LORD_ROLE) {
+        updateProposalStatus(_proposalID);
+        Proposal storage currentProposal = proposals[_proposalID]; 
+
+        require(currentProposal.status == ProposalStatus.OnGoing, "The proposal has ended!");
+        require(currentProposal.isLordVoted[_lordID] == false, "This lord already voted!");
+
+        currentProposal.isLordVoted[_lordID] = true;
+        // Get the voting power of the lord: 
+        // Lord voting power (aka. 50% of total supply of FDAO token) / lord total supply
+        uint256 votingPower = balanceOf(fukcingLordContract) / _lordTotalSupply;
+
+        if (_isApproving){
+            currentProposal.yayCount += votingPower;
+        }
+        else {    
+            currentProposal.nayCount += votingPower;
+        }
+                
+        currentProposal.participants++;
+        currentProposal.totalVotes += votingPower;        
     }
 
     function descriptionOfProposal (uint256 _proposalID) view public returns(string memory){
@@ -440,27 +477,12 @@ contract FukcingDAO is ERC20, AccessControl, IFDAO {
 
     function resultOfProposal (uint256 _proposalID) view public returns(uint256){
         Proposal storage prop = proposals[_proposalID];
-        require (prop.status <= 1, "Proposal is still going on or not even started!");
+        require (uint256(prop.status) <= 1, "Proposal is still going on or not even started!");
 
-        return prop.status;
-    }
-
-    function propose(string memory _decription) public {
-
+        return uint256(prop.status);
     }
     
-    function vote(uint256 _proposalID, bool _isVotingFor) public {
-
-    }
     
-    function lordVote(uint256 _proposalID, bool _isVotingFor) public {
-        // Check the caller has lord nft
-        // How many lords the caller has?
-        // Total supply of lords and balance of lords?
-        // proposal.isLordVoted true
-        // proposal.yay/nay count
-        
-    }
     
     function proposalResult(uint256 _proposalID) public returns (bool){
         return true;
@@ -488,7 +510,7 @@ contract FukcingDAO is ERC20, AccessControl, IFDAO {
     }
 
     function updateProposalStatus(uint256 _proposalID) internal {
-        require(proposals[_proposalID].proposalStatus != 0, 
+        require(proposals[_proposalID].status != ProposalStatus.NotStarted, 
             "This proposal ID has not been assigned to any proposal yet!");
 
         Proposal storage propToUpdate = proposals[_proposalID];
@@ -496,12 +518,12 @@ contract FukcingDAO is ERC20, AccessControl, IFDAO {
             propToUpdate.yayCount * 100 / propToUpdate.yayCount + propToUpdate.nayCount;
 
         // Find the proposal Type
-        for (int256 i = 0; i < proposalTypes; i++){
+        for (uint256 i = 0; i < proposalTypes.length; i++){
             if (propToUpdate.proposalType == i){
                 // Change status ONLY IF the time is up
                 if (propToUpdate.startTime + proposalTypes[i].lenght > block.timestamp){
                     // Check if it is valid
-                    if (proposalTypes[i].requiredParticipants > propToUpdate.participants) {
+                    if (proposalTypes[i].requiredParticipantAmount > propToUpdate.participants) {
                         propToUpdate.status = ProposalStatus.NotValid;
                     }
                     else if (proposalTypes[i].requiredTokenAmount > propToUpdate.totalVotes) {
@@ -518,4 +540,11 @@ contract FukcingDAO is ERC20, AccessControl, IFDAO {
             }
         }
     }
+
+    function updateFukcingLordContractAddress (address _newAddress) public onlyRole(EXECUTER_ROLE) {
+
+    } 
+    function updateMinBalanceToPropose (uint256 _newAmount) public onlyRole(EXECUTER_ROLE) {
+
+    } 
 }
