@@ -337,55 +337,17 @@ contract FukcingDAO is ERC20, AccessControl, IFDAO {
         mapping (uint256 => bool) isLordVoted; // Voted Lords lordID => true/false
     }
 
-    /*
-        @dev Depending on the desired proposal lenght, there will be required conditions
-        like approval rate, token amount, participant amount to make that proposal valid.
 
-        If there a emergency situation, an urgent proposal with 10 minutes await time
-        will need higher approval rate to be valid.
-    */
-    ProposalType[] proposalTypes = [
-        ProposalType({
-            lenght : 10 minutes,
-            requiredApprovalRate : 95,
-            requiredTokenAmount : 1000 ether,
-            requiredParticipantAmount : 50
-        }),
-        ProposalType({
-            lenght : 1 hours,
-            requiredApprovalRate : 90,
-            requiredTokenAmount : 2000 ether,
-            requiredParticipantAmount : 100
-        }),
-        ProposalType({
-            lenght : 1 days,
-            requiredApprovalRate : 80,
-            requiredTokenAmount : 3000 ether,
-            requiredParticipantAmount : 150
-        }),
-        ProposalType({
-            lenght : 3 days,
-            requiredApprovalRate : 70,
-            requiredTokenAmount : 1000 ether,
-            requiredParticipantAmount : 50
-        }),
-        // Test lenght
-        ProposalType({
-            lenght : 3 minutes,
-            requiredApprovalRate : 75,
-            requiredTokenAmount : 1 ether,
-            requiredParticipantAmount : 1
-        })
-    ];   
- 
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant EXECUTER_ROLE = keccak256("EXECUTER_ROLE");
     bytes32 public constant LORD_ROLE = keccak256("LORD_ROLE");
     
-    mapping (uint256 => Proposal) public proposals; // proposalID => Proposal
-
     Counters.Counter private proposalCounter;
 
+    mapping (uint256 => Proposal) public proposals; // proposalID => Proposal
+
+    ProposalType[] proposalTypes;
+    
     address public fukcingLordContract;
     uint256 public minBalanceToPropose;
 
@@ -396,11 +358,20 @@ contract FukcingDAO is ERC20, AccessControl, IFDAO {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(MINTER_ROLE, msg.sender);
         _grantRole(EXECUTER_ROLE, msg.sender);
+
+        initializeProposelTypes();
     }
 
     // Will be entegrated to the new mint funtion
     function mint(address to, uint256 amount) public onlyRole(MINTER_ROLE) {
         _mint(to, amount);
+
+        proposalTypes.push(ProposalType({
+            lenght : 10 minutes,
+            requiredApprovalRate : 95,
+            requiredTokenAmount : 1000 ether,
+            requiredParticipantAmount : 50
+        }));
     }
 
     // New Proposal method returns the created proposal ID for the caller to track the result
@@ -426,7 +397,7 @@ contract FukcingDAO is ERC20, AccessControl, IFDAO {
     function vote (uint256 _proposalID, bool _isApproving) public {
         require(balanceOf(_msgSender()) > 0, "You don't have any voting power!");
 
-        updateProposalStatus(_proposalID);
+        //updateProposalStatus(_proposalID);
         Proposal storage currentProposal = proposals[_proposalID]; 
 
         require(currentProposal.status == ProposalStatus.OnGoing, "The proposal has ended!");
@@ -449,7 +420,7 @@ contract FukcingDAO is ERC20, AccessControl, IFDAO {
         @dev Only the Fukcing Lord Contract can call this function to vote.
     */
     function lordVote(uint256 _proposalID, bool _isApproving, uint256 _lordID, uint256 _lordTotalSupply) public onlyRole(LORD_ROLE) {
-        updateProposalStatus(_proposalID);
+        //updateProposalStatus(_proposalID);
         Proposal storage currentProposal = proposals[_proposalID]; 
 
         require(currentProposal.status == ProposalStatus.OnGoing, "The proposal has ended!");
@@ -515,7 +486,7 @@ contract FukcingDAO is ERC20, AccessControl, IFDAO {
 
         Proposal storage propToUpdate = proposals[_proposalID];
         uint256 currentApprovalRate = 
-            propToUpdate.yayCount * 100 / propToUpdate.yayCount + propToUpdate.nayCount;
+            propToUpdate.yayCount * 100 / (propToUpdate.yayCount + propToUpdate.nayCount);
 
         // Find the proposal Type
         for (uint256 i = 0; i < proposalTypes.length; i++){
@@ -547,4 +518,56 @@ contract FukcingDAO is ERC20, AccessControl, IFDAO {
     function updateMinBalanceToPropose (uint256 _newAmount) public onlyRole(EXECUTER_ROLE) {
 
     } 
+    
+    /*
+        @dev Depending on the desired proposal lenght, there will be required conditions
+        like approval rate, token amount, participant amount to make that proposal valid.
+
+        If there a emergency situation, an urgent proposal with 10 minutes await time
+        will need higher approval rate to be valid.
+    */
+    function initializeProposelTypes () internal {
+        proposalTypes.push(
+                ProposalType({
+                lenght : 10 minutes,
+                requiredApprovalRate : 95,
+                requiredTokenAmount : 1000 ether,
+                requiredParticipantAmount : 50
+            })
+        );
+        proposalTypes.push(
+                ProposalType({
+                lenght : 1 hours,
+                requiredApprovalRate : 90,
+                requiredTokenAmount : 2000 ether,
+                requiredParticipantAmount : 100
+            })
+        );
+        proposalTypes.push(
+                ProposalType({
+                lenght : 1 days,
+                requiredApprovalRate : 80,
+                requiredTokenAmount : 3000 ether,
+                requiredParticipantAmount : 150
+            })
+        );
+        proposalTypes.push(
+                ProposalType({
+                lenght : 3 days,
+                requiredApprovalRate : 70,
+                requiredTokenAmount : 1000 ether,
+                requiredParticipantAmount : 50
+            })
+        );        
+        // Test lenght
+        proposalTypes.push(
+                ProposalType({
+                lenght : 3 minutes,
+                requiredApprovalRate : 75,
+                requiredTokenAmount : 1 ether,
+                requiredParticipantAmount : 1
+            })
+        );
+        
+    }
 }
