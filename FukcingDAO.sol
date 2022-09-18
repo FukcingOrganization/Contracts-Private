@@ -4,6 +4,8 @@ pragma solidity ^0.8.4;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
+import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 
 /*
@@ -96,14 +98,24 @@ contract FukcingDAO is ERC20, AccessControl {
         mapping (address => bool) isVoted; // Voted EOAs
         mapping (uint256 => bool) isLordVoted; // Voted Lords lordID => true/false
     }
+    struct TokenMintProposal {
+        ProposalStatus status;
+        uint256 proposalID;
+        uint256 totalMintAmount;    // Just for information
+        bytes32[] addressLists;
+        uint256[] allowances;
+        mapping (address => bool) claimed;
+    }
 
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant EXECUTER_ROLE = keccak256("EXECUTER_ROLE");
     bytes32 public constant LORD_ROLE = keccak256("LORD_ROLE");
     
     Counters.Counter private proposalCounter;
+    Counters.Counter private mintCounter;
 
     mapping (uint256 => Proposal) public proposals; // proposalID => Proposal
+    mapping (uint256 => TokenMintProposal) public tokenMintProposals;
 
     ProposalType[] public proposalTypes;
     
@@ -118,7 +130,7 @@ contract FukcingDAO is ERC20, AccessControl {
         _grantRole(MINTER_ROLE, msg.sender);
         _grantRole(EXECUTER_ROLE, msg.sender);
 
-        initializeProposelTypes();
+        initializeProposalTypes();
     }
 
     /*
@@ -151,7 +163,7 @@ contract FukcingDAO is ERC20, AccessControl {
      *  If there a emergency situation, an urgent proposal with 10 minutes await time
      *  will need higher approval rate to be valid.
      */
-    function initializeProposelTypes () internal {
+    function initializeProposalTypes () internal {
         // 0. type
         proposalTypes.push(
                 ProposalType({
@@ -208,10 +220,9 @@ contract FukcingDAO is ERC20, AccessControl {
         );        
     }
 
-    // Will be entegrated to the new mint funtion
-    function mint(address to, uint256 amount) public onlyRole(MINTER_ROLE) {
-        _mint(to, amount);
-    }
+
+
+
 
     // New Proposal method returns the created proposal ID for the caller to track the result
     function newProposal (string memory _description, uint256 _proposalType) public returns(uint256) {
@@ -232,7 +243,6 @@ contract FukcingDAO is ERC20, AccessControl {
 
         return newProposal.ID; // return the current proposal ID
     }
-
     function vote (uint256 _proposalID, bool _isApproving) public {
         // Caller needs at least 1 token to vote!
         require(balanceOf(_msgSender()) >= 1 ether, "You don't have enoguh voting power!");
@@ -258,7 +268,6 @@ contract FukcingDAO is ERC20, AccessControl {
         proposal.participants++;
         proposal.totalVotes += votingPower;
     }
-
     /*
      *  @dev Only the Fukcing Lord Contract can call this function to vote.
      */
@@ -286,35 +295,120 @@ contract FukcingDAO is ERC20, AccessControl {
         proposal.participants++;
         proposal.totalVotes += votingPower;        
     }
-    
-    // Add spending functions
 
-    function proposalResult (uint256 _proposalID) public returns(uint256){
+    function proposalResult (uint256 _proposalID) public returns(uint256) {
         Proposal storage proposal = proposals[_proposalID];
         updateProposalStatus(proposal);
         require (uint256(proposal.status) > 1, "Proposal is still going on or not even started!");
 
         return uint256(proposal.status);
     }
-
-    function isProposalPassed (uint256 _proposalID) public returns(bool){
+    function isProposalPassed (uint256 _proposalID) public returns(bool) {
         Proposal storage proposal = proposals[_proposalID];
         updateProposalStatus(proposal);
         require (uint256(proposal.status) > 1, "Proposal is still going on or not even started!");
 
         return proposal.status == ProposalStatus.Approved;
     }
-    
-    function newMint() public {
-        // Check 
 
+
+
+
+
+
+    function issueNewTokens (
+        bytes32[] memory _addressLists, 
+        uint256[] memory _allowances, 
+        uint256 _totalMintAmount
+    ) public onlyRole(EXECUTER_ROLE) {
+        TokenMintProposal storage newTokenProposal = tokenMintProposals[mintCounter.current()];
+
+        require(newTokenProposal.status == ProposalStatus.NotStarted,
+            "The current mint proposal is not finalized yet!"
+        );
+
+        newTokenProposal.status = ProposalStatus.OnGoing;
+        newTokenProposal.totalMintAmount = _totalMintAmount;
+        newTokenProposal.addressLists = _addressLists;
+        newTokenProposal.allowances = _allowances;
+
+        string memory proposalDescription = 
+            string(abi.encodePacked("Minting ", Strings.toString(_totalMintAmount), " new FDAO tokens."));
+
+        // TEST -> choosing shortest lenght. Change it to 3 days (type 3) before mainnet launch
+        
+        newTokenProposal.proposalID = newProposal(proposalDescription, 5);
+    }
+    function finalizeTokenProposal() public {
+        TokenMintProposal storage tokenProposal = tokenMintProposals[mintCounter.current()];
+
+        require(tokenProposal.status == ProposalStatus.OnGoing,
+            "There is no token proposal for new token issuance!"
+        );
+        
+        // Update the proposal to check DAO's decision
+        Proposal storage DAOproposal = proposals[tokenProposal.proposalID];
+        updateProposalStatus(DAOproposal);
+
+        require(uint256(DAOproposal.status) > 1, "The proposal is still going on! Come back later!");
+
+        // Write the decition of DAO to the token proposal
+        tokenProposal.status = DAOproposal.status;
+        // Switch to a new proposal
+        mintCounter.increment();
+    }
+    function claimToken(
+        uint256 _mintProposalNumber, 
+        bytes32[] calldata _merkleProof
+    ) public onlyRole(EXECUTER_ROLE) {
+        TokenMintProposal storage tokenProposal = tokenMintProposals[_mintProposalNumber];
+
+        require(tokenProposal.status == ProposalStatus.Approved,
+            "The proposal didn't pass. Check your mint proposal number!"
+        );
+        
+        uint256 allowanceAmount = merkleCheck(tokenProposal, _merkleProof);
+        require(allowanceAmount > 0, "You don't have any allowance!");        
+
+        // TEST -> if the merkleCheck doesn't make it true, you make it. tokenProposal.claimed[_msgSender()] = true;
+        _mint(_msgSender(), allowanceAmount);
     }
 
-    function claimToken(uint256 _mintProposalID) public {
-        // Check the mintproposalID
-        // If there is a allowance, transfer the balance 
-        // If no, revert
+    function merkleCheck (
+        TokenMintProposal storage _tokenProposal, 
+        bytes32[] calldata _merkleProof
+    ) internal returns (uint256) {
+        uint256 allowanceAmount;
+        bytes32 leaf = keccak256(abi.encodePacked(_msgSender()));
+        
+        if (_tokenProposal.claimed[_msgSender()] == false){
+
+            for (uint256 i = 0; i < _tokenProposal.addressLists.length; i++){
+
+                // If the proof valid for this index, get the allowance of this index
+                if (MerkleProof.verify(_merkleProof, _tokenProposal.addressLists[i], leaf)){
+                    _tokenProposal.claimed[_msgSender()] = true;
+                    allowanceAmount = _tokenProposal.allowances[i];
+                    break;
+                }
+            }
+        }
+        else { // if address already has a allowance record
+            revert("You have already claimed your allowance!");
+        }
+
+        return allowanceAmount;
     }
+
+
+
+    // Add spending functions for FUKC token
+
+    // Add spending functions for Native coin
+
+
+
+
 
     function modifyProposalType (
         uint256 _proposalTypeNumber, uint256 _lenght, uint256 _requiredApprovalRate, 
