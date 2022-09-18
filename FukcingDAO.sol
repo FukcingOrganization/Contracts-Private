@@ -364,7 +364,7 @@ contract FukcingDAO is ERC20, AccessControl {
         TokenMintProposal storage tokenProposal = tokenMintProposals[_mintProposalNumber];
 
         require(tokenProposal.status == ProposalStatus.Approved,
-            "The proposal didn't pass. Check your mint proposal number!"
+            "This proposal didn't pass. Check your mint proposal number!"
         );
         
         uint256 allowanceAmount = merkleCheck(tokenProposal, _merkleProof);
@@ -378,23 +378,20 @@ contract FukcingDAO is ERC20, AccessControl {
         TokenMintProposal storage _tokenProposal, 
         bytes32[] calldata _merkleProof
     ) internal returns (uint256) {
+        require(_tokenProposal.claimed[_msgSender()] == false, 
+            "You have already claimed your allowance!"
+        );
+
         uint256 allowanceAmount;
         bytes32 leaf = keccak256(abi.encodePacked(_msgSender()));
         
-        if (_tokenProposal.claimed[_msgSender()] == false){
-
-            for (uint256 i = 0; i < _tokenProposal.addressLists.length; i++){
-
-                // If the proof valid for this index, get the allowance of this index
-                if (MerkleProof.verify(_merkleProof, _tokenProposal.addressLists[i], leaf)){
-                    _tokenProposal.claimed[_msgSender()] = true;
-                    allowanceAmount = _tokenProposal.allowances[i];
-                    break;
-                }
+        for (uint256 i = 0; i < _tokenProposal.addressLists.length; i++){
+            // If the proof valid for this index, get the allowance of this index
+            if (MerkleProof.verify(_merkleProof, _tokenProposal.addressLists[i], leaf)){
+                _tokenProposal.claimed[_msgSender()] = true;
+                allowanceAmount = _tokenProposal.allowances[i];
+                break;
             }
-        }
-        else { // if address already has a allowance record
-            revert("You have already claimed your allowance!");
         }
 
         return allowanceAmount;
