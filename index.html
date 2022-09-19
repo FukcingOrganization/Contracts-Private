@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Merkletree</title>
+  <script src="https://cdn.jsdelivr.net/npm/merkletreejs@latest/merkletree.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/keccak256@latest/keccak256.js"></script>
+</head>
+<body>
+<script type="text/javascript">  
+  const buf2hex = x => '0x' + x.toString('hex')
+
+  // Mint allowance: 10
+  // Root: 0x4478029e203c0602b2dfef4d3da7a2cd97f24c42a8266352508dd532a258f624 
+  const addressGroup_0 = ['0x0000000000000000000000000000000000000000','0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2']
+  // Proof: ["0x5380c7b7ae81a58eb98d9c78de4a1fd7fd9535fc953ed2be602daaa41767312a"]
+  
+
+  // Mint allowance: 20
+  // Root: 0xa6bd3782ccc3c0be4098789f15060f25e902c825d940003f76e8efeadc390b75
+  const addressGroup_1 = ["0x0000000000000000000000000000000000000000","0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db"]
+  // Proof: ["0x5380c7b7ae81a58eb98d9c78de4a1fd7fd9535fc953ed2be602daaa41767312a"]
+
+  // Mint allowance: 30
+  // Root: 0xabccce5f6348328b5d3a30890dfd2a21173aef03e348995aa6f3752304f17b09
+  const addressGroup_2 = ["0x0000000000000000000000000000000000000000","0x78731D3Ca6b7E34aC0F824c42a7cC18A495cabaB", "0x617F2E2fD72FD9D5503197092aC168c91465E7f2"];
+  // Proof: ["0x5380c7b7ae81a58eb98d9c78de4a1fd7fd9535fc953ed2be602daaa41767312a","0xf6d82c545c22b72034803633d3dda2b28e89fb704f3c111355ac43e10612aedc"]
+  // Proof 2: [0xd9ab69fbb793c7eebf4d4ef95e553934da29455d18db2fb1fd6ae51f26667f78]
+
+  // Address List input -> ["0x4478029e203c0602b2dfef4d3da7a2cd97f24c42a8266352508dd532a258f624","0xa6bd3782ccc3c0be4098789f15060f25e902c825d940003f76e8efeadc390b75","0xabccce5f6348328b5d3a30890dfd2a21173aef03e348995aa6f3752304f17b09"]
+
+  const leaves_0 = addressGroup_0.map(x => keccak256(x))
+  const tree_0 = new MerkleTree(leaves_0, keccak256, { sortPairs: true })
+
+  console.log("Root_0: " + buf2hex(tree_0.getRoot()))
+
+  const leaves_1 = addressGroup_1.map(x => keccak256(x))
+  const tree_1 = new MerkleTree(leaves_1, keccak256, { sortPairs: true })
+
+  console.log("Root_1: " + buf2hex(tree_1.getRoot()))
+
+  const leaves_2 = addressGroup_2.map(x => keccak256(x))
+  const tree_2 = new MerkleTree(leaves_2, keccak256, { sortPairs: true })
+
+  console.log("Root_2: " + buf2hex(tree_2.getRoot()))
+  
+
+  // to lowercase (no need for roots but you might need it for proofs)
+/*
+  addressToLower = addressGroup_0
+  for (let i = 0; i < addressToLower.length; i++){
+    addressToLower[i] = addressToLower[i].toLowerCase()
+  }  
+  console.log(addressToLower)
+*/
+
+  // ********** Generate Proof ********** //
+
+
+  const leaf = buf2hex(keccak256("0x617F2E2fD72FD9D5503197092aC168c91465E7f2")) // address from wallet using walletconnect/metamask
+  const proof = tree_2.getProof(leaf).map(x => buf2hex(x.data))
+
+  console.log(proof)
+
+  stringProof = "[";
+  for (let i = 0; i < proof.length; i++){    
+    stringProof += proof[i];
+    
+    if ((i+1) == proof.length){
+      stringProof += "]";
+    }
+    else {
+      stringProof += ",";
+    }
+  }
+  console.log("leaf: " + leaf)
+
+  //console.log(proof)
+  console.log("proof: " + stringProof)
+
+
+
+
+
+  //stringProof = proof.;
+  //stringProof.replace(/ /g,'').replaceAll('\'','"');
+
+  //contract.methods.safeMint(address, proof).send({ from: address }) // will be called on click of the mint button
+</script>
+</body>
+</html>

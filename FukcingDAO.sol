@@ -102,7 +102,7 @@ contract FukcingDAO is ERC20, AccessControl {
         ProposalStatus status;
         uint256 proposalID;
         uint256 totalMintAmount;    // Just for information
-        bytes32[] addressLists;
+        bytes32[] merkleRoots;
         uint256[] allowances;
         mapping (address => bool) claimed;
     }
@@ -203,7 +203,7 @@ contract FukcingDAO is ERC20, AccessControl {
         // 4. type - Test lenght
         proposalTypes.push(
                 ProposalType({
-                lenght : 3 minutes,
+                lenght : 1 minutes,
                 requiredApprovalRate : 75,
                 requiredTokenAmount : 1,
                 requiredParticipantAmount : 1
@@ -317,7 +317,7 @@ contract FukcingDAO is ERC20, AccessControl {
 
 
     function issueNewTokens (
-        bytes32[] memory _addressLists, 
+        bytes32[] memory _merkleRoots, 
         uint256[] memory _allowances, 
         uint256 _totalMintAmount
     ) public onlyRole(EXECUTER_ROLE) {
@@ -329,7 +329,7 @@ contract FukcingDAO is ERC20, AccessControl {
 
         newTokenProposal.status = ProposalStatus.OnGoing;
         newTokenProposal.totalMintAmount = _totalMintAmount;
-        newTokenProposal.addressLists = _addressLists;
+        newTokenProposal.merkleRoots = _merkleRoots;
         newTokenProposal.allowances = _allowances;
 
         string memory proposalDescription = 
@@ -360,7 +360,7 @@ contract FukcingDAO is ERC20, AccessControl {
     function claimToken(
         uint256 _mintProposalNumber, 
         bytes32[] calldata _merkleProof
-    ) public onlyRole(EXECUTER_ROLE) {
+    ) public {
         TokenMintProposal storage tokenProposal = tokenMintProposals[_mintProposalNumber];
 
         require(tokenProposal.status == ProposalStatus.Approved,
@@ -385,9 +385,9 @@ contract FukcingDAO is ERC20, AccessControl {
         uint256 allowanceAmount;
         bytes32 leaf = keccak256(abi.encodePacked(_msgSender()));
         
-        for (uint256 i = 0; i < _tokenProposal.addressLists.length; i++){
+        for (uint256 i = 0; i < _tokenProposal.merkleRoots.length; i++){
             // If the proof valid for this index, get the allowance of this index
-            if (MerkleProof.verify(_merkleProof, _tokenProposal.addressLists[i], leaf)){
+            if (MerkleProof.verify(_merkleProof, _tokenProposal.merkleRoots[i], leaf)){
                 _tokenProposal.claimed[_msgSender()] = true;
                 allowanceAmount = _tokenProposal.allowances[i];
                 break;
@@ -395,6 +395,12 @@ contract FukcingDAO is ERC20, AccessControl {
         }
 
         return allowanceAmount;
+    }
+    function returnMerkleRoots (uint256 _mintProposalNumber) public view returns (bytes32[] memory) {
+        return tokenMintProposals[_mintProposalNumber].merkleRoots;
+    }
+    function returnAllowances (uint256 _mintProposalNumber) public view returns (uint256[] memory) {
+        return tokenMintProposals[_mintProposalNumber].allowances;
     }
 
 
