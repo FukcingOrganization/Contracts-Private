@@ -106,6 +106,11 @@ contract FukcingDAO is ERC20, AccessControl {
         uint256[] allowances;
         mapping (address => bool) claimed;
     }
+    struct StateUpdate {
+        uint256 proposalID;
+        uint256 newUint;
+        address newAddress;
+    }
 
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant EXECUTER_ROLE = keccak256("EXECUTER_ROLE");
@@ -116,11 +121,19 @@ contract FukcingDAO is ERC20, AccessControl {
 
     mapping (uint256 => Proposal) public proposals; // proposalID => Proposal
     mapping (uint256 => TokenMintProposal) public tokenMintProposals;
+    mapping (uint256 => StateUpdate) public stateUpdates;  // stateUpdateID => StateUpdate
 
     ProposalType[] public proposalTypes;
     
+    uint256 public stateUpdateProposalType;
     address public fukcingLordContract;
     uint256 public minBalanceToPropose;
+    uint256 public tokenMintProposalType;
+    // Update Proposal Trackers  
+    uint256 private stateUpdateNum_stateUpdateProposalType;
+    uint256 private stateUpdateNum_LordContAdd;
+    uint256 private stateUpdateNum_MinBalanceToProp;
+    uint256 private stateUpdateNum_TokenMintPropType;
 
     constructor() ERC20("FukcingDAO", "FDAO") {
         // The owner starts with a small balance to approve the first mint issuance. 
@@ -130,7 +143,14 @@ contract FukcingDAO is ERC20, AccessControl {
         _grantRole(MINTER_ROLE, msg.sender);
         _grantRole(EXECUTER_ROLE, msg.sender);
 
+
+        // Initial settings
         initializeProposalTypes();
+        stateUpdateProposalType = 5; // TEST -> make it type = 3, which is 3 days
+        tokenMintProposalType = 5; // TEST -> make it type = 3, which is 3 days
+
+        // Start with index of 1 to avoid some double propose in satate updates
+        proposalCounter.increment(); 
     }
 
     /*
@@ -295,7 +315,41 @@ contract FukcingDAO is ERC20, AccessControl {
         proposal.participants++;
         proposal.totalVotes += votingPower;        
     }
+    function updateProposalStatus(Proposal storage _proposal) internal {
+        require(_proposal.status != ProposalStatus.NotStarted, 
+            "This proposal ID has not been assigned to any proposal yet!"
+        );        
+        
+        // Get current approval rate
+        uint256 currentApprovalRate;
+        if (_proposal.yayCount > 0 && _proposal.nayCount > 0){
+            currentApprovalRate = _proposal.yayCount * 100 / (_proposal.yayCount + _proposal.nayCount);
+        }
+        else if (_proposal.yayCount > 0 && _proposal.nayCount == 0){
+            currentApprovalRate = 100;
+        }
+        
+        for (uint256 i = 0; i < proposalTypes.length; i++){
+            // Find the proposal Type
+            if (_proposal.proposalType == i){    
 
+                // Change status ONLY IF the time is up
+                if (block.timestamp > _proposal.startTime + proposalTypes[i].lenght){
+
+                    // Finalize it
+                    if (proposalTypes[i].requiredParticipantAmount > _proposal.participants ||
+                        proposalTypes[i].requiredTokenAmount > _proposal.totalVotes ||
+                        proposalTypes[i].requiredApprovalRate > currentApprovalRate
+                    ){
+                        _proposal.status = ProposalStatus.Denied;
+                    }
+                    else {
+                        _proposal.status = ProposalStatus.Approved;
+                    }
+                }
+            }
+        }
+    }
     function proposalResult (uint256 _proposalID) public returns(uint256) {
         Proposal storage proposal = proposals[_proposalID];
         updateProposalStatus(proposal);
@@ -332,12 +386,11 @@ contract FukcingDAO is ERC20, AccessControl {
         newTokenProposal.merkleRoots = _merkleRoots;
         newTokenProposal.allowances = _allowances;
 
-        string memory proposalDescription = 
-            string(abi.encodePacked("Minting ", Strings.toString(_totalMintAmount), " new FDAO tokens."));
-
-        // TEST -> choosing shortest lenght. Change it to 3 days (type 3) before mainnet launch
+        string memory proposalDescription = string(abi.encodePacked(
+            "Minting ", Strings.toString(_totalMintAmount), " new FDAO tokens."
+        ));
         
-        newTokenProposal.proposalID = newProposal(proposalDescription, 5);
+        newTokenProposal.proposalID = newProposal(proposalDescription, tokenMintProposalType);
     }
     function finalizeTokenProposal() public {
         TokenMintProposal storage tokenProposal = tokenMintProposals[mintCounter.current()];
@@ -412,58 +465,66 @@ contract FukcingDAO is ERC20, AccessControl {
 
 
 
-
+    // Variable Updates
     function modifyProposalType (
         uint256 _proposalTypeNumber, uint256 _lenght, uint256 _requiredApprovalRate, 
         uint256 _requiredTokenAmount, uint256 _requiredParticipantAmount)
-        public {
+        public onlyRole(EXECUTER_ROLE) returns (bool) {
         
             /*
                 Change mechanism goes here
             */
     }
 
-    function updateProposalStatus(Proposal storage _proposal) internal {
-        require(_proposal.status != ProposalStatus.NotStarted, 
-            "This proposal ID has not been assigned to any proposal yet!"
-        );        
-        
-        // Get current approval rate
-        uint256 currentApprovalRate;
-        if (_proposal.yayCount > 0 && _proposal.nayCount > 0){
-            currentApprovalRate = _proposal.yayCount * 100 / (_proposal.yayCount + _proposal.nayCount);
-        }
-        else if (_proposal.yayCount > 0 && _proposal.nayCount == 0){
-            currentApprovalRate = 100;
-        }
-        
-        for (uint256 i = 0; i < proposalTypes.length; i++){
-            // Find the proposal Type
-            if (_proposal.proposalType == i){    
+    function updateStateUpdateProposalType (uint256 _newAmount) public onlyRole(EXECUTER_ROLE) returns (bool) {
 
-                // Change status ONLY IF the time is up
-                if (block.timestamp > _proposal.startTime + proposalTypes[i].lenght){
+    } 
+    function updateFukcingLordContractAddress (address _newAddress) public onlyRole(EXECUTER_ROLE) returns (bool) {
 
-                    // Finalize it
-                    if (proposalTypes[i].requiredParticipantAmount > _proposal.participants ||
-                        proposalTypes[i].requiredTokenAmount > _proposal.totalVotes ||
-                        proposalTypes[i].requiredApprovalRate > currentApprovalRate
-                    ){
-                        _proposal.status = ProposalStatus.Denied;
-                    }
-                    else {
-                        _proposal.status = ProposalStatus.Approved;
-                    }
-                }
-            }
+    } 
+    function updateMinBalanceToPropose (uint256 _newAmount) public onlyRole(EXECUTER_ROLE) returns (bool) {
+
+    } 
+    function updateTokenMintProposalType (uint256 _newType) public onlyRole(EXECUTER_ROLE) returns (bool) {
+        // if stateUpdateNum is 0, make a new proposal
+        if (stateUpdateNum_TokenMintPropType == 0) { // Which is default
+            string memory proposalDescription = string(abi.encodePacked(
+                "Update token mint proposal type to ", Strings.toString(_newType), 
+                " from ", Strings.toString(tokenMintProposalType), "."
+            )); 
+            stateUpdateNum_TokenMintPropType = newProposal(proposalDescription, stateUpdateProposalType);
+
+            // Get new state update by proposal ID we get from newProposal
+            StateUpdate storage update = stateUpdates[stateUpdateNum_TokenMintPropType];
+            update.proposalID = stateUpdateNum_TokenMintPropType;
+            update.newUint = _newType;
+
+            // Finish the function
+            return true;
         }
+
+        // If there is already a proposal, Update the current proposal
+        Proposal storage proposal = proposals[stateUpdateNum_TokenMintPropType];
+        updateProposalStatus(proposal);
+
+        // Wait for the current one to finalize
+        string memory errorText = string(abi.encodePacked(
+            "The previous proposal is still going on.", 
+            " Wait for the DAO's decision on the proposal! ID = ", 
+            Strings.toString(proposal.ID), "."
+        )); 
+        require(uint256(proposal.status) > 1, errorText);
+
+        // if the current one is approved, apply the update the state
+        if (proposal.status == ProposalStatus.Approved){
+            StateUpdate storage update = stateUpdates[stateUpdateNum_TokenMintPropType];
+            tokenMintProposalType = update.newUint;
+            stateUpdateNum_TokenMintPropType = 0;   // reset proposal tracker
+        }        
+        else {  // if failed, change the stateUpdateNum to 0 and return false 
+            stateUpdateNum_TokenMintPropType = 0;   // reset proposal tracker
+            return false;
+        }        
     }
-
-    function updateFukcingLordContractAddress (address _newAddress) public onlyRole(EXECUTER_ROLE) {
-
-    } 
-    function updateMinBalanceToPropose (uint256 _newAmount) public onlyRole(EXECUTER_ROLE) {
-
-    } 
     
 }
