@@ -64,6 +64,12 @@ import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
     Jump to line X to see the codes of the DAO.
     The other codes are updated openzepplin contracts to be a non-transferable token.
     We simply removed transfer, approve, allowance functions and events.
+
+    Only 1 monetary proposal can be active at a time! Therefore, you need to wait for
+    the current one to finalize to propose a new monetary proposal. There are 3 different
+    monetary proposals: FDAO token mint, FUKC token spending, Native Coin Spending.
+
+    DAO will decide how to spend its treasury with monetary proposals.
 */
 
 /*
@@ -73,10 +79,10 @@ contract FukcingDAO is ERC20, AccessControl {
     using Counters for Counters.Counter;   
 
     enum ProposalStatus{
-        NotStarted, // 0
-        OnGoing,    // 1
-        Approved,   // 2
-        Denied     // 3
+        NotStarted, // Index: 0
+        OnGoing,    // Index: 1
+        Approved,   // Index: 2
+        Denied      // Index: 3
     }
 
     struct ProposalType{
@@ -86,7 +92,7 @@ contract FukcingDAO is ERC20, AccessControl {
         uint256 requiredParticipantAmount;
     }
     struct Proposal {
-        uint256 ID;
+        uint256 id;
         string description;
         uint256 startTime;
         uint256 proposalType;
@@ -98,18 +104,28 @@ contract FukcingDAO is ERC20, AccessControl {
         mapping (address => bool) isVoted; // Voted EOAs
         mapping (uint256 => bool) isLordVoted; // Voted Lords lordID => true/false
     }
-    struct TokenMintProposal {
+    struct MonetaryProposal {
         ProposalStatus status;
         uint256 proposalID;
-        uint256 totalMintAmount;    // Just for information
+        uint256 amount;             // It can be minting or spending amount
+        address tokenAddress;       // For token spendings
         bytes32[] merkleRoots;
         uint256[] allowances;
         mapping (address => bool) claimed;
+        uint256 totalClaimedAmount; // To keep track of total claimed funds to avoid double spending
     }
     struct StateUpdate {
         uint256 proposalID;
         uint256 newUint;
         address newAddress;
+    }
+    struct ProposalTypeUpdate {
+        uint256 proposalID;
+        uint256 proposalTypeNumber;
+        uint256 newLenght;
+        uint256 newRequiredApprovalRate;
+        uint256 newRequiredTokenAmount;
+        uint256 newRequiredParticipantAmount;
     }
 
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
@@ -117,42 +133,49 @@ contract FukcingDAO is ERC20, AccessControl {
     bytes32 public constant LORD_ROLE = keccak256("LORD_ROLE");
     
     Counters.Counter private proposalCounter;
-    Counters.Counter private mintCounter;
+    Counters.Counter private monetaryProposalCounter;
 
     mapping (uint256 => Proposal) public proposals; // proposalID => Proposal
-    mapping (uint256 => TokenMintProposal) public tokenMintProposals;
+    mapping (uint256 => MonetaryProposal) public monetaryProposals;
     mapping (uint256 => StateUpdate) public stateUpdates;  // stateUpdateID => StateUpdate
+    mapping (uint256 => ProposalTypeUpdate) public proposalTypeUpdates;  // proposalTypeUpdateID => ProposalTypeUpdate
 
     ProposalType[] public proposalTypes;
     
-    uint256 public stateUpdateProposalType;
     address public fukcingLordContract;
-    uint256 public minBalanceToPropose;
-    uint256 public tokenMintProposalType;
+    uint256 public minBalanceToPropose;     // Amount of tokens without decimals
+    uint256 public monetaryProposalType;    
+    uint256 public stateUpdateProposalType;
     // Update Proposal Trackers  
-    uint256 private stateUpdateNum_stateUpdateProposalType;
-    uint256 private stateUpdateNum_LordContAdd;
-    uint256 private stateUpdateNum_MinBalanceToProp;
-    uint256 private stateUpdateNum_TokenMintPropType;
+    uint256 private stateUpdateID_stateUpdateProposalType;
+    uint256 private stateUpdateID_lordContAdd;
+    uint256 private stateUpdateID_minBalanceToProp;
+    uint256 private stateUpdateID_monetaryPropType;
+    uint256 private stateUpdateID_proposalType;
 
     constructor() ERC20("FukcingDAO", "FDAO") {
         // The owner starts with a small balance to approve the first mint issuance. 
         // Will change with a new mint approval in the first place to start decentralized.
-        _mint(msg.sender, 1024 ether); // Start with 1024 token. 1 for each lord NFT
+        _mint(msg.sender, 1024 ether); // Start with 1024 token. 1 for each lord NFT TEST -> send 512 token to the lord balance
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(MINTER_ROLE, msg.sender);
         _grantRole(EXECUTER_ROLE, msg.sender);
 
-
         // Initial settings
         initializeProposalTypes();
         stateUpdateProposalType = 5; // TEST -> make it type = 3, which is 3 days
-        tokenMintProposalType = 5; // TEST -> make it type = 3, which is 3 days
+        monetaryProposalType = 5; // TEST -> make it type = 3, which is 3 days TEST ---->> Create a 2 days type and make this 2 days because we have 3 monetary prop
 
         // Start with index of 1 to avoid some double propose in satate updates
         proposalCounter.increment(); 
     }
-
+/*  
+    >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< ><  >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< ><
+    >< >< >< >< >< >< >< >< >< >< >< >< ><                                            >< >< >< >< >< >< >< >< >< >< >< >< ><
+    >< >< >< >< >< >< >< >< >< ><                 Making Token Non-Transferable                >< >< >< >< >< >< >< >< >< ><
+    >< >< >< >< >< >< >< >< >< >< >< >< ><                                            >< >< >< >< >< >< >< >< >< >< >< >< ><
+    >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< ><  >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< 
+*/
     /*
      *  @dev Making token non-transferable by overriding all the transfer functions
      *
@@ -174,8 +197,531 @@ contract FukcingDAO is ERC20, AccessControl {
     }
     function decreaseAllowance(address spender, uint256 subtractedValue) public virtual override returns (bool) {
         revert("This is a non-transferable token!");
+    }  
+/*  
+    >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< ><  >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< ><
+    >< >< >< >< >< >< >< >< >< >< >< >< ><                                            >< >< >< >< >< >< >< >< >< >< >< >< ><
+    >< >< >< >< >< >< >< >< >< ><                       Proposal Mechanism                     >< >< >< >< >< >< >< >< >< ><
+    >< >< >< >< >< >< >< >< >< >< >< >< ><                                            >< >< >< >< >< >< >< >< >< >< >< >< ><
+    >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< ><  >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< 
+*/
+    // New Proposal method returns the created proposal ID for the caller to track the result
+    function newProposal (string memory _description, uint256 _proposalType) public returns(uint256) {
+        // Only exetures and the ones who has enough balance to propose can propose
+        require(hasRole(EXECUTER_ROLE, _msgSender()) || balanceOf(_msgSender()) / 1 ether > minBalanceToPropose, 
+            "You don't have enough voting power to propose"
+        );
+        require(_proposalType >= 0 && _proposalType < proposalTypes.length, "Invalid proposal type!");
+
+        // Start with the current empty proposal
+        Proposal storage proposal = proposals[proposalCounter.current()];
+
+        proposal.id = proposalCounter.current();
+        proposalCounter.increment();
+
+        proposal.description = _description;
+        proposal.startTime = block.timestamp;
+        proposal.proposalType = _proposalType;
+        proposal.status = ProposalStatus.OnGoing;        
+
+        return proposal.id; // return the current proposal ID
     }
-    
+    function vote (uint256 _proposalID, bool _isApproving) public {
+        // Caller needs at least 1 token to vote!
+        require(balanceOf(_msgSender()) >= 1 ether, "You don't have enoguh voting power!");
+
+        Proposal storage proposal = proposals[_proposalID]; 
+        updateProposalStatus(proposal);
+
+        require(proposal.status == ProposalStatus.OnGoing, "The proposal has ended!");
+        require(proposal.isVoted[_msgSender()] == false, "You already voted!");
+
+        proposal.isVoted[_msgSender()] = true;
+
+        // Removing decimals (1 ether) to avoid unnecessarily large numbers.
+        uint256 votes = balanceOf(_msgSender()) / 1 ether;
+
+        if (_isApproving){
+            proposal.yayCount += votes;
+        }
+        else {    
+            proposal.nayCount += votes;
+        }
+                
+        proposal.participants++;
+        proposal.totalVotes += votes;
+    }
+    /*
+     *  @dev Only the Fukcing Lord Contract can call this function to vote.
+     */
+    function lordVote(uint256 _proposalID, bool _isApproving, uint256 _lordID, uint256 _lordTotalSupply) 
+    public onlyRole(LORD_ROLE) {
+        Proposal storage proposal = proposals[_proposalID]; 
+        updateProposalStatus(proposal);
+
+        require(proposal.status == ProposalStatus.OnGoing, "The proposal has ended!");
+        require(proposal.isLordVoted[_lordID] == false, "This lord already voted!");
+
+        proposal.isLordVoted[_lordID] = true;
+        
+        // Get the voting power of the lord: 
+        // Lord voting power (aka. 50% of total supply of FDAO token) / lord total supply
+        // Removing decimals (1 ether) to avoid unnecessarily large numbers.
+        uint256 votes = balanceOf(fukcingLordContract) / _lordTotalSupply / 1 ether;
+
+        if (_isApproving){
+            proposal.yayCount += votes;
+        }
+        else {    
+            proposal.nayCount += votes;
+        }
+                
+        proposal.participants++;
+        proposal.totalVotes += votes;        
+    }    
+/*  
+    >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< ><  >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< ><
+    >< >< >< >< >< >< >< >< >< >< >< >< ><                                            >< >< >< >< >< >< >< >< >< >< >< >< ><
+    >< >< >< >< >< >< >< >< >< ><                      Monetary Executions                     >< >< >< >< >< >< >< >< >< ><
+    >< >< >< >< >< >< >< >< >< >< >< >< ><                                            >< >< >< >< >< >< >< >< >< >< >< >< ><
+    >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< ><  >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< 
+*/    
+    // New FDAO token mint
+    function proposeNewMint (bytes32[] memory _merkleRoots, uint256[] memory _allowances, uint256 _totalMintAmount) 
+    public onlyRole(EXECUTER_ROLE) {
+        MonetaryProposal storage proposal = monetaryProposals[monetaryProposalCounter.current()];        
+        require(proposal.status == ProposalStatus.NotStarted, "The current monetary proposal is not finalized yet!");
+
+        proposal.status = ProposalStatus.OnGoing;
+        proposal.amount = _totalMintAmount;
+        proposal.merkleRoots = _merkleRoots;
+        proposal.allowances = _allowances;
+
+        string memory proposalDescription = string(abi.encodePacked(
+            "Minting ", Strings.toString(_totalMintAmount), " new FDAO tokens."
+        ));
+        
+        proposal.proposalID = newProposal(proposalDescription, monetaryProposalType);
+    }
+    function mintTokens(uint256 _monetaryProposalNumber, bytes32[] calldata _merkleProof) public {
+        MonetaryProposal storage proposal = monetaryProposals[_monetaryProposalNumber];
+
+        require(proposal.status == ProposalStatus.Approved,
+            "This proposal didn't pass or not finalized yet! Check your monetary proposal number!"
+        );
+        
+        uint256 allowanceAmount = merkleCheck(proposal, _merkleProof);
+        require(allowanceAmount > 0, "You don't have any allowance!");        
+
+        _mint(_msgSender(), allowanceAmount);
+        proposal.totalClaimedAmount += allowanceAmount;
+    }
+
+    // DAO Token Spendings
+    function proposeNewTokenSpending (
+        address _tokenContractAddress, 
+        bytes32[] memory _merkleRoots, 
+        uint256[] memory _allowances, 
+        uint256 _totalSpending) 
+    public onlyRole(EXECUTER_ROLE) {
+        // First of all, create a new monetary proposal and check the current slot is empty for a new one.
+        MonetaryProposal storage proposal = monetaryProposals[monetaryProposalCounter.current()];
+        require(proposal.status == ProposalStatus.NotStarted, "The current monetary proposal is not finalized yet!");
+
+        // Checking the balance of DAO in the target token
+        bytes memory payload = abi.encodeWithSignature("balanceOf(address)", address(this));
+        (bool txSuccess, bytes memory returnData) = _tokenContractAddress.call(payload);
+        require(txSuccess, 
+            "Balance check transaction failed! Check the address of the target token. It should have balanceOf(address) function!"
+        );
+
+        // Get the balance from returned data and check if DAO has enough balance to spend or not!
+        (uint256 DAObalance) = abi.decode(returnData, (uint256));
+        require (DAObalance >= _totalSpending, "DAO has not enough balance to spend!");
+
+        // If all goes well, write the new proposal
+        proposal.status = ProposalStatus.OnGoing;
+        proposal.amount = _totalSpending;
+        proposal.tokenAddress = _tokenContractAddress;
+        proposal.merkleRoots = _merkleRoots;
+        proposal.allowances = _allowances;
+
+        string memory proposalDescription = string(abi.encodePacked(
+            "Spending ", Strings.toString(_totalSpending), " tokens from the ",
+            Strings.toHexString(_tokenContractAddress), " contract address."
+        ));
+        
+        proposal.proposalID = newProposal(proposalDescription, monetaryProposalType);
+    }
+    function claimTokenSpending(uint256 _monetaryProposalNumber, bytes32[] calldata _merkleProof) public {
+        MonetaryProposal storage proposal = monetaryProposals[_monetaryProposalNumber];
+
+        require(proposal.status == ProposalStatus.Approved,
+            "This proposal didn't pass or not finalized yet! Check your monetary proposal number!"
+        );
+        
+        uint256 allowanceAmount = merkleCheck(proposal, _merkleProof);
+        require(allowanceAmount > 0, "You don't have any allowance!");        
+
+        // Send funds
+        bytes memory payload = abi.encodeWithSignature("transfer(address,uint256)", _msgSender(), allowanceAmount);
+        (bool txSuccess, bytes memory returnData) = proposal.tokenAddress.call(payload);
+        require(txSuccess, "Token transfer transaction has failed! I donno why! Maybe problem with the target token contract?");
+
+        // Keep track of claimed total amount
+        proposal.totalClaimedAmount += allowanceAmount;
+    }
+
+    // DAO Native Coin Spendings
+    function proposeNewCoinSpending (
+        bytes32[] memory _merkleRoots, 
+        uint256[] memory _allowances, 
+        uint256 _totalSpending) 
+    public onlyRole(EXECUTER_ROLE) {
+        require(address(this).balance >= _totalSpending, "DAO has not enough balance to spend!");
+
+        // Create a new monetary proposal and check the current slot is empty for a new one.
+        MonetaryProposal storage proposal = monetaryProposals[monetaryProposalCounter.current()];
+        require(proposal.status == ProposalStatus.NotStarted, "The current monetary proposal is not finalized yet!");
+
+        proposal.status = ProposalStatus.OnGoing;
+        proposal.amount = _totalSpending;
+        proposal.merkleRoots = _merkleRoots;
+        proposal.allowances = _allowances;
+
+        string memory proposalDescription = string(abi.encodePacked("Spending of ", Strings.toString(_totalSpending), " coins"));
+        
+        proposal.proposalID = newProposal(proposalDescription, monetaryProposalType);
+    }
+    function claimCoinSpending(uint256 _monetaryProposalNumber, bytes32[] calldata _merkleProof) public {
+        MonetaryProposal storage proposal = monetaryProposals[_monetaryProposalNumber];
+
+        require(proposal.status == ProposalStatus.Approved,
+            "This proposal didn't pass or not finalized yet! Check your monetary proposal number!"
+        );
+        
+        uint256 allowanceAmount = merkleCheck(proposal, _merkleProof);
+        require(allowanceAmount > 0, "You don't have any allowance!");        
+
+        // Send funds
+        (bool txSuccess, ) = payable(_msgSender()).call{value: allowanceAmount}('');
+        require(txSuccess, "Transaction of sending coins failed! I donno why! Maybe problem on the network? Try it later on!");
+        
+        // Keep track of total claimed amount
+        proposal.totalClaimedAmount += allowanceAmount;
+    }
+/*  
+    >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< ><  >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< ><
+    >< >< >< >< >< >< >< >< >< >< >< >< ><                                            >< >< >< >< >< >< >< >< >< >< >< >< ><
+    >< >< >< >< >< >< >< >< >< ><                    Updating State Variables                  >< >< >< >< >< >< >< >< >< ><
+    >< >< >< >< >< >< >< >< >< >< >< >< ><                                            >< >< >< >< >< >< >< >< >< >< >< >< ><
+    >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< ><  >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< 
+*/
+    /*
+     * @dev To make a type inefective, set required amount to 1000000000 ether (1B token) and
+     * lenght to 0
+    */
+    function addNewProposalType (
+        uint256 _lenght, 
+        uint256 _requiredApprovalRate, 
+        uint256 _requiredTokenAmount, 
+        uint256 _requiredParticipantAmount)
+    public onlyRole(EXECUTER_ROLE) returns (bool) {
+        // if stateUpdateID is 0, make a new proposal
+        if (stateUpdateID_proposalType == 0) { // Which is default
+            string memory proposalDescription = string(abi.encodePacked(
+                "Adding a new proposal type with following parameters: ", 
+                "Lenght of ", Strings.toString(_lenght), ". ",
+                "Required Approval Rate of ", Strings.toString(_requiredApprovalRate), ". ",
+                "Required Token Amount of ", Strings.toString(_requiredTokenAmount), ". ",
+                "Required Participant Amount of ", Strings.toString(_requiredParticipantAmount), "."
+            )); 
+            // Create a new proposal and save the ID
+            stateUpdateID_proposalType = newProposal(proposalDescription, stateUpdateProposalType);
+
+            // Get new state update by proposal ID we get from newProposal
+            ProposalTypeUpdate storage update = proposalTypeUpdates[stateUpdateID_proposalType];
+            update.proposalID = stateUpdateID_proposalType;
+            update.newLenght = _lenght;
+            update.newRequiredApprovalRate = _requiredApprovalRate;
+            update.newRequiredTokenAmount = _requiredTokenAmount;
+            update.newRequiredParticipantAmount = _requiredParticipantAmount;
+
+            // Finish the function
+            return true;
+        }
+
+        // If there is already a proposal, Update the current proposal
+        Proposal storage proposal = proposals[stateUpdateID_proposalType];
+        updateProposalStatus(proposal);
+
+        // Wait for the current one to finalize
+        string memory errorText = string(abi.encodePacked("The previous proposal is still going on.", 
+            " Wait for the DAO decision on the proposal! ID = ", Strings.toString(proposal.id), "."
+        )); 
+        require(uint256(proposal.status) > 1, errorText);
+
+        // if the current one is approved, apply the update the state
+        if (proposal.status == ProposalStatus.Approved){
+            ProposalTypeUpdate storage update = proposalTypeUpdates[stateUpdateID_proposalType];
+            
+            // Add proposal type
+            proposalTypes.push(
+                ProposalType({
+                lenght : update.newLenght,
+                requiredApprovalRate : update.newRequiredApprovalRate,
+                requiredTokenAmount : update.newRequiredTokenAmount,
+                requiredParticipantAmount : update.newRequiredParticipantAmount
+            }));
+            
+            stateUpdateID_proposalType = 0;   // reset proposal tracker
+            return true;
+        }        
+        else {  // if failed, change the stateUpdateNum to 0 and return false 
+            stateUpdateID_proposalType = 0;   // reset proposal tracker
+            return false;
+        }
+    }
+    function updateProposalType (
+        uint256 _proposalTypeNumber, 
+        uint256 _newLenght, 
+        uint256 _newRequiredApprovalRate, 
+        uint256 _newRequiredTokenAmount, 
+        uint256 _newRequiredParticipantAmount)
+    public onlyRole(EXECUTER_ROLE) returns (bool) {
+        // if stateUpdateID is 0, make a new proposal
+        if (stateUpdateID_proposalType == 0) { // Which is default
+            // Splited the decription to 2 parts, because it was too deep as a whole.
+            string memory part1 = string(abi.encodePacked(
+                "Updating proposal type number ", Strings.toString(_proposalTypeNumber), " with following parameters: ", 
+                "Lenght to ", Strings.toString(_newLenght), " from ", 
+                Strings.toString(proposalTypes[_proposalTypeNumber].lenght), ". ",
+                "Required Approval Rate to ", Strings.toString(_newRequiredApprovalRate), " from ", 
+                Strings.toString(proposalTypes[_proposalTypeNumber].requiredApprovalRate), ". "
+            )); 
+            string memory part2 = string(abi.encodePacked(
+                "Required Token Amount to ", Strings.toString(_newRequiredTokenAmount), " from ", 
+                Strings.toString(proposalTypes[_proposalTypeNumber].requiredTokenAmount), ". ",
+                "Required Participant Amount to ", Strings.toString(_newRequiredParticipantAmount), " from ", 
+                Strings.toString(proposalTypes[_proposalTypeNumber].requiredParticipantAmount), ". "
+            )); 
+            string memory proposalDescription = string(abi.encodePacked(part1, part2)); 
+            // Create a new proposal and save the ID
+            stateUpdateID_proposalType = newProposal(proposalDescription, stateUpdateProposalType);
+
+            // Get new state update by proposal ID we get from newProposal
+            ProposalTypeUpdate storage update = proposalTypeUpdates[stateUpdateID_proposalType];
+            update.proposalID = stateUpdateID_proposalType;
+            update.proposalTypeNumber = _proposalTypeNumber;
+            update.newLenght = _newLenght;
+            update.newRequiredApprovalRate = _newRequiredApprovalRate;
+            update.newRequiredTokenAmount = _newRequiredTokenAmount;
+            update.newRequiredParticipantAmount = _newRequiredParticipantAmount;
+
+            // Finish the function
+            return true;
+        }
+
+        // If there is already a proposal, Update the current proposal
+        Proposal storage proposal = proposals[stateUpdateID_proposalType];
+        updateProposalStatus(proposal);
+
+        // Wait for the current one to finalize
+        string memory errorText = string(abi.encodePacked("The previous proposal is still going on.", 
+            " Wait for the DAO decision on the proposal! ID = ", Strings.toString(proposal.id), "."
+        )); 
+        require(uint256(proposal.status) > 1, errorText);
+
+        // if the current one is approved, apply the update the state
+        if (proposal.status == ProposalStatus.Approved){
+            ProposalTypeUpdate storage update = proposalTypeUpdates[stateUpdateID_proposalType];
+            
+            // Update proposal type
+            ProposalType storage propType = proposalTypes[update.proposalTypeNumber];
+            propType.lenght = update.newLenght;
+            propType.requiredApprovalRate = update.newRequiredApprovalRate;
+            propType.requiredTokenAmount = update.newRequiredTokenAmount;
+            propType.requiredParticipantAmount = update.newRequiredParticipantAmount;
+            
+            stateUpdateID_proposalType = 0;   // reset proposal tracker
+            return true;
+        }        
+        else {  // if failed, change the stateUpdateNum to 0 and return false 
+            stateUpdateID_proposalType = 0;   // reset proposal tracker
+            return false;
+        }
+    }
+    function updateStateUpdateProposalType (uint256 _newType) public onlyRole(EXECUTER_ROLE) returns (bool) {
+        // if stateUpdateID is 0, make a new proposal
+        if (stateUpdateID_stateUpdateProposalType == 0) { // Which is default
+            string memory proposalDescription = string(abi.encodePacked(
+                "Updating state update proposal type to ", Strings.toString(_newType), 
+                " from ", Strings.toString(stateUpdateProposalType), "."
+            )); 
+            // Create a new proposal and save the ID
+            stateUpdateID_stateUpdateProposalType = newProposal(proposalDescription, stateUpdateProposalType);
+
+            // Get new state update by proposal ID we get from newProposal
+            StateUpdate storage update = stateUpdates[stateUpdateID_stateUpdateProposalType];
+            update.proposalID = stateUpdateID_stateUpdateProposalType;
+            update.newUint = _newType;
+
+            // Finish the function
+            return true;
+        }
+
+        // If there is already a proposal, Update the current proposal
+        Proposal storage proposal = proposals[stateUpdateID_stateUpdateProposalType];
+        updateProposalStatus(proposal);
+
+        // Wait for the current one to finalize
+        string memory errorText = string(abi.encodePacked("The previous proposal is still going on.", 
+            " Wait for the DAO decision on the proposal! ID = ", Strings.toString(proposal.id), "."
+        )); 
+        require(uint256(proposal.status) > 1, errorText);
+
+        // if the current one is approved, apply the update the state
+        if (proposal.status == ProposalStatus.Approved){
+            StateUpdate storage update = stateUpdates[stateUpdateID_stateUpdateProposalType];
+            stateUpdateProposalType = update.newUint;
+            stateUpdateID_stateUpdateProposalType = 0;   // reset proposal tracker
+            return true;
+        }        
+        else {  // if failed, change the stateUpdateNum to 0 and return false 
+            stateUpdateID_stateUpdateProposalType = 0;   // reset proposal tracker
+            return false;
+        }
+    } 
+    function updateFukcingLordContractAddress (address _newAddress) public onlyRole(EXECUTER_ROLE) returns (bool) {
+        // if stateUpdateID is 0, make a new proposal
+        if (stateUpdateID_lordContAdd == 0) { // Which is default
+            string memory proposalDescription = string(abi.encodePacked(
+                "Update Fukcing Lord Contract address to ", Strings.toHexString(_newAddress), 
+                " from ", Strings.toHexString(fukcingLordContract), "."
+            )); 
+            // Create a new proposal and save the ID
+            stateUpdateID_lordContAdd = newProposal(proposalDescription, stateUpdateProposalType);
+
+            // Get new state update by proposal ID we get from newProposal
+            StateUpdate storage update = stateUpdates[stateUpdateID_lordContAdd];
+            update.proposalID = stateUpdateID_lordContAdd;
+            update.newAddress = _newAddress;
+
+            // Finish the function
+            return true;
+        }
+
+        // If there is already a proposal, Update the current proposal
+        Proposal storage proposal = proposals[stateUpdateID_lordContAdd];
+        updateProposalStatus(proposal);
+
+        // Wait for the current one to finalize
+        string memory errorText = string(abi.encodePacked("The previous proposal is still going on.", 
+            " Wait for the DAO decision on the proposal! ID = ", Strings.toString(proposal.id), "."
+        )); 
+        require(uint256(proposal.status) > 1, errorText);
+
+        // if the current one is approved, apply the update the state
+        if (proposal.status == ProposalStatus.Approved){
+            StateUpdate storage update = stateUpdates[stateUpdateID_lordContAdd];
+            fukcingLordContract = update.newAddress;
+            stateUpdateID_lordContAdd = 0;   // reset proposal tracker
+            return true;
+        }        
+        else {  // if failed, change the stateUpdateNum to 0 and return false 
+            stateUpdateID_lordContAdd = 0;   // reset proposal tracker
+            return false;
+        }  
+    }     
+    function updateMinBalanceToPropose (uint256 _newAmount) public onlyRole(EXECUTER_ROLE) returns (bool) {
+        // if stateUpdateID is 0, make a new proposal
+        if (stateUpdateID_minBalanceToProp == 0) { // Which is default
+            string memory proposalDescription = string(abi.encodePacked(
+                "Update minimum balance for proposal to ", Strings.toString(_newAmount), 
+                " from ", Strings.toString(minBalanceToPropose), "."
+            )); 
+            // Create a new proposal and save the ID
+            stateUpdateID_minBalanceToProp = newProposal(proposalDescription, stateUpdateProposalType);
+
+            // Get new state update by proposal ID we get from newProposal
+            StateUpdate storage update = stateUpdates[stateUpdateID_minBalanceToProp];
+            update.proposalID = stateUpdateID_minBalanceToProp;
+            update.newUint = _newAmount;
+
+            // Finish the function
+            return true;
+        }
+
+        // If there is already a proposal, Update the current proposal
+        Proposal storage proposal = proposals[stateUpdateID_minBalanceToProp];
+        updateProposalStatus(proposal);
+
+        // Wait for the current one to finalize
+        string memory errorText = string(abi.encodePacked("The previous proposal is still going on.", 
+            " Wait for the DAO decision on the proposal! ID = ", Strings.toString(proposal.id), "."
+        )); 
+        require(uint256(proposal.status) > 1, errorText);
+
+        // if the current one is approved, apply the update the state
+        if (proposal.status == ProposalStatus.Approved){
+            StateUpdate storage update = stateUpdates[stateUpdateID_minBalanceToProp];
+            minBalanceToPropose = update.newUint;
+            stateUpdateID_minBalanceToProp = 0;   // reset proposal tracker
+            return true;
+        }        
+        else {  // if failed, change the stateUpdateNum to 0 and return false 
+            stateUpdateID_minBalanceToProp = 0;   // reset proposal tracker
+            return false;
+        }  
+    } 
+    function updateMonetaryProposalType (uint256 _newType) public onlyRole(EXECUTER_ROLE) returns (bool) {
+        // if stateUpdateID is 0, make a new proposal
+        if (stateUpdateID_monetaryPropType == 0) { // Which is default
+            string memory proposalDescription = string(abi.encodePacked(
+                "Update token mint proposal type to ", Strings.toString(_newType), 
+                " from ", Strings.toString(monetaryProposalType), "."
+            )); 
+            // Create a new proposal and save the ID
+            stateUpdateID_monetaryPropType = newProposal(proposalDescription, stateUpdateProposalType);
+
+            // Get new state update by proposal ID we get from newProposal
+            StateUpdate storage update = stateUpdates[stateUpdateID_monetaryPropType];
+            update.proposalID = stateUpdateID_monetaryPropType;
+            update.newUint = _newType;
+
+            // Finish the function
+            return true;
+        }
+
+        // If there is already a proposal, Update the current proposal
+        Proposal storage proposal = proposals[stateUpdateID_monetaryPropType];
+        updateProposalStatus(proposal);
+
+        // Wait for the current one to finalize
+        string memory errorText = string(abi.encodePacked("The previous proposal is still going on.", 
+            " Wait for the DAO decision on the proposal! ID = ", Strings.toString(proposal.id), "."
+        )); 
+        require(uint256(proposal.status) > 1, errorText);
+
+        // if the current one is approved, apply the update the state
+        if (proposal.status == ProposalStatus.Approved){
+            StateUpdate storage update = stateUpdates[stateUpdateID_monetaryPropType];
+            monetaryProposalType = update.newUint;
+            stateUpdateID_monetaryPropType = 0;   // reset proposal tracker
+            return true;
+        }        
+        else {  // if failed, change the stateUpdateNum to 0 and return false 
+            stateUpdateID_monetaryPropType = 0;   // reset proposal tracker
+            return false;
+        }        
+    }  
+/*  
+    >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< ><  >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< ><
+    >< >< >< >< >< >< >< >< >< >< >< >< ><                                            >< >< >< >< >< >< >< >< >< >< >< >< ><
+    >< >< >< >< >< >< >< >< >< ><                     Functions as a Tool                      >< >< >< >< >< >< >< >< >< ><
+    >< >< >< >< >< >< >< >< >< >< >< >< ><                                            >< >< >< >< >< >< >< >< >< >< >< >< ><
+    >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< ><  >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< 
+*/    
     /*
      *  @dev Depending on the desired proposal lenght, there will be required conditions
      *  like approval rate, token amount, participant amount to make that proposal valid.
@@ -239,82 +785,6 @@ contract FukcingDAO is ERC20, AccessControl {
             })
         );        
     }
-
-
-
-
-
-    // New Proposal method returns the created proposal ID for the caller to track the result
-    function newProposal (string memory _description, uint256 _proposalType) public returns(uint256) {
-        // Only exetures and the ones who has enough balance to propose can propose
-        require(hasRole(EXECUTER_ROLE, _msgSender()) || balanceOf(_msgSender()) > minBalanceToPropose, "You don't have enough voting power to propose");
-        require(_proposalType >= 0 && _proposalType < proposalTypes.length, "Invalid proposal type!");
-
-        // Start with the current empty proposal
-        Proposal storage newProposal = proposals[proposalCounter.current()];
-
-        newProposal.ID = proposalCounter.current();
-        proposalCounter.increment();
-
-        newProposal.description = _description;
-        newProposal.startTime = block.timestamp;
-        newProposal.proposalType = _proposalType;
-        newProposal.status = ProposalStatus.OnGoing;        
-
-        return newProposal.ID; // return the current proposal ID
-    }
-    function vote (uint256 _proposalID, bool _isApproving) public {
-        // Caller needs at least 1 token to vote!
-        require(balanceOf(_msgSender()) >= 1 ether, "You don't have enoguh voting power!");
-
-        Proposal storage proposal = proposals[_proposalID]; 
-        updateProposalStatus(proposal);
-
-        require(proposal.status == ProposalStatus.OnGoing, "The proposal has ended!");
-        require(proposal.isVoted[_msgSender()] == false, "You already voted!");
-
-        proposal.isVoted[_msgSender()] = true;
-
-        // Removing decimals (1 ether) to avoid unnecessarily large numbers.
-        uint256 votingPower = balanceOf(_msgSender()) / 1 ether;
-
-        if (_isApproving){
-            proposal.yayCount += votingPower;
-        }
-        else {    
-            proposal.nayCount += votingPower;
-        }
-                
-        proposal.participants++;
-        proposal.totalVotes += votingPower;
-    }
-    /*
-     *  @dev Only the Fukcing Lord Contract can call this function to vote.
-     */
-    function lordVote(uint256 _proposalID, bool _isApproving, uint256 _lordID, uint256 _lordTotalSupply) public onlyRole(LORD_ROLE) {
-        Proposal storage proposal = proposals[_proposalID]; 
-        updateProposalStatus(proposal);
-
-        require(proposal.status == ProposalStatus.OnGoing, "The proposal has ended!");
-        require(proposal.isLordVoted[_lordID] == false, "This lord already voted!");
-
-        proposal.isLordVoted[_lordID] = true;
-        
-        // Get the voting power of the lord: 
-        // Lord voting power (aka. 50% of total supply of FDAO token) / lord total supply
-        // Removing decimals (1 ether) to avoid unnecessarily large numbers.
-        uint256 votingPower = balanceOf(fukcingLordContract) / _lordTotalSupply / 1 ether;
-
-        if (_isApproving){
-            proposal.yayCount += votingPower;
-        }
-        else {    
-            proposal.nayCount += votingPower;
-        }
-                
-        proposal.participants++;
-        proposal.totalVotes += votingPower;        
-    }
     function updateProposalStatus(Proposal storage _proposal) internal {
         require(_proposal.status != ProposalStatus.NotStarted, 
             "This proposal ID has not been assigned to any proposal yet!"
@@ -322,12 +792,15 @@ contract FukcingDAO is ERC20, AccessControl {
         
         // Get current approval rate
         uint256 currentApprovalRate;
+        // If there are voter for both side, calculate the rate
         if (_proposal.yayCount > 0 && _proposal.nayCount > 0){
             currentApprovalRate = _proposal.yayCount * 100 / (_proposal.yayCount + _proposal.nayCount);
         }
+        // If there is no voter for deny, then the rate is 100%
         else if (_proposal.yayCount > 0 && _proposal.nayCount == 0){
             currentApprovalRate = 100;
         }
+        // If there is no voter for approval or both side, then the rate is deafult, which is 0 
         
         for (uint256 i = 0; i < proposalTypes.length; i++){
             // Find the proposal Type
@@ -364,167 +837,48 @@ contract FukcingDAO is ERC20, AccessControl {
 
         return proposal.status == ProposalStatus.Approved;
     }
+    function finalizeMonetaryProposal() public {
+        MonetaryProposal storage proposal = monetaryProposals[monetaryProposalCounter.current()];
 
-
-
-
-
-
-    function issueNewTokens (
-        bytes32[] memory _merkleRoots, 
-        uint256[] memory _allowances, 
-        uint256 _totalMintAmount
-    ) public onlyRole(EXECUTER_ROLE) {
-        TokenMintProposal storage newTokenProposal = tokenMintProposals[mintCounter.current()];
-
-        require(newTokenProposal.status == ProposalStatus.NotStarted,
-            "The current mint proposal is not finalized yet!"
-        );
-
-        newTokenProposal.status = ProposalStatus.OnGoing;
-        newTokenProposal.totalMintAmount = _totalMintAmount;
-        newTokenProposal.merkleRoots = _merkleRoots;
-        newTokenProposal.allowances = _allowances;
-
-        string memory proposalDescription = string(abi.encodePacked(
-            "Minting ", Strings.toString(_totalMintAmount), " new FDAO tokens."
-        ));
-        
-        newTokenProposal.proposalID = newProposal(proposalDescription, tokenMintProposalType);
-    }
-    function finalizeTokenProposal() public {
-        TokenMintProposal storage tokenProposal = tokenMintProposals[mintCounter.current()];
-
-        require(tokenProposal.status == ProposalStatus.OnGoing,
-            "There is no token proposal for new token issuance!"
+        require(proposal.status == ProposalStatus.OnGoing,
+            "There is no monetary proposal to finalize!"
         );
         
         // Update the proposal to check DAO's decision
-        Proposal storage DAOproposal = proposals[tokenProposal.proposalID];
+        Proposal storage DAOproposal = proposals[proposal.proposalID];
         updateProposalStatus(DAOproposal);
 
         require(uint256(DAOproposal.status) > 1, "The proposal is still going on! Come back later!");
 
-        // Write the decition of DAO to the token proposal
-        tokenProposal.status = DAOproposal.status;
+        // Write the decision of DAO to the monetary proposal
+        proposal.status = DAOproposal.status;
         // Switch to a new proposal
-        mintCounter.increment();
+        monetaryProposalCounter.increment();
     }
-    function claimToken(
-        uint256 _mintProposalNumber, 
-        bytes32[] calldata _merkleProof
-    ) public {
-        TokenMintProposal storage tokenProposal = tokenMintProposals[_mintProposalNumber];
-
-        require(tokenProposal.status == ProposalStatus.Approved,
-            "This proposal didn't pass. Check your mint proposal number!"
-        );
-        
-        uint256 allowanceAmount = merkleCheck(tokenProposal, _merkleProof);
-        require(allowanceAmount > 0, "You don't have any allowance!");        
-
-        // TEST -> if the merkleCheck doesn't make it true, you make it. tokenProposal.claimed[_msgSender()] = true;
-        _mint(_msgSender(), allowanceAmount);
-    }
-
     function merkleCheck (
-        TokenMintProposal storage _tokenProposal, 
+        MonetaryProposal storage _proposal, 
         bytes32[] calldata _merkleProof
     ) internal returns (uint256) {
-        require(_tokenProposal.claimed[_msgSender()] == false, 
-            "You have already claimed your allowance!"
-        );
+        require(_proposal.claimed[_msgSender()] == false, "You have already claimed your allowance!");
 
         uint256 allowanceAmount;
         bytes32 leaf = keccak256(abi.encodePacked(_msgSender()));
         
-        for (uint256 i = 0; i < _tokenProposal.merkleRoots.length; i++){
+        for (uint256 i = 0; i < _proposal.merkleRoots.length; i++){
             // If the proof valid for this index, get the allowance of this index
-            if (MerkleProof.verify(_merkleProof, _tokenProposal.merkleRoots[i], leaf)){
-                _tokenProposal.claimed[_msgSender()] = true;
-                allowanceAmount = _tokenProposal.allowances[i];
+            if (MerkleProof.verify(_merkleProof, _proposal.merkleRoots[i], leaf)){
+                _proposal.claimed[_msgSender()] = true;
+                allowanceAmount = _proposal.allowances[i];
                 break;
             }
         }
 
         return allowanceAmount;
     }
-    function returnMerkleRoots (uint256 _mintProposalNumber) public view returns (bytes32[] memory) {
-        return tokenMintProposals[_mintProposalNumber].merkleRoots;
+    function returnMerkleRoots (uint256 _monetaryProposalNumber) public view returns (bytes32[] memory) {
+        return monetaryProposals[_monetaryProposalNumber].merkleRoots;
     }
-    function returnAllowances (uint256 _mintProposalNumber) public view returns (uint256[] memory) {
-        return tokenMintProposals[_mintProposalNumber].allowances;
+    function returnAllowances (uint256 _monetaryProposalNumber) public view returns (uint256[] memory) {
+        return monetaryProposals[_monetaryProposalNumber].allowances;
     }
-
-
-
-    // Add spending functions for FUKC token
-
-    // Add spending functions for Native coin
-
-
-
-
-    // Variable Updates
-    function modifyProposalType (
-        uint256 _proposalTypeNumber, uint256 _lenght, uint256 _requiredApprovalRate, 
-        uint256 _requiredTokenAmount, uint256 _requiredParticipantAmount)
-        public onlyRole(EXECUTER_ROLE) returns (bool) {
-        
-            /*
-                Change mechanism goes here
-            */
-    }
-
-    function updateStateUpdateProposalType (uint256 _newAmount) public onlyRole(EXECUTER_ROLE) returns (bool) {
-
-    } 
-    function updateFukcingLordContractAddress (address _newAddress) public onlyRole(EXECUTER_ROLE) returns (bool) {
-
-    } 
-    function updateMinBalanceToPropose (uint256 _newAmount) public onlyRole(EXECUTER_ROLE) returns (bool) {
-
-    } 
-    function updateTokenMintProposalType (uint256 _newType) public onlyRole(EXECUTER_ROLE) returns (bool) {
-        // if stateUpdateNum is 0, make a new proposal
-        if (stateUpdateNum_TokenMintPropType == 0) { // Which is default
-            string memory proposalDescription = string(abi.encodePacked(
-                "Update token mint proposal type to ", Strings.toString(_newType), 
-                " from ", Strings.toString(tokenMintProposalType), "."
-            )); 
-            stateUpdateNum_TokenMintPropType = newProposal(proposalDescription, stateUpdateProposalType);
-
-            // Get new state update by proposal ID we get from newProposal
-            StateUpdate storage update = stateUpdates[stateUpdateNum_TokenMintPropType];
-            update.proposalID = stateUpdateNum_TokenMintPropType;
-            update.newUint = _newType;
-
-            // Finish the function
-            return true;
-        }
-
-        // If there is already a proposal, Update the current proposal
-        Proposal storage proposal = proposals[stateUpdateNum_TokenMintPropType];
-        updateProposalStatus(proposal);
-
-        // Wait for the current one to finalize
-        string memory errorText = string(abi.encodePacked(
-            "The previous proposal is still going on.", 
-            " Wait for the DAO's decision on the proposal! ID = ", 
-            Strings.toString(proposal.ID), "."
-        )); 
-        require(uint256(proposal.status) > 1, errorText);
-
-        // if the current one is approved, apply the update the state
-        if (proposal.status == ProposalStatus.Approved){
-            StateUpdate storage update = stateUpdates[stateUpdateNum_TokenMintPropType];
-            tokenMintProposalType = update.newUint;
-            stateUpdateNum_TokenMintPropType = 0;   // reset proposal tracker
-        }        
-        else {  // if failed, change the stateUpdateNum to 0 and return false 
-            stateUpdateNum_TokenMintPropType = 0;   // reset proposal tracker
-            return false;
-        }        
-    }
-    
 }
