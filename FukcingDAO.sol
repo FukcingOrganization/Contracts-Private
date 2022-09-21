@@ -58,7 +58,7 @@ import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
     What does DAO do?
     - Issues new FDAO tokens.
     - Approves all economic changes in WeFukc.
-    - Gives a voting mechanism for both off-chain and on-chain changes.
+    - Provides a on-chain voting mechanism for both off-chain and on-chain changes.
     - The Fucking Lords represent 50% of the DAO.
 
     Jump to line X to see the codes of the DAO.
@@ -165,6 +165,7 @@ contract FukcingDAO is ERC20, AccessControl {
         initializeProposalTypes();
         stateUpdateProposalType = 5; // TEST -> make it type = 3, which is 3 days
         monetaryProposalType = 5; // TEST -> make it type = 3, which is 3 days TEST ---->> Create a 2 days type and make this 2 days because we have 3 monetary prop
+        minBalanceToPropose = 1000; // 1000 tokens without decimals
 
         // Start with index of 1 to avoid some double propose in satate updates
         proposalCounter.increment(); 
@@ -178,7 +179,6 @@ contract FukcingDAO is ERC20, AccessControl {
 */
     /*
      *  @dev Making token non-transferable by overriding all the transfer functions
-     *
     */
     function transfer(address to, uint256 amount) public virtual override returns (bool) {
         revert("This is a non-transferable token!");
@@ -205,7 +205,10 @@ contract FukcingDAO is ERC20, AccessControl {
     >< >< >< >< >< >< >< >< >< >< >< >< ><                                            >< >< >< >< >< >< >< >< >< >< >< >< ><
     >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< ><  >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< 
 */
-    // New Proposal method returns the created proposal ID for the caller to track the result
+    /* 
+     * @dev New Proposal method returns the created proposal ID for the caller to track the result
+     * To finalize a proposal, check the proposal result with isProposalPassed or proposalResult functions.
+     */
     function newProposal (string memory _description, uint256 _proposalType) public returns(uint256) {
         // Only exetures and the ones who has enough balance to propose can propose
         require(hasRole(EXECUTER_ROLE, _msgSender()) || balanceOf(_msgSender()) / 1 ether > minBalanceToPropose, 
@@ -286,6 +289,9 @@ contract FukcingDAO is ERC20, AccessControl {
     >< >< >< >< >< >< >< >< >< >< >< >< ><                                            >< >< >< >< >< >< >< >< >< >< >< >< ><
     >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< ><  >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< 
 */    
+    /*
+     * @Dev Allowances should be with decimals!!!!
+     */
     // New FDAO token mint
     function proposeNewMint (bytes32[] memory _merkleRoots, uint256[] memory _allowances, uint256 _totalMintAmount) 
     public onlyRole(EXECUTER_ROLE) {
@@ -313,7 +319,7 @@ contract FukcingDAO is ERC20, AccessControl {
         uint256 allowanceAmount = merkleCheck(proposal, _merkleProof);
         require(allowanceAmount > 0, "You don't have any allowance!");        
 
-        _mint(_msgSender(), allowanceAmount);
+        _mint(_msgSender(), allowanceAmount); // Adding decimals
         proposal.totalClaimedAmount += allowanceAmount;
     }
 
@@ -361,11 +367,11 @@ contract FukcingDAO is ERC20, AccessControl {
         );
         
         uint256 allowanceAmount = merkleCheck(proposal, _merkleProof);
-        require(allowanceAmount > 0, "You don't have any allowance!");        
+        require(allowanceAmount > 0, "You don't have any allowance!");   
 
         // Send funds
         bytes memory payload = abi.encodeWithSignature("transfer(address,uint256)", _msgSender(), allowanceAmount);
-        (bool txSuccess, bytes memory returnData) = proposal.tokenAddress.call(payload);
+        (bool txSuccess, ) = proposal.tokenAddress.call(payload);
         require(txSuccess, "Token transfer transaction has failed! I donno why! Maybe problem with the target token contract?");
 
         // Keep track of claimed total amount
@@ -375,7 +381,7 @@ contract FukcingDAO is ERC20, AccessControl {
     // DAO Native Coin Spendings
     function proposeNewCoinSpending (
         bytes32[] memory _merkleRoots, 
-        uint256[] memory _allowances, 
+        uint256[] memory _allowances, // In ether, without decimals
         uint256 _totalSpending) 
     public onlyRole(EXECUTER_ROLE) {
         require(address(this).balance >= _totalSpending, "DAO has not enough balance to spend!");
@@ -420,6 +426,7 @@ contract FukcingDAO is ERC20, AccessControl {
     /*
      * @dev To make a type inefective, set required amount to 1000000000 ether (1B token) and
      * lenght to 0
+     * To finalize and write the result of update proposal, executer should call the update function again.
     */
     function addNewProposalType (
         uint256 _lenght, 
@@ -880,5 +887,20 @@ contract FukcingDAO is ERC20, AccessControl {
     }
     function returnAllowances (uint256 _monetaryProposalNumber) public view returns (uint256[] memory) {
         return monetaryProposals[_monetaryProposalNumber].allowances;
+    }
+    receive () external payable {}
+    function getContractCoinBalance () public view returns (uint256){
+        return address(this).balance / 1 ether; // Without decimals
+    }
+    function getContractTokenBalance (address _tokenContractAddress) public returns (uint256) {
+        // Checking the balance of DAO in the target token
+        bytes memory payload = abi.encodeWithSignature("balanceOf(address)", address(this));
+        (bool txSuccess, bytes memory returnData) = _tokenContractAddress.call(payload);
+        require(txSuccess, 
+            "Balance check transaction failed! Check the address of the target token. It should have balanceOf(address) function!"
+        );
+
+        (uint256 DAObalance) = abi.decode(returnData, (uint256));
+        return DAObalance; // Returns with decimals because every ERC-20 may have different number of decimals.
     }
 }
