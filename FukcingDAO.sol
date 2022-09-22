@@ -165,7 +165,7 @@ contract FukcingDAO is ERC20, AccessControl {
         initializeProposalTypes();
         stateUpdateProposalType = 5; // TEST -> make it type = 3, which is 3 days
         monetaryProposalType = 5; // TEST -> make it type = 3, which is 3 days TEST ---->> Create a 2 days type and make this 2 days because we have 3 monetary prop
-        minBalanceToPropose = 1000; // 1000 tokens without decimals
+        minBalanceToPropose = 1000 * 10 ** decimals(); // 1000 tokens needed as a initial value
 
         // Start with index of 1 to avoid some double propose in satate updates
         proposalCounter.increment(); 
@@ -211,7 +211,7 @@ contract FukcingDAO is ERC20, AccessControl {
      */
     function newProposal (string memory _description, uint256 _proposalType) public returns(uint256) {
         // Only exetures and the ones who has enough balance to propose can propose
-        require(hasRole(EXECUTER_ROLE, _msgSender()) || balanceOf(_msgSender()) / 1 ether > minBalanceToPropose, 
+        require(hasRole(EXECUTER_ROLE, _msgSender()) || balanceOf(_msgSender()) >= minBalanceToPropose, 
             "You don't have enough voting power to propose"
         );
         require(_proposalType >= 0 && _proposalType < proposalTypes.length, "Invalid proposal type!");
