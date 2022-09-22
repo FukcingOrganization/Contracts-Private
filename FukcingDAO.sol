@@ -73,7 +73,7 @@ import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 */
 
 /*
- * @author Bora Ozenbirkan
+ * @author Bora 
  */
 contract FukcingDAO is ERC20, AccessControl {
     using Counters for Counters.Counter;   
