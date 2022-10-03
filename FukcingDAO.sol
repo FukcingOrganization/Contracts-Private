@@ -6,7 +6,14 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
+/**
+  * -> Update function by Executer contract
+  * -> Update Executer add
+  * -> Add non renandant modifiers to functions
+  * -> DAO can only approve same amount of token as community
+  */
 
 /*
 
@@ -73,7 +80,7 @@ import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 */
 
 /*
- * @author Bora 
+ * @author Bora
  */
 contract FukcingDAO is ERC20, AccessControl {
     using Counters for Counters.Counter;   
@@ -108,11 +115,12 @@ contract FukcingDAO is ERC20, AccessControl {
         ProposalStatus status;
         uint256 proposalID;
         uint256 amount;             // It can be minting or spending amount
-        address tokenAddress;       // For token spendings
+        address tokenAddress;       // For token spending proposals
         bytes32[] merkleRoots;
         uint256[] allowances;
         mapping (address => bool) claimed;
-        uint256 totalClaimedAmount; // To keep track of total claimed funds to avoid double spending
+        // To keep track of total claimed funds to avoid double spending with a different proposal
+        uint256 totalClaimedAmount; 
     }
     struct StateUpdate {
         uint256 proposalID;
@@ -156,7 +164,7 @@ contract FukcingDAO is ERC20, AccessControl {
          * The contract creator starts with the smallest balance (0.0000000000000000001 token) to approve the first mint. 
          * First proposal will be mint of 666 tokens to be distributed amoung the community (50%) and the team (50%).
          * The team will get maximum of 5% in the following mint proposals to give the control to the community.
-         */
+        **/
         _mint(_msgSender(), 1);
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(EXECUTER_ROLE, msg.sender);
@@ -299,8 +307,6 @@ contract FukcingDAO is ERC20, AccessControl {
     >< >< >< >< >< >< >< >< >< >< >< >< ><                                            >< >< >< >< >< >< >< >< >< >< >< >< ><
     >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< ><  >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< 
 */    
-    /*
-     */
     // New FDAO token mint
     function proposeNewMint(bytes32[] memory _merkleRoots, uint256[] memory _allowances, uint256 _totalMintAmount) 
     public onlyRole(EXECUTER_ROLE) {
@@ -389,7 +395,7 @@ contract FukcingDAO is ERC20, AccessControl {
         // Send funds
         bytes memory payload = abi.encodeWithSignature("transfer(address,uint256)", _msgSender(), allowanceAmount);
         (bool txSuccess, ) = proposal.tokenAddress.call(payload);
-        require(txSuccess, "Token transfer transaction has failed! I donno why! Maybe problem with the target token contract?");
+        require(txSuccess, "Token transfer transaction has failed!");
 
         // Keep track of claimed total amount
         proposal.totalClaimedAmount += allowanceAmount;
@@ -796,7 +802,14 @@ contract FukcingDAO is ERC20, AccessControl {
             requiredApprovalRate : 75,
             requiredTokenAmount : 1,
             requiredParticipantAmount : 1
-        }));        
+        }));
+        proposalTypes.push(         // x. type - Very Important updates like change in the tokenomics
+            ProposalType({
+            lenght : 3 days,
+            requiredApprovalRate : 70,
+            requiredTokenAmount : 1000,
+            requiredParticipantAmount : 50
+        }));         
     }
     
     function updateProposalStatus(Proposal storage _proposal) internal {
@@ -873,11 +886,7 @@ contract FukcingDAO is ERC20, AccessControl {
         monetaryProposalCounter.increment();
     }
 
-    function merkleCheck(
-        MonetaryProposal storage _proposal, 
-        bytes32[] calldata _merkleProof
-    )
-    internal returns (uint256) {
+    function merkleCheck(MonetaryProposal storage _proposal, bytes32[] calldata _merkleProof) internal returns (uint256) {
         require(_proposal.claimed[_msgSender()] == false, "Dude! You have already claimed your allowance! Why too aggressive?");
 
         uint256 allowanceAmount;
