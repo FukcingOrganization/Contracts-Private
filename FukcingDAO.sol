@@ -93,7 +93,7 @@ contract FukcingDAO is ERC20, AccessControl {
     }
 
     struct ProposalType{
-        uint256 lenght;
+        uint256 length;
         uint256 requiredApprovalRate;
         uint256 requiredTokenAmount;
         uint256 requiredParticipantAmount;
@@ -130,7 +130,7 @@ contract FukcingDAO is ERC20, AccessControl {
     struct ProposalTypeUpdate {
         uint256 proposalID;
         uint256 proposalTypeNumber;
-        uint256 newLenght;
+        uint256 newLength;
         uint256 newRequiredApprovalRate;
         uint256 newRequiredTokenAmount;
         uint256 newRequiredParticipantAmount;
@@ -446,11 +446,11 @@ contract FukcingDAO is ERC20, AccessControl {
 */
     /*
      * @dev To make a type inefective, set required amount to 1000000000 ether (1B token) and
-     * lenght to 0
+     * length to 0
      * To finalize and write the result of update proposal, executer should call the update function again.
     */
     function addNewProposalType(
-        uint256 _lenght, 
+        uint256 _length, 
         uint256 _requiredApprovalRate, 
         uint256 _requiredTokenAmount, 
         uint256 _requiredParticipantAmount
@@ -460,7 +460,7 @@ contract FukcingDAO is ERC20, AccessControl {
         if (stateUpdateID_proposalType == 0) { // Which is default
             string memory proposalDescription = string(abi.encodePacked(
                 "Adding a new proposal type with following parameters: ", 
-                "Lenght of ", Strings.toString(_lenght), ". ",
+                "Length of ", Strings.toString(_length), ". ",
                 "Required Approval Rate of ", Strings.toString(_requiredApprovalRate), ". ",
                 "Required Token Amount of ", Strings.toString(_requiredTokenAmount), ". ",
                 "Required Participant Amount of ", Strings.toString(_requiredParticipantAmount), "."
@@ -471,7 +471,7 @@ contract FukcingDAO is ERC20, AccessControl {
             // Get new state update by proposal ID we get from newProposal
             ProposalTypeUpdate storage update = proposalTypeUpdates[stateUpdateID_proposalType];
             update.proposalID = stateUpdateID_proposalType;
-            update.newLenght = _lenght;
+            update.newLength = _length;
             update.newRequiredApprovalRate = _requiredApprovalRate;
             update.newRequiredTokenAmount = _requiredTokenAmount;
             update.newRequiredParticipantAmount = _requiredParticipantAmount;
@@ -497,7 +497,7 @@ contract FukcingDAO is ERC20, AccessControl {
             // Add proposal type
             proposalTypes.push(
                 ProposalType({
-                lenght : update.newLenght,
+                length : update.newLength,
                 requiredApprovalRate : update.newRequiredApprovalRate,
                 requiredTokenAmount : update.newRequiredTokenAmount,
                 requiredParticipantAmount : update.newRequiredParticipantAmount
@@ -513,7 +513,7 @@ contract FukcingDAO is ERC20, AccessControl {
 
     function updateProposalType(
         uint256 _proposalTypeNumber, 
-        uint256 _newLenght, 
+        uint256 _newLength, 
         uint256 _newRequiredApprovalRate, 
         uint256 _newRequiredTokenAmount, 
         uint256 _newRequiredParticipantAmount
@@ -524,8 +524,8 @@ contract FukcingDAO is ERC20, AccessControl {
             // Splited the decription to 2 parts, because it was too deep as a whole.
             string memory part1 = string(abi.encodePacked(
                 "Updating proposal type number ", Strings.toString(_proposalTypeNumber), " with following parameters: ", 
-                "Lenght to ", Strings.toString(_newLenght), " from ", 
-                Strings.toString(proposalTypes[_proposalTypeNumber].lenght), ". ",
+                "Length to ", Strings.toString(_newLength), " from ", 
+                Strings.toString(proposalTypes[_proposalTypeNumber].length), ". ",
                 "Required Approval Rate to ", Strings.toString(_newRequiredApprovalRate), " from ", 
                 Strings.toString(proposalTypes[_proposalTypeNumber].requiredApprovalRate), ". "
             )); 
@@ -543,7 +543,7 @@ contract FukcingDAO is ERC20, AccessControl {
             ProposalTypeUpdate storage update = proposalTypeUpdates[stateUpdateID_proposalType];
             update.proposalID = stateUpdateID_proposalType;
             update.proposalTypeNumber = _proposalTypeNumber;
-            update.newLenght = _newLenght;
+            update.newLength = _newLength;
             update.newRequiredApprovalRate = _newRequiredApprovalRate;
             update.newRequiredTokenAmount = _newRequiredTokenAmount;
             update.newRequiredParticipantAmount = _newRequiredParticipantAmount;
@@ -568,7 +568,7 @@ contract FukcingDAO is ERC20, AccessControl {
             
             // Update proposal type
             ProposalType storage propType = proposalTypes[update.proposalTypeNumber];
-            propType.lenght = update.newLenght;
+            propType.length = update.newLength;
             propType.requiredApprovalRate = update.newRequiredApprovalRate;
             propType.requiredTokenAmount = update.newRequiredTokenAmount;
             propType.requiredParticipantAmount = update.newRequiredParticipantAmount;
@@ -754,7 +754,7 @@ contract FukcingDAO is ERC20, AccessControl {
     receive() external payable {}
 
     /*
-     *  @dev Depending on the desired proposal lenght, there will be required conditions
+     *  @dev Depending on the desired proposal length, there will be required conditions
      *  like approval rate, token amount, participant amount to make that proposal valid.
      *
      *  If there a emergency situation, an urgent proposal with 10 minutes await time
@@ -763,49 +763,49 @@ contract FukcingDAO is ERC20, AccessControl {
     function initializeProposalTypes() internal {        
         proposalTypes.push(         // 0. type
             ProposalType({
-            lenght : 10 minutes,
+            length : 10 minutes,
             requiredApprovalRate : 95,
             requiredTokenAmount : 1000,
             requiredParticipantAmount : 50
         }));        
         proposalTypes.push(         // 1. type
             ProposalType({
-            lenght : 1 hours,
+            length : 1 hours,
             requiredApprovalRate : 90,
             requiredTokenAmount : 2000,
             requiredParticipantAmount : 100
         }));        
         proposalTypes.push(         // 2. type
             ProposalType({
-            lenght : 1 days,
+            length : 1 days,
             requiredApprovalRate : 80,
             requiredTokenAmount : 3000,
             requiredParticipantAmount : 150
         }));        
         proposalTypes.push(         // 3. type
             ProposalType({
-            lenght : 3 days,
+            length : 3 days,
             requiredApprovalRate : 70,
             requiredTokenAmount : 1000,
             requiredParticipantAmount : 50
         }));        
-        proposalTypes.push(         // 4. type - Test lenght
+        proposalTypes.push(         // 4. type - Test length
             ProposalType({
-            lenght : 1 minutes,
+            length : 1 minutes,
             requiredApprovalRate : 75,
             requiredTokenAmount : 1,
             requiredParticipantAmount : 1
         }));        
-        proposalTypes.push(         // 5. type - Test lenght
+        proposalTypes.push(         // 5. type - Test length
             ProposalType({
-            lenght : 20 seconds,
+            length : 20 seconds,
             requiredApprovalRate : 75,
             requiredTokenAmount : 1,
             requiredParticipantAmount : 1
         }));
         proposalTypes.push(         // x. type - Very Important updates like change in the tokenomics
             ProposalType({
-            lenght : 3 days,
+            length : 3 days,
             requiredApprovalRate : 70,
             requiredTokenAmount : 1000,
             requiredParticipantAmount : 50
@@ -834,7 +834,7 @@ contract FukcingDAO is ERC20, AccessControl {
             if (_proposal.proposalType == i){    
 
                 // Change status ONLY IF the time is up
-                if (block.timestamp > _proposal.startTime + proposalTypes[i].lenght){
+                if (block.timestamp > _proposal.startTime + proposalTypes[i].length){
 
                     // Finalize it
                     if (proposalTypes[i].requiredParticipantAmount > _proposal.participants ||

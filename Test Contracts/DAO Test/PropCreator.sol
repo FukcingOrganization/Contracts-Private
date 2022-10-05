@@ -25,8 +25,8 @@ contract propCreator {
         daoContract = _creatorAddress;
     }
 
-    function newProp (string memory _description, uint256 _lenght) public {
-        bytes memory payload = abi.encodeWithSignature("newProp(string,uint256)", _description, _lenght);
+    function newProp (string memory _description, uint256 _length) public {
+        bytes memory payload = abi.encodeWithSignature("newProp(string,uint256)", _description, _length);
         (bool ts, bytes memory returnData) = daoContract.call(payload);
         require(ts, "Transaction failed!");
 
