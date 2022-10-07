@@ -11,11 +11,6 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 
 /**
   * -> Based on ERC-721
-  * -> Not: Now its non transferable, check token URI set.
-  * -> Can't be owned or transferred, they just can be minted by everyone
-  * -> Has name, normal image and fukced image, numOfFukced
-  * -> minter can change the URI of the images
-  * -> No max supply, keep total supply
   * -> Update: DAO and Executer add, UpdatePropType, Mint Cost
   */
 
@@ -29,7 +24,10 @@ contract FukcingBoss is ERC721, ERC721URIStorage, ERC721Burnable {
 
   Counters.Counter private _tokenIdCounter;
 
+  mapping(uint256 => uint256) public numOfFukc; // token ID => How many times this boss get fukced
+
   address fukcingExecutors;
+  address fukcingSeance;
   IERC20 fukcingDAO;
   IERC20 fukcingToken;
   IERC721 fukcingBoss;
@@ -38,28 +36,7 @@ contract FukcingBoss is ERC721, ERC721URIStorage, ERC721Burnable {
   uint256 public mintCost;
 
   constructor() ERC721("FukcingBoss", "FBOSS") {}
-
-  function safeMint(address to, string memory uri) public {
-    (bool txSuccess, ) = address(fukcingToken).call(abi.encodeWithSignature("burn(uint256)", mintCost));
-    require(txSuccess, "Mint tx has failed!");
-
-    uint256 tokenId = _tokenIdCounter.current();
-    _tokenIdCounter.increment();
-    totalSupply++;
-    _safeMint(to, tokenId);
-    _setTokenURI(tokenId, uri);
-  }
-
-  // The following functions are overrides required by Solidity.
-
-  function _burn(uint256 tokenId) internal override(ERC721, ERC721URIStorage) {
-    totalSupply--;
-    super._burn(tokenId);
-  }
-
-  function tokenURI(uint256 tokenId) public view override(ERC721, ERC721URIStorage) returns (string memory){
-    return super.tokenURI(tokenId);
-  }
+    
   /*
    *  @dev Making token non-transferable by overriding all the transfer functions
    */
@@ -82,10 +59,38 @@ contract FukcingBoss is ERC721, ERC721URIStorage, ERC721Burnable {
   function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory data) public virtual override {
     revert("This is a non-transferable token!");
   }
+  
+  // The following 2 functions are overrides required by Solidity.
+
+  function _burn(uint256 tokenId) internal override(ERC721, ERC721URIStorage) {
+    totalSupply--;
+    super._burn(tokenId);
+  }
+
+  function tokenURI(uint256 tokenId) public view override(ERC721, ERC721URIStorage) returns (string memory){
+    return super.tokenURI(tokenId);
+  }
+
+  function safeMint(address to, string memory uri) public {
+    (bool txSuccess, ) = address(fukcingToken).call(abi.encodeWithSignature("burn(uint256)", mintCost));
+    require(txSuccess, "Mint tx has failed!");
+
+    uint256 tokenId = _tokenIdCounter.current();
+    _tokenIdCounter.increment();
+    totalSupply++;
+    _safeMint(to, tokenId);
+    _setTokenURI(tokenId, uri);
+  }
 
   function setTokenURI(uint256 tokenId, string memory _tokenURI) public {
     require(ownerOf(tokenId) == _msgSender(), "Only the owner can change the URI!");
     _setTokenURI(tokenId, _tokenURI);
+  }
+
+  function bossFukced(uint256 _tokenID) public {
+    require(_msgSender() == fukcingSeance, "Only the Fukcing Seance contract can write!");
+
+    numOfFukc[_tokenID]++;
   }
 
 }

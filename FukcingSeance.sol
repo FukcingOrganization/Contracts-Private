@@ -132,7 +132,7 @@ contract FukcingSeance is ReentrancyGuard {
       uint256 burnAmount;
       // Keep the winner's fund for player reward and burn the losers' funds!
       for (uint k = 0; k < election.candidateIDs.length; k++){  // all candidates
-        if (election.candidateIDs[k] != election.winnerID){
+        if (election.candidateIDs[k] == election.winnerID){
           _currentSeance.levels[i].playerReward = election.candidateFunds[election.candidateIDs[k]];
         }
         else{          
@@ -140,8 +140,12 @@ contract FukcingSeance is ReentrancyGuard {
         } 
       }
       // Burn them all!
-      (bool txSuccess, ) = address(fukcingToken).call(abi.encodeWithSignature("burn(uint256)", burnAmount));
-      require(txSuccess, "Burn tx has failed!");
+      (bool txSuccess0, ) = address(fukcingToken).call(abi.encodeWithSignature("burn(uint256)", burnAmount));
+      require(txSuccess0, "Burn tx has failed!");  
+
+      // Record the fukc
+      (bool txSuccess1, ) = address(fukcingBoss).call(abi.encodeWithSignature("bossFukced(uint256)", election.winnerID));
+      require(txSuccess1, "Fukc Record tx has failed!");
     }
 
     // Now we have burnt the losers' funds and save the winner's balance. Time to start next Seance!
