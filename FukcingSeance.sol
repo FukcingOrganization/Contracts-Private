@@ -10,7 +10,8 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 /**
-  * Handles boss selection and reward distribution
+  * -> To-do: 
+  **** -> Get Backer rewards when starting new seance (waits for token contract to complete)
   * -> Update: DAO, Executer, FUKCCont, PlayerCont add, UpdatePropType, 
   */
 
