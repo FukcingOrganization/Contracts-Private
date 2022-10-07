@@ -6,6 +6,8 @@ import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 
 /**
   * -> Based on ERC-721
@@ -22,16 +24,25 @@ import "@openzeppelin/contracts/utils/Counters.sol";
  */
 
 
-contract FukcingBoss is ERC721, ERC721URIStorage, ERC721Burnable, Ownable {
+contract FukcingBoss is ERC721, ERC721URIStorage, ERC721Burnable {
   using Counters for Counters.Counter;
 
   Counters.Counter private _tokenIdCounter;
 
+  address fukcingExecutors;
+  IERC20 fukcingDAO;
+  IERC20 fukcingToken;
+  IERC721 fukcingBoss;
+
   uint256 public totalSupply;
+  uint256 public mintCost;
 
   constructor() ERC721("FukcingBoss", "FBOSS") {}
 
-  function safeMint(address to, string memory uri) public onlyOwner {
+  function safeMint(address to, string memory uri) public {
+    (bool txSuccess, ) = address(fukcingToken).call(abi.encodeWithSignature("burn(uint256)", mintCost));
+    require(txSuccess, "Mint tx has failed!");
+
     uint256 tokenId = _tokenIdCounter.current();
     _tokenIdCounter.increment();
     totalSupply++;
@@ -49,13 +60,6 @@ contract FukcingBoss is ERC721, ERC721URIStorage, ERC721Burnable, Ownable {
   function tokenURI(uint256 tokenId) public view override(ERC721, ERC721URIStorage) returns (string memory){
     return super.tokenURI(tokenId);
   }
-/*  
-    >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< ><  >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< ><
-    >< >< >< >< >< >< >< >< >< >< >< >< ><                                            >< >< >< >< >< >< >< >< >< >< >< >< ><
-    >< >< >< >< >< >< >< >< >< ><               Making The Token Non-Transferable              >< >< >< >< >< >< >< >< >< ><
-    >< >< >< >< >< >< >< >< >< >< >< >< ><                                            >< >< >< >< >< >< >< >< >< >< >< >< ><
-    >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< ><  >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< 
-*/
   /*
    *  @dev Making token non-transferable by overriding all the transfer functions
    */
@@ -77,6 +81,11 @@ contract FukcingBoss is ERC721, ERC721URIStorage, ERC721Burnable, Ownable {
 
   function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory data) public virtual override {
     revert("This is a non-transferable token!");
+  }
+
+  function setTokenURI(uint256 tokenId, string memory _tokenURI) public {
+    require(ownerOf(tokenId) == _msgSender(), "Only the owner can change the URI!");
+    _setTokenURI(tokenId, _tokenURI);
   }
 
 }

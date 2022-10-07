@@ -141,7 +141,7 @@ contract FukcingSeance is ReentrancyGuard {
       }
       // Burn them all!
       (bool txSuccess, ) = address(fukcingToken).call(abi.encodeWithSignature("burn(uint256)", burnAmount));
-      require(txSuccess, "Burn has tx failed!");
+      require(txSuccess, "Burn tx has failed!");
     }
 
     // Now we have burnt the losers' funds and save the winner's balance. Time to start next Seance!
