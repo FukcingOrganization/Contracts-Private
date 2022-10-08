@@ -19,6 +19,12 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
  * @author Bora
  */
 
+/**
+  * Info:
+  * -> Each token ID is represents the lords' ID that mint it. For instance, licence with id 5 is the licence of lord ID 5.
+  * -> Executers proposes changes in mintCost to FDAO to approve.
+  */
+
 contract FukcingSeance is ReentrancyGuard {
   using Counters for Counters.Counter;
 

@@ -20,6 +20,12 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
  */
 
 /**
+  * @notice:
+  * -> Each token ID is represents the lords' ID that mint it. For instance, licence with id 5 is the licence of lord ID 5.
+  * -> Executers proposes changes in mintCost to FDAO to approve.
+  */
+
+/**
   * Constructor: sender -> leader
   * 
   * Leader can set a rank to make significant changes

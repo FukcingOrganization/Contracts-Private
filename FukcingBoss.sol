@@ -13,6 +13,12 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
   * -> Update: DAO and Executer add, UpdatePropType, Mint Cost
   */
 
+/**
+  * Info:
+  * -> Each token ID is represents the lords' ID that mint it. For instance, licence with id 5 is the licence of lord ID 5.
+  * -> Executers proposes changes in mintCost to FDAO to approve.
+  */
+
 /*
  * @author Bora
  */

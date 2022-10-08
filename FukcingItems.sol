@@ -5,8 +5,6 @@ import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155URIStorage.sol";
 import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol";
-import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
   * -> Based on ERC-1155
@@ -14,9 +12,17 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
   * -> Update: DAO and Executer add, UpdatePropType, mintCosts[]
   */
 
+/**
+  * Info:
+  * -> Each token ID is represents the lords' ID that mint it. For instance, licence with id 5 is the licence of lord ID 5.
+  * -> Executers proposes changes in mintCost to FDAO to approve.
+  */
+
 /*
  * @author Bora
  */
+
+
 
 contract FukcingItems is ERC1155, ERC1155Burnable {
     
