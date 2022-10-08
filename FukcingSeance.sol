@@ -50,10 +50,10 @@ contract FukcingSeance is ReentrancyGuard {
   
   Counters.Counter public seanceCounter;
 
-  address fukcingExecutors;
-  IERC20 fukcingDAO;
-  IERC20 fukcingToken;
-  IERC721 fukcingBoss;
+  address public fukcingExecutors;
+  IERC20 public fukcingDAO;
+  IERC20 public fukcingToken;
+  IERC721 public fukcingBoss;
 
   uint256[13] levelRewardRates;
 

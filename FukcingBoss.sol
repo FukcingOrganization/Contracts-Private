@@ -7,7 +7,6 @@ import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 
 /**
   * -> Based on ERC-721
@@ -26,11 +25,11 @@ contract FukcingBoss is ERC721, ERC721URIStorage, ERC721Burnable {
 
   mapping(uint256 => uint256) public numOfFukc; // token ID => How many times this boss get fukced
 
-  address fukcingExecutors;
-  address fukcingSeance;
-  IERC20 fukcingDAO;
-  IERC20 fukcingToken;
-  IERC721 fukcingBoss;
+  address public fukcingExecutors;
+  address public fukcingSeance;
+  IERC20 public fukcingDAO;
+  IERC20 public fukcingToken;
+  IERC721 public fukcingBoss;
 
   uint256 public totalSupply;
   uint256 public mintCost;
@@ -72,8 +71,8 @@ contract FukcingBoss is ERC721, ERC721URIStorage, ERC721Burnable {
   }
 
   function safeMint(address to, string memory uri) public {
-    (bool txSuccess, ) = address(fukcingToken).call(abi.encodeWithSignature("burn(uint256)", mintCost));
-    require(txSuccess, "Mint tx has failed!");
+    (bool txSuccess, ) = address(fukcingToken).call(abi.encodeWithSignature("burnFrom(address,uint256)", _msgSender(), mintCost));
+    require(txSuccess, "Burn to mint tx has failed! Insufficient approval amount or ERC20 token is not burnable!");
 
     uint256 tokenId = _tokenIdCounter.current();
     _tokenIdCounter.increment();
