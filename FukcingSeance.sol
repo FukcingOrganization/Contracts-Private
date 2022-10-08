@@ -2,11 +2,10 @@
 pragma solidity ^0.8.4;
 
 import "@openzeppelin/contracts/utils/Counters.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
+import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 /**
@@ -25,7 +24,7 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
   * -> Executers proposes changes in mintCost to FDAO to approve.
   */
 
-contract FukcingSeance is ReentrancyGuard {
+contract FukcingSeance is Context, ReentrancyGuard {
   using Counters for Counters.Counter;
 
   struct Election{
@@ -85,7 +84,7 @@ contract FukcingSeance is ReentrancyGuard {
     // Check if the boss if it exists - If it has an owner, than it exists
     require(fukcingBoss.ownerOf(_bossID) != address(0), "This fukcing boss doesn't even exist!");
     // Get the funds!
-    require(fukcingToken.transferFrom(msg.sender, address(this), _fundAmount), "Couldn't receive funds!");
+    require(fukcingToken.transferFrom(_msgSender(), address(this), _fundAmount), "Couldn't receive funds!");
 
     Election storage election = seance.levels[_levelNumber].election;
     // If the boss is not a candidate yet, make it a candidate for this level
@@ -95,7 +94,7 @@ contract FukcingSeance is ReentrancyGuard {
     }
     // Add funds
     election.candidateFunds[_bossID] += _fundAmount;
-    election.backerFunds[_bossID][msg.sender] += _fundAmount;
+    election.backerFunds[_bossID][_msgSender()] += _fundAmount;
 
     return true;    
   }
@@ -112,13 +111,13 @@ contract FukcingSeance is ReentrancyGuard {
 
     Election storage election = seance.levels[_levelNumber].election;
     require(election.isCandidate[_bossID] == true, "This fukcing boss is not even a candidate!");
-    require(election.backerFunds[_bossID][msg.sender] >= _withdrawAmount, "You can't withdraw more than you deposited!");
+    require(election.backerFunds[_bossID][_msgSender()] >= _withdrawAmount, "You can't withdraw more than you deposited!");
 
     // If everything goes well, subtract funds
     election.candidateFunds[_bossID] -= _withdrawAmount;
-    election.backerFunds[_bossID][msg.sender] -= _withdrawAmount;
+    election.backerFunds[_bossID][_msgSender()] -= _withdrawAmount;
 
-    require(fukcingToken.transfer(msg.sender, _withdrawAmount), "Something went wrong while you're trying to withdraw!");
+    require(fukcingToken.transfer(_msgSender(), _withdrawAmount), "Something went wrong while you're trying to withdraw!");
 
     return true;
   }
@@ -171,7 +170,7 @@ contract FukcingSeance is ReentrancyGuard {
     uint256 fukcingReward = merkleCheck(level, _merkleProof);
     require(fukcingReward > 0, "You don't have any reward, sorry dude!");
 
-    require(fukcingToken.transfer(msg.sender, fukcingReward), "Something went wrong while you're trying to get your fukcing reward!");
+    require(fukcingToken.transfer(_msgSender(), fukcingReward), "Something went wrong while you're trying to get your fukcing reward!");
 
     return true;
   }
@@ -184,27 +183,27 @@ contract FukcingSeance is ReentrancyGuard {
     Level storage level = seances[_seanceNumber].levels[_levelNumber];
     Election storage election = level.election;
 
-    require(level.isBackerClaimed[msg.sender] == false, "Wow wow wow! You already claimed your shit bro. Back off!");
-    level.isBackerClaimed[msg.sender] == true;
+    require(level.isBackerClaimed[_msgSender()] == false, "Wow wow wow! You already claimed your shit bro. Back off!");
+    level.isBackerClaimed[_msgSender()] == true;
 
     // rewardAmount = backerReward * backerfund / total fund
     uint256 fukcingReward = level.backerReward * 
-      election.backerFunds[election.winnerID][msg.sender] * election.candidateFunds[election.winnerID];
-    require(fukcingToken.transfer(msg.sender, fukcingReward), "Something went wrong while you're trying to get your fukcing reward!");
+      election.backerFunds[election.winnerID][_msgSender()] * election.candidateFunds[election.winnerID];
+    require(fukcingToken.transfer(_msgSender(), fukcingReward), "Something went wrong while you're trying to get your fukcing reward!");
 
     return true;
   }
 
   function merkleCheck(Level storage _level, bytes32[] calldata _merkleProof) internal returns (uint256) {
-    require(_level.isPlayerClaimed[msg.sender] == false, "Dude! You have already claimed your reward! Why too aggressive?");
+    require(_level.isPlayerClaimed[_msgSender()] == false, "Dude! You have already claimed your reward! Why too aggressive?");
 
     uint256 reward;
-    bytes32 leaf = keccak256(abi.encodePacked(msg.sender));
+    bytes32 leaf = keccak256(abi.encodePacked(_msgSender()));
         
     for (uint256 i = 0; i < _level.merkleRoots.length; i++){
       // If the proof valid for this index, get the reward of this index
       if (MerkleProof.verify(_merkleProof, _level.merkleRoots[i], leaf)){
-        _level.isPlayerClaimed[msg.sender] = true;
+        _level.isPlayerClaimed[_msgSender()] = true;
         reward = _level.rewards[i];
         break;
       }

@@ -16,6 +16,7 @@ import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
   * @notice:
   * -> Each token ID is represents the lords' ID that mint it. For instance, licence with id 5 is the licence of lord ID 5.
   * -> Executers proposes changes in mintCost to FDAO to approve.
+  * -> Add snapshot feature. Executors can take snapshot
   */
 contract FukcingToken is ERC20, AccessControl {
     using Counters for Counters.Counter;   
@@ -43,9 +44,9 @@ contract FukcingToken is ERC20, AccessControl {
     constructor() ERC20("FukcingToken", "FUKC") {
         // The owner starts with a small balance to approve the first mint issuance. 
         // Will change with a new mint approval in the first place to start decentralized.
-        _mint(msg.sender, 1024 ether); // Start with 1024 token. 1 for each lord NFT TEST -> send 512 token to the lord balance
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(EXECUTER_ROLE, msg.sender);
+        _mint(_msgSender(), 1024 ether); // Start with 1024 token. 1 for each lord NFT TEST -> send 512 token to the lord balance
+        _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
+        _grantRole(EXECUTER_ROLE, _msgSender());
 
         // Initial settings
 /*
@@ -106,9 +107,9 @@ contract FukcingToken is ERC20, AccessControl, ERC20Burnable {
     address public fukcingDAOContract;
 
     constructor() ERC20("FukcingToken", "FUKC") {
-        _mint(msg.sender, 1024 ether);
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(EXECUTER_ROLE, msg.sender);
+        _mint(_msgSender(), 1024 ether);
+        _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
+        _grantRole(EXECUTER_ROLE, _msgSender());
     }
 /*  
     >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< ><

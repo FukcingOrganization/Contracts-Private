@@ -166,8 +166,8 @@ contract FukcingDAO is ERC20, AccessControl {
          * The team will get maximum of 5% in the following mint proposals to give the control to the community.
         **/
         _mint(_msgSender(), 1);
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(EXECUTER_ROLE, msg.sender);
+        _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
+        _grantRole(EXECUTER_ROLE, _msgSender());
 
         // Initial settings
         initializeProposalTypes();
