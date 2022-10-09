@@ -6,7 +6,6 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 /**
-  * -> Executers can add new points (DAO), ??? If we do it with DAO, we should do it with merkle roots and in bulk.
   * -> Update: DAO and Executer add, UpdatePropType, points for levels, Clan tax for members, country Code
   */
 
@@ -27,7 +26,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 /**
   * Signalling rebellion - waits lord contract
   * Clans gets their rewards for the last seance - Waits the fukcingToken contract
-  * Add view functions for clan informations
   **/
 
 contract FukcingClan is Context, ReentrancyGuard {
@@ -91,8 +89,7 @@ contract FukcingClan is Context, ReentrancyGuard {
   uint256 public firstSeanceEnd;   // End of the first seance, hence the first reward time
 
   constructor(){
-    // All points starts with at least 1 point because if its 0, that indicates a new snapshot and we need to update it.
-    totalClanPointsSnapshots[snapshotCounter.current()] = 1; 
+    clanCounter.increment();  // clan ID's should start from 
   }
 
   function createClan(
@@ -297,24 +294,22 @@ contract FukcingClan is Context, ReentrancyGuard {
       clan.totalMemberPointsSnapshots[currSnap] -= member.pointsSnapshots[currSnap] - _points; 
     
     // Save the current points
+    member.currentPoints = _points;
     member.pointsSnapshots[currSnap] = _points;
   }
 
   function setExecutor(uint256 _clanID, address _address, bool _isExecutor) public  {
     require(clans[_clanID].leader == _msgSender(), "You have no authority to set a rank for this clan!");
-
     clans[_clanID].members[_address].isExecutor = _isExecutor;
   }
 
   function transferLeadership(uint256 _clanID, address _newLeader) public  {
     require(clans[_clanID].leader == _msgSender(), "You have no authority to transfer leadership for this clan!");
-
     clans[_clanID].leader = _newLeader;
   }
 
   function disbandClan(uint256 _clanID) public {
     require(clans[_clanID].leader == _msgSender(), "You have no authority to disband this clan!");
-
     clans[_clanID].leader = address(0);    
     clans[_clanID].isDisbanded = true;
   }
@@ -354,5 +349,20 @@ contract FukcingClan is Context, ReentrancyGuard {
   function updateClanLogoURI(uint256 _clanID, string memory _newLogoURI) public  {
     require(clans[_clanID].leader == _msgSender(), "You have no authority to update clan name for this clan!");
     clans[_clanID].logoURI = _newLogoURI;
+  }
+  
+  // Returns the real clan of an address. Only members with points are real members, others are default
+  function getClan(address _address) public view returns (uint256) {
+    return clans[clanOf[_address]].members[_address].currentPoints > 0 ? clanOf[_address] : 0;
+  }
+
+  // Returns true if the member is an executor in its clan
+  function isMemberExecutor(address _memberAddress) public view returns (bool) {
+    return clans[clanOf[_memberAddress]].members[_memberAddress].isExecutor;
+  }
+
+  // Returns the member's points
+  function getMemberPoints(address _memberAddress) public view returns (uint256) {
+    return clans[clanOf[_memberAddress]].members[_memberAddress].currentPoints;
   }
 }
