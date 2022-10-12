@@ -40,7 +40,7 @@ contract FukcingItems is ERC1155, ERC1155Burnable {
   address public fukcingDAO;
   address public fukcingToken;
 
-  constructor() ERC1155("test-uri-link-here") {
+  constructor() ERC1155("link/{id}.json") { // TEST
     items[0].isActive = true;       // TEST
     items[0].uri = "test0";         // TEST
     items[0].mintCost = 5 ether;    // TEST

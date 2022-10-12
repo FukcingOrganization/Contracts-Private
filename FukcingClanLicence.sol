@@ -28,10 +28,11 @@ contract FukcingClanLicence is ERC1155, ERC1155Burnable {
   address public fukcingExecutors;
   address public fukcingDAO;
   address public fukcingToken;
+  address public fukcingLord;
 
   uint256 public mintCost;
 
-  constructor() ERC1155("test-uri-link-here") {
+  constructor() ERC1155("link/{id}.json") { // TEST 
   }
 
   // @dev returns the valid URI of the licence
@@ -39,12 +40,13 @@ contract FukcingClanLicence is ERC1155, ERC1155Burnable {
     return (bytes(customURI[_lordID]).length) > 0 ? customURI[_lordID] : super.uri(_lordID);
   }
 
-  function setCustomURI(uint256 _lordID, string memory _customURI) public { // TEST make it only lords
+  function setCustomURI(uint256 _lordID, string memory _customURI) public {
+    require(_msgSender() == fukcingLord, "Only the Fukcing Lords can call this fukcing function! Now, back off you prick!");
     customURI[_lordID] = _customURI;
   }
 
-  function mintLicence(address _lordAddress, uint256 _lordID, uint256 _amount, bytes memory _data) public {  // TEST make it only lords
-    require(numOfActiveLicence[_lordID] + _amount <= 3, "Maximum number of active licence exceeds!");
+  function mintLicence(address _lordAddress, uint256 _lordID, uint256 _amount, bytes memory _data) public {
+    require(_msgSender() == fukcingLord, "Only the Fukcing Lords can call this fukcing function! Now, back off you prick!");
 
     // Burn tokens to mint
     (bool txSuccess, ) = address(fukcingToken).call(abi.encodeWithSignature("burnFrom(address,uint256)", _lordAddress, _amount * mintCost));

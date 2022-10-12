@@ -5,6 +5,8 @@ import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol";
 /**
   * -> Update: DAO and Executer add, UpdatePropType, points for levels, Clan tax for members, country Code
   */
@@ -100,13 +102,19 @@ contract FukcingClan is Context, ReentrancyGuard {
     string memory _clanLogoURI
   ) 
   public nonReentrant() {
-    // Burn licence to create a clan
-    bytes memory payload = abi.encodeWithSignature("burn(address,uint256,uint256)", _msgSender(), _lordID, 1);
-    (bool txSuccess, ) = address(fukcingClanLicence).call(payload);
-    require(txSuccess, "Burn to mint tx has failed! Insufficient approval amount or ERC20 token is not burnable!");
+    // Burn licence to create a clan | lord ID = licence ID
+    // If caller can burn it, then the clan will be attached to the lord with same ID
+    ERC1155Burnable(fukcingClanLicence).burn(_msgSender() ,_lordID , 1);
+
+    uint256 clanID = clanCounter.current();
+
+    // Register the clan to the lord
+    bytes memory payload = abi.encodeWithSignature("clanRegistration(uint256,uint256)", _lordID, clanID);
+    (bool txSuccess, ) = address(fukcingLord).call(payload);
+    require(txSuccess, "Transaction has fail to register clan to the Fukcing Lord contract!");
 
     // Create the clan
-    Clan storage clan = clans[clanCounter.current()];
+    Clan storage clan = clans[clanID];
     clanCounter.increment();
 
     clan.leader = _msgSender();

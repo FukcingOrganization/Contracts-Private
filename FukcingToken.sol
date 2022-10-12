@@ -17,6 +17,7 @@ import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
   * -> Each token ID is represents the lords' ID that mint it. For instance, licence with id 5 is the licence of lord ID 5.
   * -> Executers proposes changes in mintCost to FDAO to approve.
   * -> Add snapshot feature. Executors can take snapshot
+  * -> The receiver address of the staking rewards should be empty and will be set by the DAO decision later when we figure out how to set the staking stuff.
   */
 contract FukcingToken is ERC20, AccessControl {
     using Counters for Counters.Counter;   
