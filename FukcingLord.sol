@@ -8,9 +8,9 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+import "./IERC4907.sol";
 /**
   * -> Rebellion Mechanism
-  * -> Make it rentable
   * -> Update: DAO and Executer add, UpdatePropType, baseTax, taxchangeRate,
   */
 
@@ -24,6 +24,7 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
   * -> Executers proposes changes in mintCost to FDAO to approve.
   * -> Mint clanLicence (max 3 licence can exist in the same time), can set custom URI for it licences
   * -> Tax rate : base + (taxRateChange * num of glories)
+  * -> Rentable: Set user and end time as unix.
   */
 
 contract FukcingLord is ERC721, ERC721Burnable {  
@@ -31,17 +32,25 @@ contract FukcingLord is ERC721, ERC721Burnable {
 
   Counters.Counter private _tokenIdCounter;
 
-  address public fukcingExecutors;
-  address public fukcingDAO;
-  address public fukcingToken;
-  address public fukcingClan;
-  address public fukcingClanLicence;
+  struct UserInfo {
+    address user;   // address of user role
+    uint256 expires; // unix timestamp, user expires
+  }
 
   mapping(uint256 => uint256) public numberOfClans; // that the lord has | Lord ID => number of clans
   mapping(uint256 => uint256[]) public clansOf; // that the lord has | Lord ID => Clan IDs in array []
   // Lord ID => number of licencese in cirulation (not used therefore not burnt)
   mapping(uint256 => uint256) public numberOfActiveLicences; 
   mapping(uint256 => uint256) public numberOfGlories;
+  mapping (uint256  => UserInfo) internal _users;   // People who rents
+
+  address public fukcingExecutors;
+  address public fukcingDAO;
+  address public fukcingToken;
+  address public fukcingClan;
+  address public fukcingClanLicence;
+
+  string baseURI;
 
   uint256 public totalSupply;
   uint256 public maxSupply;
@@ -49,13 +58,21 @@ contract FukcingLord is ERC721, ERC721Burnable {
   uint256 public baseTaxRate;
   uint256 public taxChangeRate;
 
-  constructor() ERC721("FukcingLord", "FLORD") {
+  constructor(string memory _baseURI) ERC721("FukcingLord", "FLORD") {
     _tokenIdCounter.increment();
     maxSupply = 666;
-    mintCost = 60 ether;  // TEST -> Change it with the final value
-    baseTaxRate = 10;     // TEST -> Change it with the final value
-    taxChangeRate = 5;    // TEST -> Change it with the final value
+    mintCost = 66 ether;  // TEST -> Change it with the final value
+    baseTaxRate = 13;     // TEST -> Change it with the final value
+    taxChangeRate = 7;    // TEST -> Change it with the final value
+    
+    // TEST -> Add warning in the decription of metedata that says "If you earn taxes and vote in DAO,
+    // check if the lord is rented to another address before you buy! Click the link below and use isRented()
+    // funtion to check" and put the contract's read link.
+    baseURI = _baseURI;   
   }
+
+
+  event UpdateUser(uint256 indexed tokenId, address indexed user, uint256 expires);
 
   function _burn(uint256 tokenId) internal override {
     totalSupply--;
@@ -71,6 +88,14 @@ contract FukcingLord is ERC721, ERC721Burnable {
     _tokenIdCounter.increment();
     totalSupply++;
     _safeMint(to, tokenId);
+  }
+
+  function _baseURI() internal view virtual override returns (string memory) {
+    return baseURI;
+  }
+
+  function setBaseURI(string memory _newURI) public { // TEST make it with DAO approval
+    baseURI = _newURI;
   }
 
   function mintClanLicence(uint256 _lordID, uint256 _amount, bytes memory _data) public {
@@ -97,8 +122,66 @@ contract FukcingLord is ERC721, ERC721Burnable {
     numberOfActiveLicences[_lordID]--;  // Reduce the number of active licences since one of them burnt via clan creation
   }
 
-  function lordTaxInfo(uint256 _lordID) public view returns (address, uint256) {
-    return (ownerOf(_lordID), baseTaxRate + (taxChangeRate * (numberOfGlories[_lordID])));
+  function DAOvote(uint256 _proposalID, bool _isApproving, uint256 _lordID) public {
+    require(userOf(_lordID) == _msgSender(), "Who are you fooling? You have no right to vote for this Fukcing Lord!");
+
+    bytes memory payload = abi.encodeWithSignature(
+      "lordVote(uint256,bool,uint256,uint256)", _proposalID, _isApproving, _lordID, totalSupply
+    );
+    (bool txSuccess, ) = fukcingDAO.call(payload);
+    require(txSuccess, "Transaction has fail to vote in DAO contract!");
   }
 
+  /// @notice userOf function returns the renter or the owner if there is no current renter.
+  /// Therefore the tax goes to the renter. If there is no renter, the tax goes to the owner. See userOf()
+  function lordTaxInfo(uint256 _lordID) public view returns (address, uint256) {
+    return (userOf(_lordID), baseTaxRate + (taxChangeRate * (numberOfGlories[_lordID])));
+  }
+
+  /// @notice set the user and expires of an NFT IF the current user's time has expired
+  /// @dev The zero address indicates there is no user
+  /// Throws if `tokenId` is not valid NFT
+  /// @param user  The new user of the NFT
+  /// @param expires  UNIX timestamp, The new user could use the NFT before expires
+  function setUser(uint256 tokenId, address user, uint256 expires) public virtual{
+    require(_isApprovedOrOwner(msg.sender, tokenId),"ERC721: transfer caller is not owner nor approved");
+    require(block.timestamp > _users[tokenId].expires, 
+      "You can't rent it again untill the end of the expire date of current user!"
+    );
+
+    UserInfo storage info =  _users[tokenId];
+    info.user = user;
+    info.expires = expires;
+    emit UpdateUser(tokenId,user,expires);
+  }
+
+  /// @notice Get the user address of an NFT
+  /// @dev The zero address indicates that there is no user or the user is expired
+  /// @param tokenId The NFT to get the user address for
+  /// @return The user address for this NFT. There is no user, then returns the owner address
+  function userOf(uint256 tokenId)public view virtual returns(address){
+    if(_users[tokenId].expires >=  block.timestamp){
+      return  _users[tokenId].user;
+    }
+    else{
+      return ownerOf(tokenId);
+    }
+  }
+
+  /// @notice Get the user expires of an NFT
+  /// @dev The zero value indicates that there is no user
+  /// @param tokenId The NFT to get the user expires for
+  /// @return The user expires for this NFT
+  function userExpires(uint256 tokenId) public view virtual returns(uint256){
+    return _users[tokenId].expires;
+  }
+
+  /// @dev See {IERC165-supportsInterface}.
+  function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+    return interfaceId == type(IERC4907).interfaceId || super.supportsInterface(interfaceId);
+  }
+
+  function isRented(uint256 _lordID) public view returns (bool) {
+    return _users[_lordID].expires >= block.timestamp;
+  }
 }
