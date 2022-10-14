@@ -31,6 +31,29 @@ contract FukcingLord is ERC721, ERC721Burnable {
   using Counters for Counters.Counter;
 
   Counters.Counter private _tokenIdCounter;
+  Counters.Counter private rebellionCounter;
+
+  enum RebellionStatus {    
+    NotStarted, // Index: 0
+    Signaled,   // Index: 1
+    OnGoing,    // Index: 2
+    Success,    // Index: 3
+    Failed      // Index: 4
+  }
+
+  struct Rebellion {
+    RebellionStatus status;
+    uint256 startDate;
+
+    uint256 lordFunds;
+    uint256 rebelFunds;
+    uint256 totalFunds;
+    mapping(address => uint256) lordBackers;  // Addresses that funds the lord during war    
+    mapping(address => uint256) rebelBackers; // Addresses that funds the rebels during war 
+
+    uint256 numberOfSignaledClans;  
+    mapping(uint256 => bool) signaledClans; // Clans that signaled for this rebellion    
+  }
 
   struct UserInfo {
     address user;   // address of user role
@@ -41,36 +64,46 @@ contract FukcingLord is ERC721, ERC721Burnable {
   mapping(uint256 => uint256[]) public clansOf; // that the lord has | Lord ID => Clan IDs in array []
   // Lord ID => number of licencese in cirulation (not used therefore not burnt)
   mapping(uint256 => uint256) public numberOfActiveLicences; 
-  mapping(uint256 => uint256) public numberOfGlories;
-  mapping (uint256  => UserInfo) internal _users;   // People who rents
+  mapping(uint256 => uint256) public numberOfGlories; // Lord ID => number of glories
+  mapping(uint256  => uint256) public rebellionOf;    // Lord ID => Rebellion ID
+  mapping(uint256  => Rebellion) public rebellions;   // Rebellion ID => Rebellion
+  mapping(uint256  => UserInfo) internal _users;      // People who rents
 
-  address public fukcingExecutors;
-  address public fukcingDAO;
-  address public fukcingToken;
-  address public fukcingClan;
-  address public fukcingClanLicence;
+  address public fukcingExecutors;    // Adjustable by DAO
+  address public fukcingDAO;          // Adjustable by DAO
+  address public fukcingToken;        // Adjustable by DAO
+  address public fukcingClan;         // Adjustable by DAO
+  address public fukcingClanLicence;  // Adjustable by DAO
 
   string baseURI;
 
   uint256 public totalSupply;
   uint256 public maxSupply;
   uint256 public mintCost;
-  uint256 public baseTaxRate;
-  uint256 public taxChangeRate;
+  uint256 public baseTaxRate;     // Adjustable by DAO
+  uint256 public taxChangeRate;   // Adjustable by DAO
+  uint256 public rebellionLenght; // Adjustable by DAO
+  uint256 public signalLenght;    // Adjustable by DAO
+  uint256 public victoryRate;     // Adjustable by DAO  | The rate (%) of the funds that is required to declare victory against the lord 
+  uint256 public warCasualtyRate; // Adjustable by DAO  | The rate (%) that will burn as a result of the war
 
   constructor(string memory _baseURI) ERC721("FukcingLord", "FLORD") {
-    _tokenIdCounter.increment();
+    _tokenIdCounter.increment();  // token IDs starts from 1 and goes to 666
+    rebellionCounter.increment(); // Leave first (0) rebellion empty for all lords to start a new one
     maxSupply = 666;
     mintCost = 66 ether;  // TEST -> Change it with the final value
     baseTaxRate = 13;     // TEST -> Change it with the final value
     taxChangeRate = 7;    // TEST -> Change it with the final value
-    
+    rebellionLenght = 7 days;     // TEST -> Change it with the final value
+    signalLenght = 3 days;        // TEST -> Change it with the final value
+    victoryRate = 66;             // TEST -> Change it with the final value
+    warCasualtyRate = 13;         // TEST -> Change it with the final value
+
     // TEST -> Add warning in the decription of metedata that says "If you earn taxes and vote in DAO,
     // check if the lord is rented to another address before you buy! Click the link below and use isRented()
     // funtion to check" and put the contract's read link.
     baseURI = _baseURI;   
   }
-
 
   event UpdateUser(uint256 indexed tokenId, address indexed user, uint256 expires);
 
@@ -134,8 +167,12 @@ contract FukcingLord is ERC721, ERC721Burnable {
 
   /// @notice userOf function returns the renter or the owner if there is no current renter.
   /// Therefore the tax goes to the renter. If there is no renter, the tax goes to the owner. See userOf()
+  /// If the lord has died or not even minted, than returns 0 address and 0 rate for clan contract not to fail.
   function lordTaxInfo(uint256 _lordID) public view returns (address, uint256) {
-    return (userOf(_lordID), baseTaxRate + (taxChangeRate * (numberOfGlories[_lordID])));
+    if (_exists(_lordID))
+      return (userOf(_lordID), baseTaxRate + (taxChangeRate * (numberOfGlories[_lordID])));
+    else
+      return (address(0), 0);
   }
 
   /// @notice set the user and expires of an NFT IF the current user's time has expired
@@ -184,4 +221,60 @@ contract FukcingLord is ERC721, ERC721Burnable {
   function isRented(uint256 _lordID) public view returns (bool) {
     return _users[_lordID].expires >= block.timestamp;
   }
+
+  function signalRebellion(uint256 _lordID, uint256 _clanID) public {
+    require(_msgSender() == fukcingClan, "Only clans can call this function!");
+
+    Rebellion storage reb = rebellions[rebellionOf[_lordID]];
+
+    updateRebellionStatus(reb, _lordID);
+
+    require(reb.signaledClans[_clanID] == false, "You guys already signeled for this rebellion!");
+    
+    reb.signaledClans[_clanID] = true;  // mark them signelled
+    reb.numberOfSignaledClans++;
+  }
+
+/**
+
+
+IT IS FULLY BROKE !!!!
+
+
+ */
+  function updateRebellionStatus(Rebellion storage _reb, uint256 _lordID) internal {
+    // If the status NotStarted and we are in the signal timing, start the rebellion
+    if (_reb.status == RebellionStatus.NotStarted && _reb.startDate + signalLenght > block.timestamp) {
+      rebellionOf[_lordID] = rebellionCounter.current();
+      rebellionCounter.increment();
+      _reb.status = RebellionStatus.Signaled;
+    }
+    // Else if the status signalled and we are in rebellion timing, then check the signaled clans
+    else if (_reb.status == RebellionStatus.Signaled && _reb.startDate + rebellionLenght > block.timestamp) {
+      // If there more than half of the clans signaled, then start the rebellion. If not, update it as failed
+      if (_reb.numberOfSignaledClans > (clansOf[_lordID].length / 2))
+        _reb.status = RebellionStatus.OnGoing;
+      else
+        _reb.status = RebellionStatus.Failed;
+    }
+    // Else if the status OnGoing and the time is up for the rebellion, determine the final status
+    else if (_reb.status == RebellionStatus.OnGoing && block.timestamp > _reb.startDate + rebellionLenght){
+      uint256 rate = _reb.rebelFunds * 100 / (_reb.rebelFunds + _reb.lordFunds);
+      if (rate >= victoryRate)
+        _reb.status = RebellionStatus.Success;
+      else
+        _reb.status = RebellionStatus.Failed;
+    }
+
+    // If the rebellion has finalized in a way, pass on the next rebellion advanture
+    if (_reb.status == RebellionStatus.Failed || _reb.status == RebellionStatus.Success){
+      rebellionOf[_lordID] = rebellionCounter.current();
+      rebellionCounter.increment();
+    }
+  }
+
+  function claimRebellionRewards(uint256 _rebellionID, uint256 _lordID) public {
+
+  }
+
 }

@@ -91,7 +91,7 @@ contract FukcingClan is Context, ReentrancyGuard {
   uint256 public firstSeanceEnd;   // End of the first seance, hence the first reward time
 
   constructor(){
-    clanCounter.increment();  // clan ID's should start from 
+    clanCounter.increment();  // clan ID's should start from 1
   }
 
   function createClan(
