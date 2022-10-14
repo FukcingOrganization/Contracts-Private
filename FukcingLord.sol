@@ -234,42 +234,35 @@ contract FukcingLord is ERC721, ERC721Burnable {
     reb.signaledClans[_clanID] = true;  // mark them signelled
     reb.numberOfSignaledClans++;
   }
-
-/**
-
-
-IT IS FULLY BROKE !!!!
-
-
- */
+  
   function updateRebellionStatus(Rebellion storage _reb, uint256 _lordID) internal {
-    // If the status NotStarted and we are in the signal timing, start the rebellion
-    if (_reb.status == RebellionStatus.NotStarted && _reb.startDate + signalLenght > block.timestamp) {
+    // Determine timing status
+    bool isSingalPhase = _reb.startDate + signalLenght > block.timestamp;
+    bool isRebelPhase = _reb.startDate + rebellionLenght > block.timestamp;
+    bool isRebellionOver = block.timestamp > _reb.startDate + rebellionLenght;
+
+    // If the status NotStarted or is finalized (Success or Fail, 2 < index) start the rebellion
+    if (_reb.status == RebellionStatus.NotStarted || uint256(_reb.status) > 2) {
       rebellionOf[_lordID] = rebellionCounter.current();
       rebellionCounter.increment();
       _reb.status = RebellionStatus.Signaled;
+      _reb.startDate = block.timestamp;
     }
-    // Else if the status signalled and we are in rebellion timing, then check the signaled clans
-    else if (_reb.status == RebellionStatus.Signaled && _reb.startDate + rebellionLenght > block.timestamp) {
+    // Else if the signal phase ended but rebel phase continious, mark it on going
+    else if (!isSingalPhase && isRebelPhase){
       // If there more than half of the clans signaled, then start the rebellion. If not, update it as failed
       if (_reb.numberOfSignaledClans > (clansOf[_lordID].length / 2))
         _reb.status = RebellionStatus.OnGoing;
       else
         _reb.status = RebellionStatus.Failed;
     }
-    // Else if the status OnGoing and the time is up for the rebellion, determine the final status
-    else if (_reb.status == RebellionStatus.OnGoing && block.timestamp > _reb.startDate + rebellionLenght){
+    // Else if rebel phase ended but the status is OnGoing, then determine the final status
+    else if (!isRebelPhase && _reb.status == RebellionStatus.OnGoing) {
       uint256 rate = _reb.rebelFunds * 100 / (_reb.rebelFunds + _reb.lordFunds);
       if (rate >= victoryRate)
         _reb.status = RebellionStatus.Success;
       else
-        _reb.status = RebellionStatus.Failed;
-    }
-
-    // If the rebellion has finalized in a way, pass on the next rebellion advanture
-    if (_reb.status == RebellionStatus.Failed || _reb.status == RebellionStatus.Success){
-      rebellionOf[_lordID] = rebellionCounter.current();
-      rebellionCounter.increment();
+        _reb.status = RebellionStatus.Failed;  
     }
   }
 
