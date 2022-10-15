@@ -10,7 +10,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "./IERC4907.sol";
 /**
-  * -> Rebellion Mechanism
   * -> Update: DAO and Executer add, UpdatePropType, baseTax, taxchangeRate,
   */
 
@@ -24,7 +23,9 @@ import "./IERC4907.sol";
   * -> Executers proposes changes in mintCost to FDAO to approve.
   * -> Mint clanLicence (max 3 licence can exist in the same time), can set custom URI for it licences
   * -> Tax rate : base + (taxRateChange * num of glories)
-  * -> Rentable: Set user and end time as unix.
+  * -> Rentable: Set user and end time as unix. Can't rent to someone else until the expire date
+  * -> Rebellion Mechanism: kills the lord if the rebllion successful, raises the taxes if the rebellion failes.
+  * ---> 13% of the total funds burns as a consequense of the war, remaining gets claimed by winner side.
   */
 
 contract FukcingLord is ERC721, ERC721Burnable {  
@@ -50,6 +51,8 @@ contract FukcingLord is ERC721, ERC721Burnable {
     uint256 totalFunds;
     mapping(address => uint256) lordBackers;  // Addresses that funds the lord during war    
     mapping(address => uint256) rebelBackers; // Addresses that funds the rebels during war 
+    mapping(address => bool) lordBackerClaimed;  // Addresses that claimed the war trophy
+    mapping(address => bool) rebelBackerClaimed;
 
     uint256 numberOfSignaledClans;  
     mapping(uint256 => bool) signaledClans; // Clans that signaled for this rebellion    
@@ -224,11 +227,15 @@ contract FukcingLord is ERC721, ERC721Burnable {
 
   function signalRebellion(uint256 _lordID, uint256 _clanID) public {
     require(_msgSender() == fukcingClan, "Only clans can call this function!");
+    require(_exists(_lordID), "This lord doesn't exists!");
 
     Rebellion storage reb = rebellions[rebellionOf[_lordID]];
-
     updateRebellionStatus(reb, _lordID);
 
+    // Take the updated rebellion again
+    reb = rebellions[rebellionOf[_lordID]];
+
+    require(reb.status == RebellionStatus.Signaled, "The rebellion is not in the signal phase!");
     require(reb.signaledClans[_clanID] == false, "You guys already signeled for this rebellion!");
     
     reb.signaledClans[_clanID] = true;  // mark them signelled
@@ -239,14 +246,16 @@ contract FukcingLord is ERC721, ERC721Burnable {
     // Determine timing status
     bool isSingalPhase = _reb.startDate + signalLenght > block.timestamp;
     bool isRebelPhase = _reb.startDate + rebellionLenght > block.timestamp;
-    bool isRebellionOver = block.timestamp > _reb.startDate + rebellionLenght;
 
     // If the status NotStarted or is finalized (Success or Fail, 2 < index) start the rebellion
     if (_reb.status == RebellionStatus.NotStarted || uint256(_reb.status) > 2) {
       rebellionOf[_lordID] = rebellionCounter.current();
       rebellionCounter.increment();
-      _reb.status = RebellionStatus.Signaled;
-      _reb.startDate = block.timestamp;
+      
+      // Get the new rebellion and start it
+      Rebellion storage reb = rebellions[rebellionOf[_lordID]];
+      reb.status = RebellionStatus.Signaled;
+      reb.startDate = block.timestamp;
     }
     // Else if the signal phase ended but rebel phase continious, mark it on going
     else if (!isSingalPhase && isRebelPhase){
@@ -259,15 +268,88 @@ contract FukcingLord is ERC721, ERC721Burnable {
     // Else if rebel phase ended but the status is OnGoing, then determine the final status
     else if (!isRebelPhase && _reb.status == RebellionStatus.OnGoing) {
       uint256 rate = _reb.rebelFunds * 100 / (_reb.rebelFunds + _reb.lordFunds);
-      if (rate >= victoryRate)
+      if (rate >= victoryRate) {        
         _reb.status = RebellionStatus.Success;
-      else
-        _reb.status = RebellionStatus.Failed;  
+
+        // Kill (burn) the lord!
+        _burn(_lordID);
+      }
+      else {
+        _reb.status = RebellionStatus.Failed;
+
+        // Keep record of glory
+        numberOfGlories[_lordID]++;
+      }
+
+      // Either way, burn some of the total funds as a war casualties
+      uint256 casualties = _reb.totalFunds * warCasualtyRate / 100;
+      ERC20Burnable(fukcingToken).burn(casualties);
+      _reb.totalFunds -= casualties;
     }
   }
 
-  function claimRebellionRewards(uint256 _rebellionID, uint256 _lordID) public {
+  function fundLord(uint256 _lordID, uint256 _amount) public {
+    require(_exists(_lordID), "This lord doesn't exists!");
 
+    Rebellion storage reb = rebellions[rebellionOf[_lordID]];
+    updateRebellionStatus(reb, _lordID);
+
+    // Take the updated rebellion again
+    reb = rebellions[rebellionOf[_lordID]];
+    require(reb.status == RebellionStatus.OnGoing, "The rebellion is not on going!");
+
+    ERC20(fukcingToken).transferFrom(_msgSender(), address(this), _amount);
+
+    reb.lordFunds += _amount;
+    reb.totalFunds += _amount;
+    reb.lordBackers[_msgSender()] += _amount;
   }
 
+  function fundRebels(uint256 _lordID, uint256 _amount) public {
+    require(_exists(_lordID), "This lord doesn't exists!");
+
+    Rebellion storage reb = rebellions[rebellionOf[_lordID]];
+    updateRebellionStatus(reb, _lordID);
+
+    // Take the updated rebellion again
+    reb = rebellions[rebellionOf[_lordID]];
+    require(reb.status == RebellionStatus.OnGoing, "The rebellion is not on going!");
+
+    ERC20(fukcingToken).transferFrom(_msgSender(), address(this), _amount);
+
+    reb.rebelFunds += _amount;
+    reb.totalFunds += _amount;
+    reb.rebelBackers[_msgSender()] += _amount;
+  }
+
+  function claimRebellionRewards(uint256 _rebellionID, uint256 _lordID) public {
+    require(_lordID >= totalSupply, "This lord has not minted yet!");
+    address sender = _msgSender();
+
+    Rebellion storage reb = rebellions[_rebellionID];
+    updateRebellionStatus(reb, _lordID);
+
+    // Take the updated rebellion again
+    reb = rebellions[_rebellionID];
+    require(uint256(reb.status) > 2, "The rebellion is not finalized!");
+
+    if (reb.status == RebellionStatus.Success) {
+      require(reb.rebelBackerClaimed[sender] == false, "You already claimed!");
+      reb.rebelBackerClaimed[sender] = true;
+
+      uint256 contributionRate = reb.rebelBackers[sender] * 100 / reb.rebelFunds;
+      uint256 trophy = reb.totalFunds * contributionRate / 100;
+      ERC20(fukcingToken).transfer(sender, trophy);
+    }
+    // If it is not successful, it must be failed. But it can fail without and funding because of lack of signals.
+    // Therefore, check is there any fund to send to avoid unnecessary gas usage
+    else if (reb.totalFunds > 0) {
+      require(reb.lordBackerClaimed[sender] == false, "You already claimed!");
+      reb.lordBackerClaimed[sender] = true;
+
+      uint256 contributionRate = reb.lordBackers[sender] * 100 / reb.lordFunds;
+      uint256 trophy = reb.totalFunds * contributionRate / 100;
+      ERC20(fukcingToken).transfer(sender, trophy);
+    }
+  }
 }
