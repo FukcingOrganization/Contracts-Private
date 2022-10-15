@@ -33,14 +33,16 @@ contract FukcingBoss is ERC721, ERC721URIStorage, ERC721Burnable {
 
   address public fukcingExecutors;
   address public fukcingSeance;
-  IERC20 public fukcingDAO;
-  IERC20 public fukcingToken;
-  IERC721 public fukcingBoss;
+  address public fukcingDAO;
+  address public fukcingToken;
+  address public fukcingBoss;
 
   uint256 public totalSupply;
   uint256 public mintCost;
 
-  constructor() ERC721("FukcingBoss", "FBOSS") {}
+  constructor() ERC721("FukcingBoss", "FBOSS") {
+    mintCost = 50 ether; // TEST -> Change it with final value
+  }
     
   /*
    *  @dev Making token non-transferable by overriding all the transfer functions

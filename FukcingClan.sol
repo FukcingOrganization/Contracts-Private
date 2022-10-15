@@ -26,7 +26,6 @@ import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol";
   */
 
 /**
-  * Signalling rebellion - waits lord contract
   * Clans gets their rewards for the last seance - Waits the fukcingToken contract
   **/
 
@@ -335,7 +334,11 @@ contract FukcingClan is Context, ReentrancyGuard {
       require(clan.leader == _msgSender(), "You have no authority to signal a rebellion for this clan!");
     }
 
-    // Signal a rebellion,, waits lord contract
+    // Signal a rebellion,
+    (bool txSuccess, ) = fukcingLord.call(abi.encodeWithSignature(
+      "signalRebellion(uint256,uint256)", clan.lordID, _clanID)
+    );
+    require(txSuccess, "The transaction has failed when signalling");
   }
 
   // Update Clan Info
