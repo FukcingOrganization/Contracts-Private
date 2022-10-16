@@ -11,6 +11,7 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 /**
   * -> To-do: 
   **** -> Get Backer rewards when starting new seance (waits for token contract to complete)
+  **** -> Distribute rewards exponantially between levels from 1 to 13.
   * -> Update: DAO, Executer, FUKCCont, PlayerCont add, UpdatePropType, 
   */
 

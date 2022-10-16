@@ -2,24 +2,40 @@
 pragma solidity ^0.8.4;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Snapshot.sol";
+import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
-import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+//import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
+/**
+  * @notice:
+  * -> Add snapshot feature. Executors can take snapshot.
+  * -> The receiver address of the staking rewards should be empty and will be set by the DAO decision later when we figure out how to set the staking stuff.
+  */
+
+/**
+  * -> Vesting Mechanism                                                        //   Ether per sec         Wei per sec
+  * Backers     -> Seance gets automatically                                    // 0.224538876188384    224538876188384000
+  * Clans       -> Clan contract gets automatically                             // 0.224538876188384    224538876188384000
+  * Community   -> Executors pulls to the contract  // New Contract - 13% TGE   // 0.0748462920627947   74846292062794700
+  * Staking     -> Executors pulls to the contract  // New Contract (later)     // 0.0748462920627947   74846292062794700
+  * FDAO        -> Executors pulls to the contract                              // 0.0374231460313974   37423146031397400
+  * Executors   -> Executors pulls to the contract                              // 0.0149692584125589   14969258412558900
+  * Airdrop     -> Individual claim with 66 Level   // 1 yr - 13% TGE           // 0.0374231460313974   112269438094192000
+  * Dev         -> Executors pulls to a EOA         // 1 yr                     // 0.0224538876188384   67361662856515200
+  * Team        -> Individual claim                 // 1 yr                     // 0.0374231460313974   112269438094192000
+  *
+  * Clans' claim can not exceed the total supply of DAO tokens !! 
+  * Therefore, DAO members (most of them are clans) should approve new DAO token mints that are proposed by the Executors.
+  */
 
 /*
  * @author Bora
  */
 
-/**
-  * @notice:
-  * -> Each token ID is represents the lords' ID that mint it. For instance, licence with id 5 is the licence of lord ID 5.
-  * -> Executers proposes changes in mintCost to FDAO to approve.
-  * -> Add snapshot feature. Executors can take snapshot
-  * -> The receiver address of the staking rewards should be empty and will be set by the DAO decision later when we figure out how to set the staking stuff.
-  */
-contract FukcingToken is ERC20, AccessControl {
+contract FukcingToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
     using Counters for Counters.Counter;   
 
     enum ProposalStatus{
@@ -28,98 +44,91 @@ contract FukcingToken is ERC20, AccessControl {
         Approved,   // Index: 2
         Denied      // Index: 3
     }
+
     struct Proposal {
-        uint256 proposalID;
         ProposalStatus status;
         string description;
     }
 
-    bytes32 public constant EXECUTER_ROLE = keccak256("EXECUTER_ROLE");
-    
     Counters.Counter private proposalCounter;
 
-    mapping (uint256 => Proposal) public proposals; // proposalID => Proposal
+    mapping(uint256 => Proposal) public proposals;          // proposalID => Proposal
+    mapping(address => uint256) public allowancePerSecond;  // address => allowance per second in WEI
+    mapping(address => uint256) public claimedAllowance;    // address => total claimed allowance
+
+    address public fukcingDAO;
+    address public fukcingExecutors;
+    address public fukcingSeance;
+    address public fukcingClan;
+    address public fukcingCommunity;
+    address public fukcingStaking;
+    address public fukcingDevelopers;
+
+    uint256[] public testerAllowance;
+    uint256[] public testerRoots;
+    uint256[] teamAllowance;
+    uint256[] teamRoots;
+
+    uint256 public deploymentTime;
+    uint256 public oneYearVesting;
+    uint256 public proposalType;
+
+    // Mint per second in Wei
+    uint256 public backerMintPerSecond;
+    uint256 public clanMintPerSecond;
+    uint256 public communityMintPerSecond;
+    uint256 public stakingMintPerSecond;
+    uint256 public daoMintPerSecond;
+    uint256 public executorsMintPerSecond;
+    uint256 public developmentMintPerSecond;
+
+    function backerClaim() public {
+        
+    }
     
-    address public fukcingDAOContract;
-
     constructor() ERC20("FukcingToken", "FUKC") {
-        // The owner starts with a small balance to approve the first mint issuance. 
-        // Will change with a new mint approval in the first place to start decentralized.
-        _mint(_msgSender(), 1024 ether); // Start with 1024 token. 1 for each lord NFT TEST -> send 512 token to the lord balance
-        _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
-        _grantRole(EXECUTER_ROLE, _msgSender());
-
-        // Initial settings
-/*
-        initializeProposalTypes();
-        stateUpdateProposalType = 5; // TEST -> make it type = 3, which is 3 days
-        monetaryProposalType = 5; // TEST -> make it type = 3, which is 3 days TEST ---->> Create a 2 days type and make this 2 days because we have 3 monetary prop
-        minBalanceToPropose = 1000; // 1000 tokens without decimals
-*/
-        // Start with index of 1 to avoid some double propose in satate updates
+        deploymentTime = block.timestamp;
+        oneYearVesting = 1665946534;    // TEST -> Change var name and value. Like: october_16_2023 = 1697471734;
+        
+        // Start with index of 1 to avoid some double propose in state updates
         proposalCounter.increment(); 
+
+        // _mint(to, amount);
+        backerMintPerSecond = 224538876188384000;
+        clanMintPerSecond = 224538876188384000;
+        communityMintPerSecond = 74846292062794700;
+        stakingMintPerSecond = 74846292062794700;
+        daoMintPerSecond = 37423146031397400;
+        executorsMintPerSecond = 14969258412558900;
+        developmentMintPerSecond = 67361662856515200;
     }
-}
 
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.4;
+    function snapshot() public {
+        require(_msgSender() == fukcingExecutors, "Only executor contract can call this function!");
+        _snapshot();
+    }
 
-/**
-  * -> Vesting Mechanism
-  * -> Adjusting Max Supply for game rewards by DAO proposal if we have reached the max supply!
-  * -> Add non retantdundudasnduns
-  * -> Update: DAO and Executer add, UpdatePropType, (Airdrop, Team, 
-  */
+    function pause() public {
+        require(_msgSender() == fukcingExecutors, "Only executor contract can call this function!");
+        _pause();
+    }
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/utils/Counters.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
-import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+    function unpause() public {
+        require(_msgSender() == fukcingExecutors, "Only executor contract can call this function!");
+        _unpause();
+    }
+
+    function _beforeTokenTransfer(address from, address to, uint256 amount)
+        internal
+        whenNotPaused
+        override(ERC20, ERC20Snapshot)
+    {
+        super._beforeTokenTransfer(from, to, amount);
+    }
+
 
 /*
- * @author Bora
- */
-contract FukcingToken is ERC20, AccessControl, ERC20Burnable {
-    using Counters for Counters.Counter;   
-
-    enum ProposalStatus {
-        NotStarted, // Index: 0
-        OnGoing,    // Index: 1
-        Approved,   // Index: 2
-        Denied      // Index: 3
-    }
-    struct Proposal {
-        uint256 proposalID;
-        ProposalStatus status;
-        string description;
-    }
-
-    bytes32 public constant EXECUTER_ROLE = keccak256("EXECUTER_ROLE");
-    
-    Counters.Counter private proposalCounter;
-
-    mapping(uint256 => Proposal) public proposals; // proposalID => Proposal
-    mapping(address => uint256) public allowancePerSecond;
-    mapping(address => uint256) public claimedVesting;
-    
-    address public fukcingDAOContract;
-
-    constructor() ERC20("FukcingToken", "FUKC") {
-        _mint(_msgSender(), 1024 ether);
-        _grantRole(DEFAULT_ADMIN_ROLE, _msgSender());
-        _grantRole(EXECUTER_ROLE, _msgSender());
-    }
-/*  
-    >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< ><
-    >< >< >< >< >< >< >< >< >< >< >< >< ><                                           >< >< >< >< >< >< >< >< >< >< >< >< ><
-    >< >< >< >< >< >< >< >< >< ><                      Vesting Mechanism                      >< >< >< >< >< >< >< >< >< ><
-    >< >< >< >< >< >< >< >< >< >< >< >< ><                                           >< >< >< >< >< >< >< >< >< >< >< >< ><
-    >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< 
-*/
-    function updateFukcingDAOContractAddress(address _newAddress) public onlyRole(EXECUTER_ROLE) returns (bool) {
+    function updateFukcingDAOContractAddress(address _newAddress) public returns (bool) {
         // if stateUpdateID is 0, make a new proposal
         if (stateUpdateID_lordContAdd == 0) { // Which is default
             string memory proposalDescription = string(abi.encodePacked(
@@ -159,4 +168,7 @@ contract FukcingToken is ERC20, AccessControl, ERC20Burnable {
             return false;
         }  
     }
+*/
 }
+
+
