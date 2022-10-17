@@ -10,8 +10,7 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 /**
   * -> To-do: 
-  **** -> Get Backer rewards when starting new seance (waits for token contract to complete)
-  **** -> Distribute rewards exponantially between levels from 1 to 13.
+  * -> View funcion for the levels and elections
   * -> Update: DAO, Executer, FUKCCont, PlayerCont add, UpdatePropType, 
   */
 
@@ -23,6 +22,8 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
   * Info:
   * -> Each token ID is represents the lords' ID that mint it. For instance, licence with id 5 is the licence of lord ID 5.
   * -> Executers proposes changes in mintCost to FDAO to approve.
+  * -> Every player can claim just 1 reward for each level no matter how many times he/she played. 
+  * ---> We put the players in a merkle root and they claim their reward. 
   */
 
 contract FukcingSeance is Context, ReentrancyGuard {
@@ -40,8 +41,8 @@ contract FukcingSeance is Context, ReentrancyGuard {
     Election election;
     uint256 playerReward;
     uint256 backerReward;
-    bytes32[] merkleRoots;
-    uint256[] rewards;
+    uint256 totalNumberOfPlayer;
+    bytes32 merkleRoot;
     mapping(address => bool) isPlayerClaimed;
     mapping(address => bool) isBackerClaimed;
   }
@@ -57,11 +58,12 @@ contract FukcingSeance is Context, ReentrancyGuard {
   Counters.Counter public seanceCounter;
 
   address public fukcingExecutors;
-  IERC20 public fukcingDAO;
-  IERC20 public fukcingToken;
-  IERC721 public fukcingBoss;
+  address public fukcingDAO;
+  address public fukcingToken;
+  address public fukcingBoss;
 
-  uint256[13] levelRewardRates;
+  uint256[13] levelRewardWeights;
+  uint256 totalRewardWeight;
 
   constructor(uint256 _endOfTheFirstSeance) {
     seances[seanceCounter.current()].endingTime = _endOfTheFirstSeance; // TEST -> Change it with unix value of Monday 00.00
@@ -83,9 +85,9 @@ contract FukcingSeance is Context, ReentrancyGuard {
       "The funding round is closed for this seance. Maybe next time sweetie!"
     );
     // Check if the boss if it exists - If it has an owner, than it exists
-    require(fukcingBoss.ownerOf(_bossID) != address(0), "This fukcing boss doesn't even exist!");
+    require(IERC721(fukcingBoss).ownerOf(_bossID) != address(0), "This fukcing boss doesn't even exist!");
     // Get the funds!
-    require(fukcingToken.transferFrom(_msgSender(), address(this), _fundAmount), "Couldn't receive funds!");
+    require(IERC20(fukcingToken).transferFrom(_msgSender(), address(this), _fundAmount), "Couldn't receive funds!");
 
     Election storage election = seance.levels[_levelNumber].election;
     // If the boss is not a candidate yet, make it a candidate for this level
@@ -102,7 +104,7 @@ contract FukcingSeance is Context, ReentrancyGuard {
 
   function withdrawBossFunds(uint256 _levelNumber, uint256 _bossID, uint256 _withdrawAmount) public nonReentrant() returns (bool) {
     require(_levelNumber >= 0 && _levelNumber < 13, "Invalid level number!");
-    require(fukcingBoss.ownerOf(_bossID) != address(0), "This fukcing boss doesn't even exist!");
+    require(IERC721(fukcingBoss).ownerOf(_bossID) != address(0), "This fukcing boss doesn't even exist!");
     
     Seance storage seance = seances[seanceCounter.current()];
 
@@ -118,7 +120,7 @@ contract FukcingSeance is Context, ReentrancyGuard {
     election.candidateFunds[_bossID] -= _withdrawAmount;
     election.backerFunds[_bossID][_msgSender()] -= _withdrawAmount;
 
-    require(fukcingToken.transfer(_msgSender(), _withdrawAmount), "Something went wrong while you're trying to withdraw!");
+    require(IERC20(fukcingToken).transfer(_msgSender(), _withdrawAmount), "Something went wrong while you're trying to withdraw!");
 
     return true;
   }
@@ -161,68 +163,72 @@ contract FukcingSeance is Context, ReentrancyGuard {
     getBackerRewards(seances[seanceCounter.current()]);
   }
 
-  function claimPlayerReward(bytes32[] calldata _merkleProof, uint256 _seanceNumber, uint256 _levelNumber) public returns (bool) {
+  function claimPlayerReward(bytes32[] calldata _merkleProof, uint256 _seanceNumber, uint256 _levelNumber) public {
     require(block.timestamp > seances[_seanceNumber].endingTime, "Wait for the end of the seance!");
-    require(seances[_seanceNumber].endingTime != 0, "Invalied seance number!");
+    require(seances[_seanceNumber].endingTime != 0, "Invalied seance number!"); // If there is no end time
     require(_levelNumber >= 0 && _levelNumber < 13, "Invalid level number!");
 
     Level storage level = seances[_seanceNumber].levels[_levelNumber];
+    address sender = _msgSender();
+
+    // Check if the player is in the list or not
+    bytes32 leaf = keccak256(abi.encodePacked(sender));
+    require(MerkleProof.verify(_merkleProof, level.merkleRoot, leaf), "Bro, you are not even in the player list!");
+
+    // Check if the player is already claimed
+    require(level.isPlayerClaimed[sender] == false, "Dude! You have already claimed your reward! Why too aggressive?");
+    level.isPlayerClaimed[sender] = true;
     
-    uint256 fukcingReward = merkleCheck(level, _merkleProof);
-    require(fukcingReward > 0, "You don't have any reward, sorry dude!");
-
-    require(fukcingToken.transfer(_msgSender(), fukcingReward), "Something went wrong while you're trying to get your fukcing reward!");
-
-    return true;
+    // Give the reward
+    uint256 fukcingReward = level.playerReward / level.totalNumberOfPlayer;
+    require(IERC20(fukcingToken).transfer(sender, fukcingReward), "Something went wrong while you're trying to get your fukcing reward!");
   }
   
-  function claimBackerReward(uint256 _seanceNumber, uint256 _levelNumber) public returns (bool) {
+  function claimBackerReward(uint256 _seanceNumber, uint256 _levelNumber) public {
     require(block.timestamp > seances[_seanceNumber].endingTime, "Wait for the end of the seance!");
     require(seances[_seanceNumber].endingTime != 0, "Invalied seance number!");
     require(_levelNumber >= 0 && _levelNumber < 13, "Invalid level number!");
 
     Level storage level = seances[_seanceNumber].levels[_levelNumber];
     Election storage election = level.election;
+    address sender = _msgSender();
 
-    require(level.isBackerClaimed[_msgSender()] == false, "Wow wow wow! You already claimed your shit bro. Back off!");
-    level.isBackerClaimed[_msgSender()] == true;
+    require(level.isBackerClaimed[sender] == false, "Wow wow wow! You already claimed your shit bro. Back off!");
+    level.isBackerClaimed[sender] == true;
 
     // rewardAmount = backerReward * backerfund / total fund
     uint256 fukcingReward = level.backerReward * 
-      election.backerFunds[election.winnerID][_msgSender()] * election.candidateFunds[election.winnerID];
-    require(fukcingToken.transfer(_msgSender(), fukcingReward), "Something went wrong while you're trying to get your fukcing reward!");
-
-    return true;
+      election.backerFunds[election.winnerID][sender] / election.candidateFunds[election.winnerID];
+    require(IERC20(fukcingToken).transfer(sender, fukcingReward), "Something went wrong while you're trying to get your fukcing reward!");
   }
 
-  function merkleCheck(Level storage _level, bytes32[] calldata _merkleProof) internal returns (uint256) {
-    require(_level.isPlayerClaimed[_msgSender()] == false, "Dude! You have already claimed your reward! Why too aggressive?");
-
-    uint256 reward;
-    bytes32 leaf = keccak256(abi.encodePacked(_msgSender()));
-        
-    for (uint256 i = 0; i < _level.merkleRoots.length; i++){
-      // If the proof valid for this index, get the reward of this index
-      if (MerkleProof.verify(_merkleProof, _level.merkleRoots[i], leaf)){
-        _level.isPlayerClaimed[_msgSender()] = true;
-        reward = _level.rewards[i];
-        break;
-      }
-    }
-    return reward;
-  }
-
-  function returnMerkleRoots(uint256 _seanceNumber, uint256 _levelNumber) public view returns (bytes32[] memory) {
-    return seances[_seanceNumber].levels[_levelNumber].merkleRoots;
-  }
-
-  function returnAllowances(uint256 _seanceNumber, uint256 _levelNumber) public view returns (uint256[] memory) {
-    return seances[_seanceNumber].levels[_levelNumber].rewards;
+  function returnMerkleRoot(uint256 _seanceNumber, uint256 _levelNumber) public view returns (bytes32) {
+    return seances[_seanceNumber].levels[_levelNumber].merkleRoot;
   }
 
   function getBackerRewards(Seance storage _seance) internal {
     // Get the backer rewards from fukcing token
-    //mint
-    // Distribute it according to levelRewardRates
+    (bool txSuccess, bytes memory returnData) = fukcingToken.call(abi.encodeWithSignature("backerMint()"));
+    require(txSuccess, "Transaction has failed to get backer rewards from Fukcing Token contract!");
+    (_seance.seanceRewards) = abi.decode(returnData, (uint256));
+
+    // Distribute it according to level weights
+    for (uint256 i = 0; i < 13; i++) {
+      _seance.levels[i].backerReward = _seance.seanceRewards * levelRewardWeights[i] / totalRewardWeight;
+    }
+  }
+
+  function updateLevelRewardRates(uint256 _level, uint256 _newWeight) public {
+    require(_msgSender() == fukcingExecutors, "Only the Fukcing Executors can update the level reward rates!!");
+    require(_level >= 0 && _level < 13, "Dude! Check the level number! It can be 0 to 12!");
+
+    // Update total weight
+    if (levelRewardWeights[_level] > _newWeight)
+      totalRewardWeight -= levelRewardWeights[_level] - _newWeight;
+    else
+      totalRewardWeight += _newWeight - levelRewardWeights[_level];
+    
+    // Update level weight
+    levelRewardWeights[_level] = _newWeight;
   }
 }

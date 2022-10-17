@@ -7,19 +7,21 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Snapshot.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
-//import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 /**
   * @notice:
-  * -> Add snapshot feature. Executors can take snapshot.
-  * -> The receiver address of the staking rewards should be empty and will be set by the DAO decision later when we figure out how to set the staking stuff.
+  * -> Airdrop and Team mints
+  * -> maxSupply can change by DAO 13 days long proposal with %90 approval rate after there is 1 month left until the max supply
+  * -> Mint rate can chage with same hard approval after 1 year: backers, clans, community, staking
+  * -> Make changable all the receivers except airdrop and team.
   */
 
 /**
   * -> Vesting Mechanism                                                        //   Ether per sec         Wei per sec
-  * Backers     -> Seance gets automatically                                    // 0.224538876188384    224538876188384000
+  * Backers     -> Seance gets automatically        // 7days (0.6%) TGE         // 0.224538876188384    224538876188384000
   * Clans       -> Clan contract gets automatically                             // 0.224538876188384    224538876188384000
-  * Community   -> Executors pulls to the contract  // New Contract - 13% TGE   // 0.0748462920627947   74846292062794700
+  * Community   -> Executors pulls to the contract  // 13% TGE                  // 0.0748462920627947   74846292062794700
   * Staking     -> Executors pulls to the contract  // New Contract (later)     // 0.0748462920627947   74846292062794700
   * FDAO        -> Executors pulls to the contract                              // 0.0374231460313974   37423146031397400
   * Executors   -> Executors pulls to the contract                              // 0.0149692584125589   14969258412558900
@@ -70,37 +72,37 @@ contract FukcingToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
     uint256[] teamRoots;
 
     uint256 public deploymentTime;
-    uint256 public oneYearVesting;
+    uint256 public oneYearVesting = 31556926;    // TEST -> Change var name and value. Like: october_16_2023 = 1697471734;
+    uint256 public communityTGErelease;     // 12,307,196   -> ~142 days
+    uint256 public airdropTGErelease;       // 4,102,399    -> ~47 days
     uint256 public proposalType;
+    uint256 public maxSupply = 70857567;    // ~70 million initial max supply
 
     // Mint per second in Wei
-    uint256 public backerMintPerSecond;
-    uint256 public clanMintPerSecond;
-    uint256 public communityMintPerSecond;
-    uint256 public stakingMintPerSecond;
-    uint256 public daoMintPerSecond;
-    uint256 public executorsMintPerSecond;
-    uint256 public developmentMintPerSecond;
+    uint256 public backerMintPerSecond = 224538876188384000;
+    uint256 public clanMintPerSecond = 224538876188384000;
+    uint256 public communityMintPerSecond = 74846292062794700;
+    uint256 public stakingMintPerSecond = 74846292062794700;
+    uint256 public daoMintPerSecond = 37423146031397400;
+    uint256 public executorsMintPerSecond = 14969258412558900;
+    uint256 public developmentMintPerSecond = 67361662856515200;
 
-    function backerClaim() public {
-        
-    }
+    // Minted Amount for each allocation subject    
+    uint256 public totalBackerMint;
+    uint256 public totalClanMint;
+    uint256 public totalCommunityMint;
+    uint256 public totalStakingMint;
+    uint256 public totalDaoMint;
+    uint256 public totalExecutorsMint;
+    uint256 public totalAirdropMint;
+    uint256 public totalDevelopmentMint;
+    uint256 public totalTeamMint;
     
     constructor() ERC20("FukcingToken", "FUKC") {
         deploymentTime = block.timestamp;
-        oneYearVesting = 1665946534;    // TEST -> Change var name and value. Like: october_16_2023 = 1697471734;
         
         // Start with index of 1 to avoid some double propose in state updates
         proposalCounter.increment(); 
-
-        // _mint(to, amount);
-        backerMintPerSecond = 224538876188384000;
-        clanMintPerSecond = 224538876188384000;
-        communityMintPerSecond = 74846292062794700;
-        stakingMintPerSecond = 74846292062794700;
-        daoMintPerSecond = 37423146031397400;
-        executorsMintPerSecond = 14969258412558900;
-        developmentMintPerSecond = 67361662856515200;
     }
 
     function snapshot() public {
@@ -124,6 +126,124 @@ contract FukcingToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
         override(ERC20, ERC20Snapshot)
     {
         super._beforeTokenTransfer(from, to, amount);
+    }
+
+    // Vesting Mechanism - Dynamic Mint 
+
+    function backerMint() public returns (uint256){
+        require(_msgSender() == fukcingSeance, "Only the Fukcing Seance contract can call this fukcing function!");
+        require(totalSupply() <= maxSupply, "Max supply has been reached!");
+
+        // Mint starts 7 days before the token deployment to reward backers and players for the initial seance
+        uint256 totalReward = (block.timestamp - (deploymentTime - 7 days)) * backerMintPerSecond; // TEST -> make it 7 days
+        uint256 currentReward = totalReward - totalBackerMint;
+
+        totalBackerMint += currentReward;
+
+        _mint(fukcingSeance, currentReward);
+
+        return currentReward;
+    }
+
+    function clanMint() public returns (uint256){
+        require(_msgSender() == fukcingClan, "Only the Fukcing Clan contract can call this fukcing function!");
+        require(totalSupply() <= maxSupply, "Max supply has been reached!");
+
+        uint256 totalReward = (block.timestamp - deploymentTime) * clanMintPerSecond;
+        uint256 currentReward = totalReward - totalClanMint;
+
+        // DAO token supply should be equal or greater than the total clan reward 
+        // to encourage DAO members to approve new mint proposals.
+        require(ERC20(fukcingDAO).totalSupply() >= totalReward, "Not enough DAO tokens! DAO should approve new token mints!");
+
+        totalClanMint += currentReward;
+
+        _mint(fukcingClan, currentReward);
+
+        return currentReward;
+    }
+
+    function communityMint() public returns (uint256){
+        require(_msgSender() == fukcingCommunity, "Only the Fukcing Community can call this fukcing function!");
+        require(totalSupply() <= maxSupply, "Max supply has been reached!");
+        
+        // Community mint date starts ~142 days ago to have 13% TGE which is 921k tokens.
+        uint256 totalReward = (block.timestamp - (deploymentTime - communityTGErelease)) * communityMintPerSecond;
+        uint256 currentReward = totalReward - totalCommunityMint;
+
+        totalCommunityMint += currentReward;
+
+        _mint(fukcingCommunity, currentReward);
+
+        return currentReward;
+    }
+
+    function stakingMint() public returns (uint256){        
+        require(_msgSender() == fukcingExecutors, "Only the Fukcing Executors can call this fukcing function!");
+        require(totalSupply() <= maxSupply, "Max supply has been reached!");
+        
+        uint256 totalReward = (block.timestamp - deploymentTime) * stakingMintPerSecond;
+        uint256 currentReward = totalReward - totalStakingMint;
+
+        totalStakingMint += currentReward;
+
+        _mint(fukcingStaking, currentReward);
+
+        return currentReward;
+    }
+
+    function daoMint() public returns (uint256){        
+        require(_msgSender() == fukcingExecutors, "Only the Fukcing Executors can call this fukcing function!");
+        require(totalSupply() <= maxSupply, "Max supply has been reached!");
+        
+        uint256 totalReward = (block.timestamp - deploymentTime) * daoMintPerSecond;
+        uint256 currentReward = totalReward - totalDaoMint;
+
+        totalDaoMint += currentReward;
+
+        _mint(fukcingDAO, currentReward);
+
+        return currentReward;
+    }
+
+    function executorsMint() public returns (uint256){        
+        require(_msgSender() == fukcingExecutors, "Only the Fukcing Executors can call this fukcing function!");
+        require(totalSupply() <= maxSupply, "Max supply has been reached!");
+        
+        uint256 totalReward = (block.timestamp - deploymentTime) * executorsMintPerSecond;
+        uint256 currentReward = totalReward - totalExecutorsMint;
+
+        totalExecutorsMint += currentReward;
+
+        _mint(fukcingExecutors, currentReward);
+
+        return currentReward;
+    }
+
+    function airdropMint() public {
+        require(block.timestamp <= oneYearVesting/* - early mint time */, "Airdrop vesting period ended!");
+
+        // Community mint date starts ~142 days ago to have 13% TGE which is 921k tokens.
+        //uint256 totalReward = (block.timestamp - (deploymentTime - communityTGErelease));
+    }
+
+    function developmentMint() public returns (uint256){        
+        require(_msgSender() == fukcingExecutors, "Only the Fukcing Executors can call this fukcing function!");
+        require(block.timestamp <= oneYearVesting, "Development vesting period ended!");
+        
+        uint256 totalReward = (block.timestamp - deploymentTime) * developmentMintPerSecond;
+        uint256 currentReward = totalReward - totalDevelopmentMint;
+
+        totalDevelopmentMint += currentReward;
+
+        _mint(fukcingDevelopers, currentReward);
+
+        return currentReward;
+    }
+
+    function teamMint() public {
+        require(block.timestamp <= oneYearVesting, "Team vesting period ended!");
+
     }
 
 
