@@ -11,10 +11,9 @@ import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 /**
   * @notice:
-  * -> Airdrop and Team mints
   * -> maxSupply can change by DAO 13 days long proposal with %90 approval rate after there is 1 month left until the max supply
   * -> Mint rate can chage with same hard approval after 1 year: backers, clans, community, staking
-  * -> Make changable all the receivers except airdrop and team.
+  * -> Make changable all the receivers except airdrop and team. The address of them.
   */
 
 /**
@@ -66,17 +65,18 @@ contract FukcingToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
     address public fukcingStaking;
     address public fukcingDevelopers;
 
-    uint256[] public testerAllowance;
-    uint256[] public testerRoots;
-    uint256[] teamAllowance;
-    uint256[] teamRoots;
+    uint256[] public airdropMintPerSecond;
+    bytes32[] public airdropRoots;
+    address[] teamAddress;
+    uint256[] teamMintPerSecond;
 
     uint256 public deploymentTime;
-    uint256 public oneYearVesting = 31556926;    // TEST -> Change var name and value. Like: october_16_2023 = 1697471734;
-    uint256 public communityTGErelease;     // 12,307,196   -> ~142 days
-    uint256 public airdropTGErelease;       // 4,102,399    -> ~47 days
+    uint256 public oneYearVesting = 31556926;   // TEST -> Change var name and value. Like: october_16_2023 = 1697471734;
+    uint256 public communityTGErelease;         // 12,307,196   -> ~142 days
+    uint256 public airdropTGErelease;           // 4,102,399    -> ~47 days
     uint256 public proposalType;
-    uint256 public maxSupply = 70857567;    // ~70 million initial max supply
+    uint256 public maxSupply = 70857567;        // ~70 million initial max supply
+    uint256 public teamAndAirdropCap = 3542878; // ~3.5 million both for team and airdrop allocation
 
     // Mint per second in Wei
     uint256 public backerMintPerSecond = 224538876188384000;
@@ -98,8 +98,19 @@ contract FukcingToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
     uint256 public totalDevelopmentMint;
     uint256 public totalTeamMint;
     
-    constructor() ERC20("FukcingToken", "FUKC") {
+    constructor(
+        address[] memory _teamAddress,
+        uint256[] memory _teamMintPerSecond,
+        bytes32[] memory _airdropRoots,
+        uint256[] memory _airdropMintPerSecond
+    ) 
+        ERC20("FukcingToken", "FUKC") 
+    {
         deploymentTime = block.timestamp;
+        teamAddress = _teamAddress;
+        teamMintPerSecond = _teamMintPerSecond;
+        airdropRoots = _airdropRoots;
+        airdropMintPerSecond = _airdropMintPerSecond;
         
         // Start with index of 1 to avoid some double propose in state updates
         proposalCounter.increment(); 
@@ -220,11 +231,19 @@ contract FukcingToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
         return currentReward;
     }
 
-    function airdropMint() public {
-        require(block.timestamp <= oneYearVesting/* - early mint time */, "Airdrop vesting period ended!");
+    function airdropMint(bytes32[] calldata _merkleProof) public {
+        require(block.timestamp <= oneYearVesting - airdropTGErelease, "Airdrop vesting period ended!");
+        require(totalAirdropMint <= teamAndAirdropCap, "All of airdrop allocation has been minted!");
 
-        // Community mint date starts ~142 days ago to have 13% TGE which is 921k tokens.
-        //uint256 totalReward = (block.timestamp - (deploymentTime - communityTGErelease));
+        
+        uint256 totalReward = getAirdropReward(_merkleProof);
+        require(totalReward > 0, "Bruh, you don't have any allowance! Maybe next time ;)");
+
+        uint256 currentReward = totalReward - claimedAllowance[_msgSender()];
+        claimedAllowance[_msgSender()] += currentReward;
+        totalAirdropMint += currentReward;
+
+        _mint(_msgSender(), currentReward);
     }
 
     function developmentMint() public returns (uint256){        
@@ -241,9 +260,37 @@ contract FukcingToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
         return currentReward;
     }
 
-    function teamMint() public {
+    function teamMint(uint256 _index) public {
+        require(_msgSender() == teamAddress[_index], "You don't share the team allocation, check your wallet address! Dummy!");
         require(block.timestamp <= oneYearVesting, "Team vesting period ended!");
+        require(totalTeamMint <= teamAndAirdropCap, "The team members minted all of their allocation!");
 
+        uint256 totalReward = (block.timestamp - deploymentTime) * teamMintPerSecond[_index];
+        uint256 currentReward = totalReward - claimedAllowance[teamAddress[_index]];
+
+        claimedAllowance[teamAddress[_index]] += currentReward;
+        totalTeamMint += currentReward;
+
+        _mint(teamAddress[_index], currentReward);
+    }
+
+    function getAirdropReward(bytes32[] calldata _merkleProof) internal view returns (uint256) {
+        uint256 totalReward;
+        bytes32 leaf = keccak256(abi.encodePacked(_msgSender()));
+        
+        // Search in all roots
+        for (uint256 i = 0; i < airdropRoots.length; i++){
+
+            // If the proof valid for this index, get the reward for this index
+            if (MerkleProof.verify(_merkleProof, airdropRoots[i], leaf)){
+
+                // Community mint date starts ~142 days ago to have 13% TGE which is 921k tokens.
+                totalReward = (block.timestamp - (deploymentTime - airdropTGErelease)) * airdropMintPerSecond[i];
+                break;
+            }
+        }
+
+        return totalReward;
     }
 
 
