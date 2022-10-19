@@ -9,6 +9,8 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol";
 /**
   * -> Update: DAO and Executer add, UpdatePropType, points for levels, Clan tax for members, country Code
+  * -> Update max point to change
+  * -> require executer
   */
 
 /*
@@ -143,7 +145,7 @@ contract FukcingClan is Context, ReentrancyGuard {
     clanOf[sender] = _clanID; 
   }
 
-  function increaseClanPoints(uint256 _clanID, uint256 _points) public { // Test only executor can 
+  function giveClanPoints(uint256 _clanID, uint256 _points, bool _isDecreasing) public { // Test only executor can 
     require(_points <= maxPointsToChange, "Maximum amount of points exceeded!");
     require(clans[_clanID].isDisbanded == false, "This clan is disbanded!");
 
@@ -154,33 +156,27 @@ contract FukcingClan is Context, ReentrancyGuard {
     if (clans[_clanID].clanPointsSnapshots[currSnap] == 0)
       clan.clanPointsSnapshots[currSnap] = clan.currentPoints;
     
-    // Give points to clan
-    clan.clanPointsSnapshots[currSnap] += _points;
-    clan.currentPoints += _points;
+    if (_isDecreasing){
+      // Give points to clan
+      clan.clanPointsSnapshots[currSnap] -= _points;
+      clan.currentPoints -= _points;
 
-    // Update the total points of all clans
-    totalClanPointsSnapshots[currSnap] += _points;
-    currentTotalClanPoints += _points;
+      // Update the total points of all clans
+      totalClanPointsSnapshots[currSnap] -= _points;
+      currentTotalClanPoints -= _points;
+    }
+    else {
+      // Give points to clan
+      clan.clanPointsSnapshots[currSnap] += _points;
+      clan.currentPoints += _points;
+
+      // Update the total points of all clans
+      totalClanPointsSnapshots[currSnap] += _points;
+      currentTotalClanPoints += _points;
+    }
 
     // If this was the first time of this clan, record the first snap
     if (clan.firstSnap == 0) { clan.firstSnap = currSnap; }
-  }
-
-  function decreaseClanPoints(uint256 _clanID, uint256 _points) public { // Test only executor can and needs DAO approval !!!
-    require(_points <= maxPointsToChange, "Maximum amount of points exceeded!");
-    require(clans[_clanID].isDisbanded == false, "This clan is disbanded!");
-
-    uint256 currSnap = snapshotCounter.current();
-
-    // If the current snapshot 0, that indicates a new snapshot and we need to update it. 
-    if (clans[_clanID].clanPointsSnapshots[currSnap] == 0)
-      clans[_clanID].clanPointsSnapshots[currSnap] = clans[_clanID].currentPoints;
-    
-    clans[_clanID].clanPointsSnapshots[currSnap] -= _points;
-    clans[_clanID].currentPoints -= _points;
-
-    totalClanPointsSnapshots[currSnap] -= _points;
-    currentTotalClanPoints -= _points;
   }
 
   function clanRewardClaim(uint256 _clanID, uint256 _snapshotNumber) public {    

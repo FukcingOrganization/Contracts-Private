@@ -135,7 +135,6 @@ contract FukcingLord is ERC721, ERC721Burnable {
 
   function mintClanLicence(uint256 _lordID, uint256 _amount, bytes memory _data) public {
     require(ownerOf(_lordID) == _msgSender(), "Who are you fooling? You are not the Lord that you claim to be!");
-    require(numberOfActiveLicences[_lordID] + _amount <= 3, "Maximum number of active licence exceeds!");
     
     bytes memory payload = abi.encodeWithSignature("mintLicence(address,uint256,uint256,bytes)", _msgSender(), _lordID, _amount, _data);
     (bool txSuccess, ) = address(fukcingClanLicence).call(payload);

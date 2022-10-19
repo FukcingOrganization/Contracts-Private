@@ -10,6 +10,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 /**
   * -> Update function by Executer contract
+  * -> DAO can give point to clans as well !!
   * -> Update Executer add
   * -> Add non renandant modifiers to functions
   * -> DAO can only approve same amount of token as community
@@ -157,7 +158,8 @@ contract FukcingDAO is ERC20, AccessControl {
     uint256 private stateUpdateID_lordContAdd;
     uint256 private stateUpdateID_minBalanceToProp;
     uint256 private stateUpdateID_monetaryPropType;
-    uint256 private stateUpdateID_proposalType;
+    uint256 private stateUpdateID_addProposalType;
+    uint256 private stateUpdateID_updateProposalType;
 
     constructor() ERC20("FukcingDAO", "FDAO") {
         /*
@@ -455,9 +457,9 @@ contract FukcingDAO is ERC20, AccessControl {
         uint256 _requiredTokenAmount, 
         uint256 _requiredParticipantAmount
     )
-    public onlyRole(EXECUTER_ROLE) returns (bool) {
+    public onlyRole(EXECUTER_ROLE) {
         // if stateUpdateID is 0, make a new proposal
-        if (stateUpdateID_proposalType == 0) { // Which is default
+        if (stateUpdateID_addProposalType == 0) { // Which is default
             string memory proposalDescription = string(abi.encodePacked(
                 "Adding a new proposal type with following parameters: ", 
                 "Length of ", Strings.toString(_length), ". ",
@@ -466,22 +468,21 @@ contract FukcingDAO is ERC20, AccessControl {
                 "Required Participant Amount of ", Strings.toString(_requiredParticipantAmount), "."
             )); 
             // Create a new proposal and save the ID
-            stateUpdateID_proposalType = newProposal(proposalDescription, stateUpdateProposalType);
+            stateUpdateID_addProposalType = newProposal(proposalDescription, stateUpdateProposalType);
 
             // Get new state update by proposal ID we get from newProposal
-            ProposalTypeUpdate storage update = proposalTypeUpdates[stateUpdateID_proposalType];
-            update.proposalID = stateUpdateID_proposalType;
+            ProposalTypeUpdate storage update = proposalTypeUpdates[stateUpdateID_addProposalType];
+            update.proposalID = stateUpdateID_addProposalType;
             update.newLength = _length;
             update.newRequiredApprovalRate = _requiredApprovalRate;
             update.newRequiredTokenAmount = _requiredTokenAmount;
             update.newRequiredParticipantAmount = _requiredParticipantAmount;
 
-            // Finish the function
-            return true;
+            return; // Finish the function
         }
 
         // If there is already a proposal, Update the current proposal
-        Proposal storage proposal = proposals[stateUpdateID_proposalType];
+        Proposal storage proposal = proposals[stateUpdateID_addProposalType];
         updateProposalStatus(proposal);
 
         // Wait for the current one to finalize
@@ -492,9 +493,7 @@ contract FukcingDAO is ERC20, AccessControl {
 
         // if the current one is approved, apply the update the state
         if (proposal.status == ProposalStatus.Approved){
-            ProposalTypeUpdate storage update = proposalTypeUpdates[stateUpdateID_proposalType];
-            
-            // Add proposal type
+            ProposalTypeUpdate storage update = proposalTypeUpdates[stateUpdateID_addProposalType];
             proposalTypes.push(
                 ProposalType({
                 length : update.newLength,
@@ -502,13 +501,10 @@ contract FukcingDAO is ERC20, AccessControl {
                 requiredTokenAmount : update.newRequiredTokenAmount,
                 requiredParticipantAmount : update.newRequiredParticipantAmount
             }));
-            
-            stateUpdateID_proposalType = 0;   // reset proposal tracker
-            return true;
-        } else {  // if failed, change the stateUpdateNum to 0 and return false 
-            stateUpdateID_proposalType = 0;   // reset proposal tracker
-            return false;
-        }
+        } 
+
+        // In any case, this proposal has ended. Change the stateUpdateNum to 0 
+        stateUpdateID_addProposalType = 0;   // reset proposal tracker 
     }
 
     function updateProposalType(
@@ -518,9 +514,9 @@ contract FukcingDAO is ERC20, AccessControl {
         uint256 _newRequiredTokenAmount, 
         uint256 _newRequiredParticipantAmount
     )
-    public onlyRole(EXECUTER_ROLE) returns (bool) {
+    public onlyRole(EXECUTER_ROLE) {
         // if stateUpdateID is 0, make a new proposal
-        if (stateUpdateID_proposalType == 0) { // Which is default
+        if (stateUpdateID_updateProposalType == 0) { // Which is default
             // Splited the decription to 2 parts, because it was too deep as a whole.
             string memory part1 = string(abi.encodePacked(
                 "Updating proposal type number ", Strings.toString(_proposalTypeNumber), " with following parameters: ", 
@@ -537,23 +533,22 @@ contract FukcingDAO is ERC20, AccessControl {
             )); 
             string memory proposalDescription = string(abi.encodePacked(part1, part2)); 
             // Create a new proposal and save the ID
-            stateUpdateID_proposalType = newProposal(proposalDescription, stateUpdateProposalType);
+            stateUpdateID_updateProposalType = newProposal(proposalDescription, stateUpdateProposalType);
 
             // Get new state update by proposal ID we get from newProposal
-            ProposalTypeUpdate storage update = proposalTypeUpdates[stateUpdateID_proposalType];
-            update.proposalID = stateUpdateID_proposalType;
+            ProposalTypeUpdate storage update = proposalTypeUpdates[stateUpdateID_updateProposalType];
+            update.proposalID = stateUpdateID_updateProposalType;
             update.proposalTypeNumber = _proposalTypeNumber;
             update.newLength = _newLength;
             update.newRequiredApprovalRate = _newRequiredApprovalRate;
             update.newRequiredTokenAmount = _newRequiredTokenAmount;
             update.newRequiredParticipantAmount = _newRequiredParticipantAmount;
 
-            // Finish the function
-            return true;
+            return; // Finish the function
         }
 
         // If there is already a proposal, Update the current proposal
-        Proposal storage proposal = proposals[stateUpdateID_proposalType];
+        Proposal storage proposal = proposals[stateUpdateID_updateProposalType];
         updateProposalStatus(proposal);
 
         // Wait for the current one to finalize
@@ -564,7 +559,7 @@ contract FukcingDAO is ERC20, AccessControl {
 
         // if the current one is approved, apply the update the state
         if (proposal.status == ProposalStatus.Approved){
-            ProposalTypeUpdate storage update = proposalTypeUpdates[stateUpdateID_proposalType];
+            ProposalTypeUpdate storage update = proposalTypeUpdates[stateUpdateID_updateProposalType];
             
             // Update proposal type
             ProposalType storage propType = proposalTypes[update.proposalTypeNumber];
@@ -572,16 +567,13 @@ contract FukcingDAO is ERC20, AccessControl {
             propType.requiredApprovalRate = update.newRequiredApprovalRate;
             propType.requiredTokenAmount = update.newRequiredTokenAmount;
             propType.requiredParticipantAmount = update.newRequiredParticipantAmount;
-            
-            stateUpdateID_proposalType = 0;   // reset proposal tracker
-            return true;
-        } else {  // if failed, change the stateUpdateNum to 0 and return false 
-            stateUpdateID_proposalType = 0;   // reset proposal tracker
-            return false;
         }
+
+        // In any case, this proposal has ended. Change the stateUpdateNum to 0 
+        stateUpdateID_updateProposalType = 0;   // reset proposal tracker 
     }
 
-    function updateStateUpdateProposalType(uint256 _newType) public onlyRole(EXECUTER_ROLE) returns (bool) {
+    function updateStateUpdateProposalType(uint256 _newType) public onlyRole(EXECUTER_ROLE) {
         // if stateUpdateID is 0, make a new proposal
         if (stateUpdateID_stateUpdateProposalType == 0) { // Which is default
             string memory proposalDescription = string(abi.encodePacked(
@@ -596,8 +588,7 @@ contract FukcingDAO is ERC20, AccessControl {
             update.proposalID = stateUpdateID_stateUpdateProposalType;
             update.newUint = _newType;
 
-            // Finish the function
-            return true;
+            return; // Finish the function
         }
 
         // If there is already a proposal, Update the current proposal
@@ -614,15 +605,13 @@ contract FukcingDAO is ERC20, AccessControl {
         if (proposal.status == ProposalStatus.Approved){
             StateUpdate storage update = stateUpdates[stateUpdateID_stateUpdateProposalType];
             stateUpdateProposalType = update.newUint;
-            stateUpdateID_stateUpdateProposalType = 0;   // reset proposal tracker
-            return true;
-        } else {  // if failed, change the stateUpdateNum to 0 and return false 
-            stateUpdateID_stateUpdateProposalType = 0;   // reset proposal tracker
-            return false;
         }
+
+        // In any case, this proposal has ended. Change the stateUpdateNum to 0 
+        stateUpdateID_stateUpdateProposalType = 0;   // reset proposal tracker 
     } 
 
-    function updateFukcingLordContractAddress(address _newAddress) public onlyRole(EXECUTER_ROLE) returns (bool) {
+    function updateFukcingLordContractAddress(address _newAddress) public onlyRole(EXECUTER_ROLE) {
         // if stateUpdateID is 0, make a new proposal
         if (stateUpdateID_lordContAdd == 0) { // Which is default
             string memory proposalDescription = string(abi.encodePacked(
@@ -637,8 +626,7 @@ contract FukcingDAO is ERC20, AccessControl {
             update.proposalID = stateUpdateID_lordContAdd;
             update.newAddress = _newAddress;
 
-            // Finish the function
-            return true;
+            return; // Finish the function            
         }
 
         // If there is already a proposal, Update the current proposal
@@ -655,15 +643,13 @@ contract FukcingDAO is ERC20, AccessControl {
         if (proposal.status == ProposalStatus.Approved){
             StateUpdate storage update = stateUpdates[stateUpdateID_lordContAdd];
             fukcingLordContract = update.newAddress;
-            stateUpdateID_lordContAdd = 0;   // reset proposal tracker
-            return true;
-        } else {  // if failed, change the stateUpdateNum to 0 and return false 
-            stateUpdateID_lordContAdd = 0;   // reset proposal tracker
-            return false;
-        }  
+        }
+
+        // In any case, this proposal has ended. Change the stateUpdateNum to 0 
+        stateUpdateID_lordContAdd = 0;   // reset proposal tracker 
     }
 
-    function updateMinBalanceToPropose(uint256 _newAmount) public onlyRole(EXECUTER_ROLE) returns (bool) {
+    function updateMinBalanceToPropose(uint256 _newAmount) public onlyRole(EXECUTER_ROLE) {
         // if stateUpdateID is 0, make a new proposal
         if (stateUpdateID_minBalanceToProp == 0) { // Which is default
             string memory proposalDescription = string(abi.encodePacked(
@@ -678,8 +664,7 @@ contract FukcingDAO is ERC20, AccessControl {
             update.proposalID = stateUpdateID_minBalanceToProp;
             update.newUint = _newAmount;
 
-            // Finish the function
-            return true;
+            return; // Finish the function
         }
 
         // If there is already a proposal, Update the current proposal
@@ -696,15 +681,13 @@ contract FukcingDAO is ERC20, AccessControl {
         if (proposal.status == ProposalStatus.Approved){
             StateUpdate storage update = stateUpdates[stateUpdateID_minBalanceToProp];
             minBalanceToPropose = update.newUint;
-            stateUpdateID_minBalanceToProp = 0;   // reset proposal tracker
-            return true;
-        } else {  // if failed, change the stateUpdateNum to 0 and return false 
-            stateUpdateID_minBalanceToProp = 0;   // reset proposal tracker
-            return false;
-        }  
+        }
+
+        // In any case, this proposal has ended. Change the stateUpdateNum to 0 
+        stateUpdateID_minBalanceToProp = 0;   // reset proposal tracker 
     }
 
-    function updateMonetaryProposalType(uint256 _newType) public onlyRole(EXECUTER_ROLE) returns (bool) {
+    function updateMonetaryProposalType(uint256 _newType) public onlyRole(EXECUTER_ROLE) {
         // if stateUpdateID is 0, make a new proposal
         if (stateUpdateID_monetaryPropType == 0) { // Which is default
             string memory proposalDescription = string(abi.encodePacked(
@@ -719,8 +702,7 @@ contract FukcingDAO is ERC20, AccessControl {
             update.proposalID = stateUpdateID_monetaryPropType;
             update.newUint = _newType;
 
-            // Finish the function
-            return true;
+            return; // Finish the function  
         }
 
         // If there is already a proposal, Update the current proposal
@@ -737,12 +719,10 @@ contract FukcingDAO is ERC20, AccessControl {
         if (proposal.status == ProposalStatus.Approved){
             StateUpdate storage update = stateUpdates[stateUpdateID_monetaryPropType];
             monetaryProposalType = update.newUint;
-            stateUpdateID_monetaryPropType = 0;   // reset proposal tracker
-            return true;
-        } else {  // if failed, change the stateUpdateNum to 0 and return false 
-            stateUpdateID_monetaryPropType = 0;   // reset proposal tracker
-            return false;
-        }        
+        } 
+
+        // In any case, this proposal has ended. Change the stateUpdateNum to 0 
+        stateUpdateID_monetaryPropType = 0;   // reset proposal tracker        
     }  
 /*  
     >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< ><  >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< ><
@@ -912,9 +892,7 @@ contract FukcingDAO is ERC20, AccessControl {
         return monetaryProposals[_monetaryProposalNumber].allowances;
     }
 
-    function getContractCoinBalance() public view returns (uint256){
-        return address(this).balance;
-    }
+    function getContractCoinBalance() public view returns (uint256){ return address(this).balance; }
 
     function getContractTokenBalance(address _tokenContractAddress) public returns (uint256) {
         // Checking the balance of DAO in the target token
@@ -927,5 +905,7 @@ contract FukcingDAO is ERC20, AccessControl {
         (uint256 DAObalance) = abi.decode(returnData, (uint256));
         return DAObalance;
     }
+
+    function getMinBalanceToPropose() public view returns (uint256) { return minBalanceToPropose; }
 
 }
