@@ -1,0 +1,161 @@
+
+// Get these to have contract governance
+
+enum Status{
+    NotStarted, // Index: 0
+    OnGoing,    // Index: 1
+    Approved,   // Index: 2
+    Denied      // Index: 3
+}
+
+struct Proposal {
+    Status status;
+    uint256 updateCode; // Update code helps to differentiate different variables with same data type. Starts from 1.
+    bool isExecuted;    // If executed, the data and proposal no longer can be used.
+    
+    uint256 index;      // The index of target array. See arrays below.
+    uint256 newUint;
+    address newAddress;
+    bytes32 newBytes32;
+    bool newBool;
+}
+
+
+/**
+ * contracts' Indexes with corresponding meaning
+ *  
+ * Index 0: Boss Contract             
+ * Index 1: Clan Contract              
+ * Index 2: ClanLicence Contract        
+ * Index 3: Community Contract         
+ * Index 4: DAO Contract               
+ * Index 5: Executor Contract            
+ * Index 6: Items Contract            
+ * Index 7: Lord Contract               
+ * Index 8: Rent Contract               
+ * Index 9: Seance Contract             
+ * Index 10: Staking Contract           
+ * Index 11: Token Contract          
+ * Index 12: Developer Contract/address  
+ */
+address[13] public contracts; 
+
+mapping(uint256 => Proposal) public proposals;          // Proposal ID => Proposal
+
+Example Functions:
+
+Array index change:
+    function proposeContractAddressUpdate(uint256 _contractIndex, address _newAddress) public {
+        require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+        require(_newAddress != address(0), "New address can not be the null address!");
+
+        string memory proposalDescription = string(abi.encodePacked(
+            "Updating contract address of index ", Strings.toHexString(_contractIndex), " to ", 
+            Strings.toHexString(_newAddress), " from ", Strings.toHexString(contracts[_contractIndex]), "."
+        )); 
+
+        // Create a new proposal - Call DAO contract (contracts[4]) - proposal type : 2 - Highly Important
+        (bool txSuccess, bytes memory returnData) = contracts[4].call(
+            abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypes[2])
+        );
+        require(txSuccess, "Transaction failed to make new proposal!");
+
+        // Save the ID to create proposal in here
+        (uint256 propID) = abi.decode(returnData, (uint256));
+
+        // Save data to the proposal
+        proposals[propID].updateCode = 1;
+        proposals[propID].index = _contractIndex;
+        proposals[propID].newAddress = _newAddress;
+    }
+
+    function executeContractAddressUpdateProposal(uint256 _proposalID) public {
+        Proposal storage proposal = proposals[_proposalID];
+
+        require(proposal.updateCode == 1, "Wrong proposal ID");
+        require(proposal.isExecuted == false, "Wrong proposal ID");
+        
+        // Get the result from DAO
+        (bool txSuccess, bytes memory returnData) = contracts[4].call(
+            abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
+        );
+        require(txSuccess, "Transaction failed to retrieve DAO result!");
+        (uint256 statusNum) = abi.decode(returnData, (uint256));
+
+        // Save it here
+        proposal.status = Status(statusNum);
+
+        // Wait for the current one to finalize
+        require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
+
+        // if approved, apply the update the state
+        if (proposal.status == Status.Approved)
+            contracts[proposal.index] = proposal.newAddress;
+
+        proposal.isExecuted = true;
+    }
+
+Normal variable change:
+    function proposeToIncreaseMaxSupply(uint256 _newMaxSupply) public {
+        require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+        require(block.timestamp > twoYearsLater, "You can't increase the max supply till end of the second year!");
+        require(_newMaxSupply > maxSupply, "New max supply can't be equal or lower than the current one");
+
+        // Max supply can be increased by maxiumum of 13% at a time
+        uint256 changeRate = (_newMaxSupply - maxSupply) * 100 / maxSupply;
+        require(changeRate <= 13, "New mint per second can only have 13% change!");
+
+        string memory proposalDescription = string(abi.encodePacked(
+            "MAX SUPPLY CHANGE !! NEW SUPPLY: ", Strings.toHexString(_newMaxSupply), 
+            ". The current supply is ", Strings.toHexString(maxSupply), "."
+        )); 
+
+        // Create a new proposal - Call DAO contract (contracts[4]) - proposal type : 3 - MAX SUPPLY CHANGE
+        (bool txSuccess, bytes memory returnData) = contracts[4].call(
+            abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypes[3])
+        );
+        require(txSuccess, "Transaction failed to make new proposal!");
+
+        // Save the ID
+        (uint256 propID) = abi.decode(returnData, (uint256));
+
+        // Save data to the proposal
+        proposals[propID].updateCode = 3;
+        proposals[propID].newUint = _newMaxSupply;
+    }
+
+    function executeIncreaseMaxSupplyProposal(uint256 _proposalID) public {
+        Proposal storage proposal = proposals[_proposalID];
+
+        require(proposal.updateCode == 3, "Wrong proposal ID");
+        require(proposal.isExecuted == false, "Wrong proposal ID");
+
+        // Get the result from DAO
+        (bool txSuccess, bytes memory returnData) = contracts[4].call(
+            abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
+        );
+        require(txSuccess, "Transaction failed to retrieve DAO result!");
+        (uint256 statusNum) = abi.decode(returnData, (uint256));
+
+        // Save it here
+        proposal.status = Status(statusNum);
+
+        // Wait for the current one to finalize
+        require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
+
+        // if the current one is approved, apply the update the state
+        if (proposal.status == Status.Approved)
+            maxSupply = proposal.newUint;
+
+        proposal.isExecuted = true;
+    }
+
+Define an update code for each variable like; (update codes starts from 1 !!!)
+/**
+  * Updates by DAO
+  * contracts -> Update Code: 1
+  * mintPerSecond -> Update Code: 2
+  * maxSupply ->Update Code: 3
+  * proposalTypes -> Up. Code: 4
+  * 
+  */

@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Snapshot.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import "@openzeppelin/contracts/utils/Counters.sol";
 
 /**
   * @notice:
@@ -45,72 +46,73 @@ contract FukcingToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
 
     struct Proposal {
         Status status;
-        string description;
+        uint256 updateCode; // Update code helps to differentiate different variables with same data type. Starts from 1.
+        bool isExecuted;    // If executed, the data and proposal no longer can be used.
+        
+        uint256 index;      // The index of target array. See arrays below.
         uint256 newUint;
         address newAddress;
         bytes32 newBytes32;
         bool newBool;
     }
 
-    mapping(uint256 => Proposal) public proposals;          // proposalID => Proposal
+    mapping(uint256 => Proposal) public proposals;          // Proposal ID => Proposal
     mapping(address => uint256) public allowancePerSecond;  // address => allowance per second in WEI
     mapping(address => uint256) public claimedAllowance;    // address => total claimed allowance
 
     /**
-    * contracts' Indexes with corresponding meaning
-    *  
-    * Index 0: Boss Contract                // Proposal ID Tracker (PID) : 0
-    * Index 1: Clan Contract                // PID: 1
-    * Index 2: ClanLicence Contract         // PID: 2
-    * Index 3: Community Contract           // PID: 3
-    * Index 4: DAO Contract                 // PID: 4
-    * Index 5: Executor Contract            // PID: 5
-    * Index 6: Items Contract               // PID: 6
-    * Index 7: Lord Contract                // PID: 7
-    * Index 8: Rent Contract                // PID: 8
-    * Index 9: Seance Contract              // PID: 9
-    * Index 10: Staking Contract            // PID: 10
-    * Index 11: Token Contract              // PID: 11
-    * Index 12: Developer Contract/address  // PID: 12
-    */
+     * contracts' Indexes with corresponding meaning
+     *  
+     * Index 0: Boss Contract             
+     * Index 1: Clan Contract              
+     * Index 2: ClanLicence Contract        
+     * Index 3: Community Contract         
+     * Index 4: DAO Contract               
+     * Index 5: Executor Contract            
+     * Index 6: Items Contract            
+     * Index 7: Lord Contract               
+     * Index 8: Rent Contract               
+     * Index 9: Seance Contract             
+     * Index 10: Staking Contract           
+     * Index 11: Token Contract          
+     * Index 12: Developer Contract/address  
+     */
     address[13] public contracts;  
 
-    /// PID 13 is maxSupply change, see below!
-
     /**
-    * mintPerSecond's Indexes with corresponding meaning
-    *  
-    * Index 0: Backer's         -> 224538876188384000   wei     // PID: 14
-    * Index 1: Clan's           -> 224538876188384000   wei     // PID: 15
-    * Index 2: Community's      -> 74846292062794700    wei     // PID: 16
-    * Index 3: Staking          -> 74846292062794700    wei     // PID: 17
-    * Index 4: DAO's            -> 37423146031397400    wei     // PID: 18
-    * Index 5: Development      -> 112269438094192000   wei     // PID: 19
-    */
+     * mintPerSecond's Indexes with corresponding meaning
+     *  
+     * Index 0: Backer's         -> 224538876188384000   wei  
+     * Index 1: Clan's           -> 224538876188384000   wei   
+     * Index 2: Community's      -> 74846292062794700    wei    
+     * Index 3: Staking          -> 74846292062794700    wei
+     * Index 4: DAO's            -> 37423146031397400    wei
+     * Index 5: Development      -> 112269438094192000   wei
+     */
     uint256[6] public mintPerSecond; // Mint per second in Wei for all allocation
 
     /**
-    * proposalTypes's Indexes with corresponding meaning
-    *  
-    * Index 0: Less important proposals         // PID: 20
-    * Index 1: Moderately important proposals   // PID: 21
-    * Index 2: Highly important proposals       // PID: 22
-    * Index 3: MAX SUPPLY CHANGE PROPOSAL       // PID: 23
-    */
+     * proposalTypes's Indexes with corresponding meaning
+     *  
+     * Index 0: Less important proposals
+     * Index 1: Moderately important proposals
+     * Index 2: Highly important proposals
+     * Index 3: MAX SUPPLY CHANGE PROPOSAL
+     */
     uint256[4] public proposalTypes; // Minted Amount for each allocation subject 
     
     /**
-    * totalMints's Indexes with corresponding meaning
-    *  
-    * Index 0: Backer's         -> 224538876188384000   wei
-    * Index 1: Clan's           -> 224538876188384000   wei
-    * Index 2: Community's      -> 74846292062794700    wei
-    * Index 3: Staking          -> 74846292062794700    wei
-    * Index 4: DAO's            -> 37423146031397400    wei
-    * Index 5: Development      -> 112269438094192000   wei
-    * Index 6: Testnet          -> 112269438094192000   wei
-    * Index 7: Team             -> 112269438094192000   wei
-    */
+     * totalMints's Indexes with corresponding meaning
+     *  
+     * Index 0: Backer's         -> 224538876188384000   wei
+     * Index 1: Clan's           -> 224538876188384000   wei
+     * Index 2: Community's      -> 74846292062794700    wei
+     * Index 3: Staking          -> 74846292062794700    wei
+     * Index 4: DAO's            -> 37423146031397400    wei
+     * Index 5: Development      -> 112269438094192000   wei
+     * Index 6: Testnet          -> 112269438094192000   wei
+     * Index 7: Team             -> 112269438094192000   wei
+     */
     uint256[8] public totalMints; // Minted Amount for each allocation subject 
 
     uint256[13] public testnetMintPerSecond;
@@ -123,10 +125,8 @@ contract FukcingToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
     uint256 public twoYearsLater;
     uint256 public communityTGErelease;         // 12,307,196   Unix time    -> ~142 days
     uint256 public testnetTGErelease;           // 4,102,399    Unix time    -> ~47 days
-    uint256 public maxSupply = 70857567 ether;        // ~70 million initial max supply - PID: 13
+    uint256 public maxSupply = 70857567 ether;        // ~70 million initial max supply
     uint256 public teamAndTestnetCap = 3542878 ether; // ~3.5 million for both team and testnet allocation
-
-    uint256[24] public proposalIdTracker;
     
     constructor(
         address[] memory _teamAddress,          // TEST -> Add the size here as well
@@ -308,256 +308,229 @@ contract FukcingToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
         return totalReward;
     }
 
-    // Updates by DAO - contracts(13), mintPerSecond(6), maxSupply, proposalTypes
-
     /**
-     * @dev isNewProposal is optional be good to have to be sure the executors are making a new proposal.
-     * Since applying the proposal status to the state requires to run the same function.
-     * PID starts from 0 to 12. Matches with contractIndex.
+     * Updates by DAO
+     * contracts -> Update Code: 1
+     * mintPerSecond -> Update Code: 2
+     * maxSupply ->Update Code: 3
+     * proposalTypes -> Up. Code: 4
+     * 
      */
 
-    function updateContractAddress(
-        uint256 _contractIndex, 
-        address _newAddress, 
-        bool _isNewProposal
-    ) 
-    public {
+    function proposeContractAddressUpdate(uint256 _contractIndex, address _newAddress) public {
         require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+        require(_newAddress != address(0), "New address can not be the null address!");
 
-        // if PID[_contractIndex] is 0, make a new proposal
-        if (proposalIdTracker[_contractIndex] == 0 && _isNewProposal) {
-            require(_newAddress != address(0), "New address can not be the null address!");
-
-            string memory proposalDescription = string(abi.encodePacked(
-                "Updating contract address of index ", Strings.toHexString(_contractIndex), " to ", 
-                Strings.toHexString(_newAddress), " from ", Strings.toHexString(contracts[_contractIndex]), "."
-            )); 
-
-            // Create a new proposal - Call DAO contract (contracts[4])
-            (bool txSuccess0, bytes memory returnData0) = contracts[4].call(
-                abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypes[2])
-            );
-            require(txSuccess0, "Transaction failed to make new proposal!");
-
-            // Save the ID to PID[_contractIndex]
-            (proposalIdTracker[_contractIndex]) = abi.decode(returnData0, (uint256));
-
-            // Get new state update by proposal ID we get from newProposal
-            proposals[proposalIdTracker[_contractIndex]].newAddress = _newAddress;
-
-            return; // Finish the function
-        }
-
-        // If there is already a proposal, Get its result from DAO
-        (bool txSuccess1, bytes memory returnData1) = contracts[4].call(
-            abi.encodeWithSignature("proposalResult(uint256)", proposalIdTracker[_contractIndex])
+        string memory proposalDescription = string(abi.encodePacked(
+            "In FukcingToken contract, Updating contract address of index ", Strings.toHexString(_contractIndex), " to ", 
+            Strings.toHexString(_newAddress), " from ", Strings.toHexString(contracts[_contractIndex]), "."
+        )); 
+ 
+        // Create a new proposal - Call DAO contract (contracts[4]) - proposal type : 2 - Highly Important
+        (bool txSuccess, bytes memory returnData) = contracts[4].call(
+            abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypes[2])
         );
-        require(txSuccess1, "Transaction failed to make new proposal!");
-        (uint256 statusNum) = abi.decode(returnData1, (uint256));
+        require(txSuccess, "Transaction failed to make new proposal!");
+ 
+        // Save the ID to create proposal in here
+        (uint256 propID) = abi.decode(returnData, (uint256));
+
+        // Save data to the proposal
+        proposals[propID].updateCode = 1;
+        proposals[propID].index = _contractIndex;
+        proposals[propID].newAddress = _newAddress;
+    }
+
+    function executeContractAddressUpdateProposal(uint256 _proposalID) public {
+        Proposal storage proposal = proposals[_proposalID];
+
+        require(proposal.updateCode == 1, "Wrong proposal ID");
+        require(proposal.isExecuted == false, "Wrong proposal ID");
+        
+        // Get the result from DAO
+        (bool txSuccess, bytes memory returnData) = contracts[4].call(
+            abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
+        );
+        require(txSuccess, "Transaction failed to retrieve DAO result!");
+        (uint256 statusNum) = abi.decode(returnData, (uint256));
 
         // Save it here
-        Proposal storage proposal = proposals[proposalIdTracker[_contractIndex]];
         proposal.status = Status(statusNum);
 
         // Wait for the current one to finalize
-        string memory errorText = string(abi.encodePacked("The previous proposal is still going on bro.", 
-            " Wait for the DAO decision on the proposal! The proposal ID = ", Strings.toString(proposalIdTracker[_contractIndex]), "."
-        )); 
-        require(uint256(proposal.status) > 1, errorText);
+        require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
 
-        // if the current one is approved, apply the update the state
+        // if approved, apply the update the state
         if (proposal.status == Status.Approved)
-            contracts[_contractIndex] = proposal.newAddress;
+            contracts[proposal.index] = proposal.newAddress;
 
-        proposalIdTracker[_contractIndex] = 0;   // reset proposal tracker
+        proposal.isExecuted = true;
     }
 
-    // PID's starts from 14 to 19. So, add 14 to the _mintIndex to get corresponding PID
-    function updateMintPerSecond(
-        uint256 _mintIndex, 
-        uint256 _newMintPerSecond, 
-        bool _isNewProposal
-    ) 
-    public {
+    function proposeMintPerSecondUpdate(uint256 _mintIndex, uint256 _newMintPerSecond) public {
         require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
         require(block.timestamp > oneYearLater, "You can't change tokenomics till end of the first year!");
 
-        // if PID[_mintIndex + 14] is 0, make a new proposal
-        if (proposalIdTracker[_mintIndex + 14] == 0 && _isNewProposal) {
-            require(_newMintPerSecond != mintPerSecond[_mintIndex], "Mint rates are already the same moron, check your input!");
+        require(_newMintPerSecond != mintPerSecond[_mintIndex], "Mint rates are already the same moron, check your input!");
 
-            if (_newMintPerSecond > mintPerSecond[_mintIndex]){
-                uint256 changeRate = (_newMintPerSecond - mintPerSecond[_mintIndex]) * 100 / mintPerSecond[_mintIndex];
-                require(changeRate <= 13, "New mint per second can only have 13% change!");
-            }
-            else {                
-                uint256 changeRate = (mintPerSecond[_mintIndex] - _newMintPerSecond) * 100 / mintPerSecond[_mintIndex];
-                require(changeRate <= 13, "New mint per second can only have 13% change!");
-            }
-
-            string memory proposalDescription = string(abi.encodePacked(
-                "Updating mint per second of index ", Strings.toHexString(_mintIndex), " to ", 
-                Strings.toHexString(_newMintPerSecond), " from ", Strings.toHexString(mintPerSecond[_mintIndex]), "."
-            )); 
-
-            // Create a new proposal - Call DAO contract (contracts[4])
-            (bool txSuccess0, bytes memory returnData0) = contracts[4].call(
-                abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypes[2])
-            );
-            require(txSuccess0, "Transaction failed to make new proposal!");
-
-            // Save the ID to PID[_mintIndex + 14]
-            (proposalIdTracker[_mintIndex + 14]) = abi.decode(returnData0, (uint256));
-
-            // Get new state update by proposal ID we get from newProposal
-            proposals[proposalIdTracker[_mintIndex + 14]].newUint = _newMintPerSecond;
-
-            return; // Finish the function
+        if (_newMintPerSecond > mintPerSecond[_mintIndex]){
+            uint256 changeRate = (_newMintPerSecond - mintPerSecond[_mintIndex]) * 100 / mintPerSecond[_mintIndex];
+            require(changeRate <= 13, "New mint per second can only have 13% change!");
+        }
+        else {                
+            uint256 changeRate = (mintPerSecond[_mintIndex] - _newMintPerSecond) * 100 / mintPerSecond[_mintIndex];
+            require(changeRate <= 13, "New mint per second can only have 13% change!");
         }
 
-        // If there is already a proposal, Get its result from DAO
-        (bool txSuccess1, bytes memory returnData1) = contracts[4].call(
-            abi.encodeWithSignature("proposalResult(uint256)", proposalIdTracker[_mintIndex + 14])
+        string memory proposalDescription = string(abi.encodePacked(
+            "Updating mint per second of index ", Strings.toHexString(_mintIndex), " to ", 
+            Strings.toHexString(_newMintPerSecond), " from ", Strings.toHexString(mintPerSecond[_mintIndex]), "."
+        )); 
+
+        // Create a new proposal - Call DAO contract (contracts[4]) - proposal type : 2 - Highly Important
+        (bool txSuccess, bytes memory returnData) = contracts[4].call(
+            abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypes[2])
         );
-        require(txSuccess1, "Transaction failed to make new proposal!");
-        (uint256 statusNum) = abi.decode(returnData1, (uint256));
+        require(txSuccess, "Transaction failed to make new proposal!");
+
+        // Save the ID to create proposal in here
+        (uint256 propID) = abi.decode(returnData, (uint256));
+
+        // Save data to the proposal
+        proposals[propID].updateCode = 2;
+        proposals[propID].index = _mintIndex;
+        proposals[propID].newUint = _newMintPerSecond;
+    }
+
+    function executeMintPerSecondProposal(uint256 _proposalID) public {
+        Proposal storage proposal = proposals[_proposalID];
+
+        require(proposal.updateCode == 2, "Wrong proposal ID");
+        require(proposal.isExecuted == false, "Wrong proposal ID");
+
+        // If the variable is the same (updateCode), then get its result from DAO
+        (bool txSuccess, bytes memory returnData) = contracts[4].call(
+            abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
+        );
+        require(txSuccess, "Transaction failed to retrieve DAO result!");
+        (uint256 statusNum) = abi.decode(returnData, (uint256));
 
         // Save it here
-        Proposal storage proposal = proposals[proposalIdTracker[_mintIndex + 14]];
         proposal.status = Status(statusNum);
 
         // Wait for the current one to finalize
-        string memory errorText = string(abi.encodePacked("The previous proposal is still going on bro.", 
-            " Wait for the DAO decision on the proposal! The proposal ID = ", 
-            Strings.toString(proposalIdTracker[_mintIndex + 14]), "."
-        )); 
-        require(uint256(proposal.status) > 1, errorText);
+        require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
 
-        // if the current one is approved, apply the update the state
+        // if approved, apply the update the state
         if (proposal.status == Status.Approved)
-            mintPerSecond[_mintIndex] = proposal.newUint;
+            mintPerSecond[proposal.index] = proposal.newUint;
 
-        proposalIdTracker[_mintIndex + 14] = 0;   // reset proposal tracker
+        proposal.isExecuted = true;
     }
 
-    // PID : 13
-    function increaseMaxSupply(
-        uint256 _newMaxSupply, 
-        bool _isNewProposal
-    ) 
-    public {
+    function proposeToIncreaseMaxSupply(uint256 _newMaxSupply) public {
         require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
         require(block.timestamp > twoYearsLater, "You can't increase the max supply till end of the second year!");
         require(_newMaxSupply > maxSupply, "New max supply can't be equal or lower than the current one");
 
-        // if PID[13] is 0, make a new proposal
-        if (proposalIdTracker[13] == 0 && _isNewProposal) {
+        // Max supply can be increased by maxiumum of 13% at a time
+        uint256 changeRate = (_newMaxSupply - maxSupply) * 100 / maxSupply;
+        require(changeRate <= 13, "New mint per second can only have 13% change!");
 
-            // Max supply can be increased by maxiumum of 13% at a time
-            uint256 changeRate = (_newMaxSupply - maxSupply) * 100 / maxSupply;
-            require(changeRate <= 13, "New mint per second can only have 13% change!");
+        string memory proposalDescription = string(abi.encodePacked(
+            "MAX SUPPLY CHANGE !! NEW SUPPLY: ", Strings.toHexString(_newMaxSupply), 
+            ". The current supply is ", Strings.toHexString(maxSupply), "."
+        )); 
 
-            string memory proposalDescription = string(abi.encodePacked(
-                "MAX SUPPLY CHANGE !! NEW SUPPLY: ", Strings.toHexString(_newMaxSupply), 
-                ". The current supply is ", Strings.toHexString(maxSupply), "."
-            )); 
-
-            // Create a new proposal - Call DAO contract (contracts[4])
-            (bool txSuccess0, bytes memory returnData0) = contracts[4].call(
-                abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypes[3])
-            );
-            require(txSuccess0, "Transaction failed to make new proposal!");
-
-            // Save the ID to PID[13]
-            (proposalIdTracker[13]) = abi.decode(returnData0, (uint256));
-
-            // Get new state update by proposal ID we get from newProposal
-            proposals[proposalIdTracker[13]].newUint = _newMaxSupply;
-
-            return; // Finish the function
-        }
-
-        // If there is already a proposal, Get its result from DAO
-        (bool txSuccess1, bytes memory returnData1) = contracts[4].call(
-            abi.encodeWithSignature("proposalResult(uint256)", proposalIdTracker[13])
+        // Create a new proposal - Call DAO contract (contracts[4]) - proposal type : 3 - MAX SUPPLY CHANGE
+        (bool txSuccess, bytes memory returnData) = contracts[4].call(
+            abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypes[3])
         );
-        require(txSuccess1, "Transaction failed to make new proposal!");
-        (uint256 statusNum) = abi.decode(returnData1, (uint256));
+        require(txSuccess, "Transaction failed to make new proposal!");
+
+        // Save the ID
+        (uint256 propID) = abi.decode(returnData, (uint256));
+
+        // Save data to the proposal
+        proposals[propID].updateCode = 3;
+        proposals[propID].newUint = _newMaxSupply;
+    }
+
+    function executeIncreaseMaxSupplyProposal(uint256 _proposalID) public {
+        Proposal storage proposal = proposals[_proposalID];
+
+        require(proposal.updateCode == 3, "Wrong proposal ID");
+        require(proposal.isExecuted == false, "Wrong proposal ID");
+
+        // Get the result from DAO
+        (bool txSuccess, bytes memory returnData) = contracts[4].call(
+            abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
+        );
+        require(txSuccess, "Transaction failed to retrieve DAO result!");
+        (uint256 statusNum) = abi.decode(returnData, (uint256));
 
         // Save it here
-        Proposal storage proposal = proposals[proposalIdTracker[13]];
         proposal.status = Status(statusNum);
 
         // Wait for the current one to finalize
-        string memory errorText = string(abi.encodePacked("The previous proposal is still going on bro.", 
-            " Wait for the DAO decision on the proposal! The proposal ID = ", 
-            Strings.toString(proposalIdTracker[13]), "."
-        )); 
-        require(uint256(proposal.status) > 1, errorText);
+        require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
 
         // if the current one is approved, apply the update the state
         if (proposal.status == Status.Approved)
             maxSupply = proposal.newUint;
 
-        proposalIdTracker[13] = 0;   // reset proposal tracker
+        proposal.isExecuted = true;
     }
 
-    // PID's starts from 20 to 23. So, add 20 to the _proposalIndex to get corresponding PID
-    function updateProposalTypes(
-        uint256 _proposalIndex, 
-        uint256 _newType, 
-        bool _isNewProposal
-    ) 
-    public {
+    function updateProposalTypes(uint256 _proposalIndex, uint256 _newType) public {
         require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
 
-        // if PID[_proposalIndex + 20] is 0, make a new proposal
-        if (proposalIdTracker[_proposalIndex + 20] == 0 && _isNewProposal) {
-            require(_newType != proposalTypes[_proposalIndex], "Proposal Types are already the same moron, check your input!");
+        require(_newType != proposalTypes[_proposalIndex], "Proposal Types are already the same moron, check your input!");
 
-            string memory proposalDescription = string(abi.encodePacked(
-                "Updating proposal types of index ", Strings.toHexString(_proposalIndex), " to ", 
-                Strings.toHexString(_newType), " from ", Strings.toHexString(proposalTypes[_proposalIndex]), "."
-            )); 
+        string memory proposalDescription = string(abi.encodePacked(
+            "Updating proposal types of index ", Strings.toHexString(_proposalIndex), " to ", 
+            Strings.toHexString(_newType), " from ", Strings.toHexString(proposalTypes[_proposalIndex]), "."
+        )); 
 
-            // Create a new proposal - Call DAO contract (contracts[4])
-            (bool txSuccess0, bytes memory returnData0) = contracts[4].call(
-                abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypes[2])
-            );
-            require(txSuccess0, "Transaction failed to make new proposal!");
+        // Create a new proposal - Call DAO contract (contracts[4]) - proposal type : 2 - Highly Important
+        (bool txSuccess, bytes memory returnData) = contracts[4].call(
+            abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypes[2])
+        );
+        require(txSuccess, "Transaction failed to make new proposal!");
 
-            // Save the ID to PID[_proposalIndex + 20]
-            (proposalIdTracker[_proposalIndex + 20]) = abi.decode(returnData0, (uint256));
+        // Save the ID
+        (uint256 propID) = abi.decode(returnData, (uint256));
 
-            // Get new state update by proposal ID we get from newProposal
-            proposals[proposalIdTracker[_proposalIndex + 20]].newUint = _newType;
+        // Get data to the proposal
+        proposals[propID].updateCode = 4;
+        proposals[propID].index = _proposalIndex;
+        proposals[propID].newUint = _newType;
+    }
 
-            return; // Finish the function
-        }
+    function updateProposalTypes(uint256 _proposalID) public {
+        Proposal storage proposal = proposals[_proposalID];
+
+        require(proposal.updateCode == 4, "Wrong proposal ID");
+        require(proposal.isExecuted == false, "Wrong proposal ID");
 
         // If there is already a proposal, Get its result from DAO
-        (bool txSuccess1, bytes memory returnData1) = contracts[4].call(
-            abi.encodeWithSignature("proposalResult(uint256)", proposalIdTracker[_proposalIndex + 20])
+        (bool txSuccess, bytes memory returnData) = contracts[4].call(
+            abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
         );
-        require(txSuccess1, "Transaction failed to make new proposal!");
-        (uint256 statusNum) = abi.decode(returnData1, (uint256));
+        require(txSuccess, "Transaction failed to retrieve DAO result!");
+        (uint256 statusNum) = abi.decode(returnData, (uint256));
 
         // Save it here
-        Proposal storage proposal = proposals[proposalIdTracker[_proposalIndex + 20]];
         proposal.status = Status(statusNum);
 
         // Wait for the current one to finalize
-        string memory errorText = string(abi.encodePacked("The previous proposal is still going on bro.", 
-            " Wait for the DAO decision on the proposal! The proposal ID = ", 
-            Strings.toString(proposalIdTracker[_proposalIndex + 20]), "."
-        )); 
-        require(uint256(proposal.status) > 1, errorText);
+        require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
 
         // if the current one is approved, apply the update the state
         if (proposal.status == Status.Approved)
-            proposalTypes[_proposalIndex] = proposal.newUint;
+            proposalTypes[proposal.index] = proposal.newUint;
 
-        proposalIdTracker[_proposalIndex + 20] = 0;   // reset proposal tracker
+        proposal.isExecuted = true;
     }
 }
 

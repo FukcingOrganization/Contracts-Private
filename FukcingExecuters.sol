@@ -20,7 +20,7 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
   * -> Executers proposes changes in mintCost to FDAO to approve.
   */
 
-contract FukcingExecutors is Context, AccessControl {
+contract FukcingExecuters is Context, AccessControl {
 
   enum Status{
     NotStarted, // Index: 0
@@ -31,7 +31,10 @@ contract FukcingExecutors is Context, AccessControl {
 
   struct Proposal {
     Status status;
-    string description;
+    uint256 updateCode; // Update code helps to differentiate different variables with same data type. Starts from 1.
+    bool isExecuted;    // If executed, the data and proposal no longer can be used.
+    
+    uint256 index;      // The index of target array. See arrays below.
     uint256 newUint;
     address newAddress;
     bytes32 newBytes32;
@@ -60,8 +63,6 @@ contract FukcingExecutors is Context, AccessControl {
     */
   address[13] public contracts; 
   address[] public executors;   // List of executors
-
-  uint256[66] public proposalIdTracker; // Proposal ID Tracker (PID)
   uint256 public proposalType;
 
   constructor() {
