@@ -225,6 +225,7 @@ contract FukcingLord is ERC721, ERC721Burnable {
 
   function signalRebellion(uint256 _lordID, uint256 _clanID) public {
     require(_msgSender() == fukcingClan, "Only clans can call this function!");
+    require(clansOf[_lordID].length >= 13, "You can't start rebellion unless there are at least 13 clans!");
     require(_exists(_lordID), "This lord doesn't exists!");
 
     Rebellion storage reb = rebellions[rebellionOf[_lordID]];
