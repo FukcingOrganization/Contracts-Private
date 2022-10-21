@@ -116,7 +116,7 @@ Array index change:
     }
 
 Normal variable change:
-    function proposeToIncreaseMaxSupply(new value) public {
+    function proposeXXX(new value) public {
         require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
 
         string memory proposalDescription = string(abi.encodePacked(
@@ -138,7 +138,7 @@ Normal variable change:
         proposals[propID].change variable = new value;
     }
 
-    function executeIncreaseMaxSupplyProposal(uint256 _proposalID) public {
+    function executeXXXProposal(uint256 _proposalID) public {
         Proposal storage proposal = proposals[_proposalID];
 
         require(proposal.updateCode == upcode here, "Wrong proposal ID");

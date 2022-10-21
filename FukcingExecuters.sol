@@ -87,7 +87,7 @@ contract FukcingExecuters is Context, AccessControl {
     address newAddress     // New address
   ) public onlyRole(EXECUTER_ROLE) {
     (bool txSuccess, ) = contracts[contractIndex].call(abi.encodeWithSignature(
-      "proposeContractAddressUpdate(uint256,address,bool)", subjectIndex, newAddress
+      "proposeContractAddressUpdate(uint256,address)", subjectIndex, newAddress
     ));
     require(txSuccess, "Transaction failed to execute update function!");   
   }
@@ -192,8 +192,7 @@ contract FukcingExecuters is Context, AccessControl {
     proposal.isExecuted = true;
   }
 
-  function proposeContractAddressUpdate(uint256 _contractIndex, address _newAddress) public {
-    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+  function proposeContractAddressUpdate(uint256 _contractIndex, address _newAddress) public onlyRole(EXECUTER_ROLE) {
     require(_newAddress != address(0) || _newAddress != contracts[_contractIndex], 
         "New address can not be the null or same address!"
     );
@@ -244,8 +243,7 @@ contract FukcingExecuters is Context, AccessControl {
     proposal.isExecuted = true;
   }
 
-  function updateProposalTypes(uint256 _proposalIndex, uint256 _newType) public {
-    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+  function updateProposalTypes(uint256 _proposalIndex, uint256 _newType) public onlyRole(EXECUTER_ROLE) {
     require(_newType != proposalTypes[_proposalIndex], "Proposal Types are already the same moron, check your input!");
     require(_proposalIndex != 0, "0 index of proposalTypes is not in service. No need to update!");
   

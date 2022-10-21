@@ -10,7 +10,7 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 /**
   * -> To-do: 
-  * -> View funcion for the levels and elections
+  * -> View funcion for the levels and elections. Get winner or winners from level(s)
   * -> Update: DAO, Executer, FUKCCont, PlayerCont add, UpdatePropType, 
   */
 
