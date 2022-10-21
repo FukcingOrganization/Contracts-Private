@@ -99,7 +99,7 @@ contract FukcingToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
      * Index 2: Highly important proposals
      * Index 3: MAX SUPPLY CHANGE PROPOSAL
      */
-    uint256[4] public proposalTypes; // Minted Amount for each allocation subject 
+    uint256[4] public proposalTypes;
     
     /**
      * totalMints's Indexes with corresponding meaning
@@ -309,17 +309,20 @@ contract FukcingToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
     }
 
     /**
-     * Updates by DAO
-     * contracts -> Update Code: 1
-     * mintPerSecond -> Update Code: 2
-     * maxSupply ->Update Code: 3
-     * proposalTypes -> Up. Code: 4
+     * Updates by DAO - Update Codes
+     *
+     * Contract Address Change -> Code: 1
+     * Proposal Type Change -> Code: 2
+     * Mint Per Second -> Code: 3
+     * maxSupply -> Code: 4
      * 
      */
 
     function proposeContractAddressUpdate(uint256 _contractIndex, address _newAddress) public {
         require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
-        require(_newAddress != address(0), "New address can not be the null address!");
+        require(_newAddress != address(0) || _newAddress != contracts[_contractIndex], 
+            "New address can not be the null or same address!"
+        );
 
         string memory proposalDescription = string(abi.encodePacked(
             "In FukcingToken contract, Updating contract address of index ", Strings.toHexString(_contractIndex), " to ", 
@@ -367,6 +370,57 @@ contract FukcingToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
         proposal.isExecuted = true;
     }
 
+    function updateProposalTypes(uint256 _proposalIndex, uint256 _newType) public {
+        require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+        require(_newType != proposalTypes[_proposalIndex], "Proposal Types are already the same moron, check your input!");
+        require(_proposalIndex != 0, "0 index of proposalTypes is not in service. No need to update!");
+
+        string memory proposalDescription = string(abi.encodePacked(
+            "In Fukcing Token contract, Updating proposal types of index ", Strings.toHexString(_proposalIndex), 
+            " to ", Strings.toHexString(_newType), " from ", Strings.toHexString(proposalTypes[_proposalIndex]), "."
+        ));
+
+        // Create a new proposal - Call DAO contract (contracts[4]) - proposal type : 2 - Highly Important
+        (bool txSuccess, bytes memory returnData) = contracts[4].call(
+            abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypes[2])
+        );
+        require(txSuccess, "Transaction failed to make new proposal!");
+
+        // Save the ID
+        (uint256 propID) = abi.decode(returnData, (uint256));
+
+        // Get data to the proposal
+        proposals[propID].updateCode = 2;
+        proposals[propID].index = _proposalIndex;
+        proposals[propID].newUint = _newType;
+    }
+
+    function executeProposalTypesUpdateProposal(uint256 _proposalID) public {
+        Proposal storage proposal = proposals[_proposalID];
+
+        require(proposal.updateCode == 2, "Wrong proposal ID");
+        require(proposal.isExecuted == false, "Wrong proposal ID");
+
+        // If there is already a proposal, Get its result from DAO
+        (bool txSuccess, bytes memory returnData) = contracts[4].call(
+            abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
+        );
+        require(txSuccess, "Transaction failed to retrieve DAO result!");
+        (uint256 statusNum) = abi.decode(returnData, (uint256));
+
+        // Save it here
+        proposal.status = Status(statusNum);
+
+        // Wait for the current one to finalize
+        require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
+
+        // if the current one is approved, apply the update the state
+        if (proposal.status == Status.Approved)
+            proposalTypes[proposal.index] = proposal.newUint;
+
+        proposal.isExecuted = true;
+    }
+
     function proposeMintPerSecondUpdate(uint256 _mintIndex, uint256 _newMintPerSecond) public {
         require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
         require(block.timestamp > oneYearLater, "You can't change tokenomics till end of the first year!");
@@ -397,7 +451,7 @@ contract FukcingToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
         (uint256 propID) = abi.decode(returnData, (uint256));
 
         // Save data to the proposal
-        proposals[propID].updateCode = 2;
+        proposals[propID].updateCode = 3;
         proposals[propID].index = _mintIndex;
         proposals[propID].newUint = _newMintPerSecond;
     }
@@ -405,7 +459,7 @@ contract FukcingToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
     function executeMintPerSecondProposal(uint256 _proposalID) public {
         Proposal storage proposal = proposals[_proposalID];
 
-        require(proposal.updateCode == 2, "Wrong proposal ID");
+        require(proposal.updateCode == 3, "Wrong proposal ID");
         require(proposal.isExecuted == false, "Wrong proposal ID");
 
         // If the variable is the same (updateCode), then get its result from DAO
@@ -452,14 +506,14 @@ contract FukcingToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
         (uint256 propID) = abi.decode(returnData, (uint256));
 
         // Save data to the proposal
-        proposals[propID].updateCode = 3;
+        proposals[propID].updateCode = 4;
         proposals[propID].newUint = _newMaxSupply;
     }
 
     function executeIncreaseMaxSupplyProposal(uint256 _proposalID) public {
         Proposal storage proposal = proposals[_proposalID];
 
-        require(proposal.updateCode == 3, "Wrong proposal ID");
+        require(proposal.updateCode == 4, "Wrong proposal ID");
         require(proposal.isExecuted == false, "Wrong proposal ID");
 
         // Get the result from DAO
@@ -478,57 +532,6 @@ contract FukcingToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
         // if the current one is approved, apply the update the state
         if (proposal.status == Status.Approved)
             maxSupply = proposal.newUint;
-
-        proposal.isExecuted = true;
-    }
-
-    function updateProposalTypes(uint256 _proposalIndex, uint256 _newType) public {
-        require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
-
-        require(_newType != proposalTypes[_proposalIndex], "Proposal Types are already the same moron, check your input!");
-
-        string memory proposalDescription = string(abi.encodePacked(
-            "Updating proposal types of index ", Strings.toHexString(_proposalIndex), " to ", 
-            Strings.toHexString(_newType), " from ", Strings.toHexString(proposalTypes[_proposalIndex]), "."
-        )); 
-
-        // Create a new proposal - Call DAO contract (contracts[4]) - proposal type : 2 - Highly Important
-        (bool txSuccess, bytes memory returnData) = contracts[4].call(
-            abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypes[2])
-        );
-        require(txSuccess, "Transaction failed to make new proposal!");
-
-        // Save the ID
-        (uint256 propID) = abi.decode(returnData, (uint256));
-
-        // Get data to the proposal
-        proposals[propID].updateCode = 4;
-        proposals[propID].index = _proposalIndex;
-        proposals[propID].newUint = _newType;
-    }
-
-    function updateProposalTypes(uint256 _proposalID) public {
-        Proposal storage proposal = proposals[_proposalID];
-
-        require(proposal.updateCode == 4, "Wrong proposal ID");
-        require(proposal.isExecuted == false, "Wrong proposal ID");
-
-        // If there is already a proposal, Get its result from DAO
-        (bool txSuccess, bytes memory returnData) = contracts[4].call(
-            abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
-        );
-        require(txSuccess, "Transaction failed to retrieve DAO result!");
-        (uint256 statusNum) = abi.decode(returnData, (uint256));
-
-        // Save it here
-        proposal.status = Status(statusNum);
-
-        // Wait for the current one to finalize
-        require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
-
-        // if the current one is approved, apply the update the state
-        if (proposal.status == Status.Approved)
-            proposalTypes[proposal.index] = proposal.newUint;
 
         proposal.isExecuted = true;
     }

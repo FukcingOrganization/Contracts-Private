@@ -45,9 +45,9 @@ contract FukcingCommunity is Context {
     mapping(address => bool) isClaimed;
   }
 
-  mapping(uint256 => Proposal) public proposals;  // proposalID => Proposal
-  mapping(uint256 => Reward) public rewards;             // Reward ID => Merkle Reward
-  mapping(uint256 => MerkleReward) public merkleRewards; // Merkle Reward ID => Merkle Reward
+  mapping(uint256 => Proposal) public proposals;          // proposalID => Proposal
+  mapping(uint256 => Reward) public rewards;              // Reward ID => Merkle Reward
+  mapping(uint256 => MerkleReward) public merkleRewards;  // Merkle Reward ID => Merkle Reward
 
   /**
    * contracts' Indexes with corresponding meaning
@@ -66,16 +66,24 @@ contract FukcingCommunity is Context {
    * Index 11: Token Contract              // PID: 11
    * Index 12: Developer Contract/address  // PID: 12
    */
-  address[13] public contracts;  
+  address[13] public contracts;
+
+  /**
+   * proposalTypes's Indexes with corresponding meaning
+   *  
+   * Index 0: Less important proposals
+   * Index 1: Moderately important proposals
+   * Index 2: Highly important proposals
+   * Index 3: MAX SUPPLY CHANGE PROPOSAL
+   */
+  uint256[4] public proposalTypes;
 
   uint256 public totalBalance;
   uint256 public rewardBalance;
-  uint256 public proposalType;
-  uint256 public contractUpdateProposalType;
+  uint256 public highRewardLimit;
+  uint256 public extremeRewardLimit;
 
   constructor() {
-    proposalType = 3; // TEST -> Change it with a final value
-    contractUpdateProposalType = 5; // TEST -> Change it with a final value
   }
 
   function mintToken() public {
@@ -158,12 +166,12 @@ contract FukcingCommunity is Context {
     // Substract the claimed reward from rewardBalance
     Proposal storage proposal = proposals[_proposalID];
 
-    require(proposal.updateCode == 1, "Wrong proposal ID");
+    require(proposal.updateCode == 3, "Wrong proposal ID");
     require(proposal.isExecuted == false, "This proposal has already executed!");
 
     // Get the result from DAO
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
-        abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
+      abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
     );
     require(txSuccess, "Transaction failed to retrieve DAO result!");
     (uint256 statusNum) = abi.decode(returnData, (uint256));
@@ -190,13 +198,13 @@ contract FukcingCommunity is Context {
   }
 
   /**
-   * updateCodes
-   * 
-   * setReward : 1
-   * setMerkleReward: 1
-   * contracts: 2
-   * proposalType: 3
-   * contractUpdateProposalType: 4
+   * Updates by DAO - Update Codes
+   *
+   * Contract Address Change -> Code: 1
+   * Proposal Type Change -> Code: 2
+   * setReward and setMerkleReward -> Code: 3
+   * highRewardLimit -> Code: 4
+   * extremeRewardLimit -> Code: 5
    * 
    */
   function setReward(address[] memory _receivers, uint256[] memory _rewards) public {
@@ -215,11 +223,18 @@ contract FukcingCommunity is Context {
     string memory proposalDescription = string(abi.encodePacked(
         "A total of ", Strings.toHexString(totalReward), " community reward to ", 
         Strings.toHexString(_receivers.length), " address(es)"
-    )); 
+    ));
 
-    // Create a new proposal - Call DAO contract (contracts[4]) - proposal type
+    // Set proposal type according to importance of the reward amount
+    uint256 propType;
+    if (totalReward > extremeRewardLimit)
+      propType = 2;
+    else if (totalReward > highRewardLimit)
+      propType = 1;
+
+    // Create a new proposal - Call DAO contract (contracts[4])
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
-        abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalType)
+        abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, propType)
     );
     require(txSuccess, "Transaction failed to make new proposal!");
 
@@ -227,7 +242,7 @@ contract FukcingCommunity is Context {
     (uint256 propID) = abi.decode(returnData, (uint256));
 
     // Save data to the proposal and rewards
-    proposals[propID].updateCode = 1;
+    proposals[propID].updateCode = 3;
     rewards[propID].totalReward = totalReward;
     rewards[propID].addresses = _receivers;
     rewards[propID].rewards = _rewards;
@@ -245,9 +260,16 @@ contract FukcingCommunity is Context {
         Strings.toHexString(_roots.length), " root(s)"
     )); 
 
-    // Create a new proposal - Call DAO contract (contracts[4]) - proposal type
+    // Set proposal type according to importance of the reward amount
+    uint256 propType;
+    if (_totalReward > extremeRewardLimit)
+      propType = 2;
+    else if (_totalReward > highRewardLimit)
+      propType = 1;
+
+    // Create a new proposal - Call DAO contract (contracts[4])
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
-        abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalType)
+       abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, propType)
     );
     require(txSuccess, "Transaction failed to make new proposal!");
 
@@ -255,26 +277,28 @@ contract FukcingCommunity is Context {
     (uint256 propID) = abi.decode(returnData, (uint256));
 
     // Save data to the proposal and rewards
-    proposals[propID].updateCode = 1;
+    proposals[propID].updateCode = 3;
     merkleRewards[propID].totalReward = _totalReward;
     merkleRewards[propID].roots = _roots;
     merkleRewards[propID].rewards = _rewards;
   }
 
-  // Update Functions - contracts, proposalType, contractUpdateProposalType
+  // Update Functions - contracts, proposalTypes, highRewardLimit, extremeRewardLimit
 
   function proposeContractAddressUpdate(uint256 _contractIndex, address _newAddress) public {
     require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
-    require(_newAddress != address(0), "New address can not be the null address!");
+    require(_newAddress != address(0) || _newAddress != contracts[_contractIndex], 
+      "New address can not be the null or same address!"
+    );
 
     string memory proposalDescription = string(abi.encodePacked(
-        "In FukcingCommunity contract, Updating contract address of index ", Strings.toHexString(_contractIndex), " to ", 
-        Strings.toHexString(_newAddress), " from ", Strings.toHexString(contracts[_contractIndex]), "."
+      "In Fukcing Community contract, Updating contract address of index ", Strings.toHexString(_contractIndex), 
+      " to ", Strings.toHexString(_newAddress), " from ", Strings.toHexString(contracts[_contractIndex]), "."
     )); 
 
-    // Create a new proposal - Call DAO contract (contracts[4])
+    // Create a new proposal - Call DAO contract (contracts[4]) - proposal type : 2 - Highly Important
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
-        abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, contractUpdateProposalType)
+      abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypes[2])
     );
     require(txSuccess, "Transaction failed to make new proposal!");
 
@@ -282,7 +306,7 @@ contract FukcingCommunity is Context {
     (uint256 propID) = abi.decode(returnData, (uint256));
 
     // Save data to the proposal
-    proposals[propID].updateCode = 2;
+    proposals[propID].updateCode = 1;
     proposals[propID].index = _contractIndex;
     proposals[propID].newAddress = _newAddress;
   }
@@ -290,12 +314,12 @@ contract FukcingCommunity is Context {
   function executeContractAddressUpdateProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
-    require(proposal.updateCode == 2, "Wrong proposal ID");
+    require(proposal.updateCode == 1, "Wrong proposal ID");
     require(proposal.isExecuted == false, "Wrong proposal ID");
     
     // Get the result from DAO
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
-        abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
+      abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
     );
     require(txSuccess, "Transaction failed to retrieve DAO result!");
     (uint256 statusNum) = abi.decode(returnData, (uint256));
@@ -308,42 +332,45 @@ contract FukcingCommunity is Context {
 
     // if approved, apply the update the state
     if (proposal.status == Status.Approved)
-        contracts[proposal.index] = proposal.newAddress;
+      contracts[proposal.index] = proposal.newAddress;
 
     proposal.isExecuted = true;
   }
 
-  function proposeProposalTypeUpdate(uint256 _newProposalType) public {
+  function updateProposalTypes(uint256 _proposalIndex, uint256 _newType) public {
     require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+    require(_newType != proposalTypes[_proposalIndex], "Proposal Types are already the same moron, check your input!");
+    require(_proposalIndex != 0, "0 index of proposalTypes is not in service. No need to update!");
 
     string memory proposalDescription = string(abi.encodePacked(
-        "In FukcingCommunity contract, updating proposalType to ", Strings.toHexString(_newProposalType), 
-        " from ", Strings.toHexString(proposalType), "."
+      "In Fukcing Community contract, Updating proposal types of index ", Strings.toHexString(_proposalIndex), 
+      " to ", Strings.toHexString(_newType), " from ", Strings.toHexString(proposalTypes[_proposalIndex]), "."
     )); 
 
-    // Create a new proposal - Call DAO contract (contracts[4])
+    // Create a new proposal - Call DAO contract (contracts[4]) - proposal type : 2 - Highly Important
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
-        abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalType)
+      abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypes[2])
     );
     require(txSuccess, "Transaction failed to make new proposal!");
 
     // Save the ID
     (uint256 propID) = abi.decode(returnData, (uint256));
 
-    // Save data to the proposal
-    proposals[propID].updateCode = 3;
-    proposals[propID].newUint = _newProposalType;
-  }   
+    // Get data to the proposal
+    proposals[propID].updateCode = 2;
+    proposals[propID].index = _proposalIndex;
+    proposals[propID].newUint = _newType;
+  }
 
-  function executeProposalTypeUpdateProposal(uint256 _proposalID) public {
+  function executeProposalTypesUpdateProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
-    require(proposal.updateCode == 3, "Wrong proposal ID");
+    require(proposal.updateCode == 2, "Wrong proposal ID");
     require(proposal.isExecuted == false, "Wrong proposal ID");
 
-    // Get the result from DAO
+    // If there is already a proposal, Get its result from DAO
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
-        abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
+      abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
     );
     require(txSuccess, "Transaction failed to retrieve DAO result!");
     (uint256 statusNum) = abi.decode(returnData, (uint256));
@@ -356,55 +383,103 @@ contract FukcingCommunity is Context {
 
     // if the current one is approved, apply the update the state
     if (proposal.status == Status.Approved)
-      proposalType = proposal.newUint;
+      proposalTypes[proposal.index] = proposal.newUint;
 
     proposal.isExecuted = true;
   }
 
-  function proposeContractUpdateProposalTypeUpdate(uint256 _newContractUpdateProposalType) public {
+  function proposeHighRewarLimitSet(uint256 _newLimit) public {
     require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
 
     string memory proposalDescription = string(abi.encodePacked(
-        "In FukcingCommunity contract, updating contractUpdateProposalType to ", 
-        Strings.toHexString(_newContractUpdateProposalType), " from ", Strings.toHexString(contractUpdateProposalType), "."
+        "In Fukcing Community contract, increasing High Reward Limit to ", 
+        Strings.toHexString(_newLimit), " from ", Strings.toHexString(highRewardLimit), "."
     )); 
 
-    // Create a new proposal - Call DAO contract (contracts[4])
+    // Create a new proposal - DAO (contracts[4]) - Moderately Important Proposal (proposalTypes[1])
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
-        abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, contractUpdateProposalType)
+         abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypes[1])
     );
     require(txSuccess, "Transaction failed to make new proposal!");
 
-    // Save the ID
+    // Get the ID
     (uint256 propID) = abi.decode(returnData, (uint256));
 
-    // Save data to the proposal
+    // Save data to the local proposal
     proposals[propID].updateCode = 4;
-    proposals[propID].newUint = _newContractUpdateProposalType;
-  }   
+    proposals[propID].newUint = _newLimit;
+  }
 
-  function executeContractUpdateProposalTypeUpdateProposal(uint256 _proposalID) public {
+  function executeHighRewarLimitSetProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
     require(proposal.updateCode == 4, "Wrong proposal ID");
     require(proposal.isExecuted == false, "Wrong proposal ID");
 
-    // Get the result from DAO
+    // Get the proposal result from DAO
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
         abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
     );
     require(txSuccess, "Transaction failed to retrieve DAO result!");
     (uint256 statusNum) = abi.decode(returnData, (uint256));
 
-    // Save it here
+    // Save the result here
     proposal.status = Status(statusNum);
 
-    // Wait for the current one to finalize
+    // Check if it is finalized or not
     require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
 
-    // if the current one is approved, apply the update the state
+    // if the proposal is approved, apply the update the state
     if (proposal.status == Status.Approved)
-      contractUpdateProposalType = proposal.newUint;
+      highRewardLimit = proposal.newUint;
+
+    proposal.isExecuted = true;
+  }
+  
+  function proposeExtremeRewarLimitSet(uint256 _newLimit) public {
+    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+
+    string memory proposalDescription = string(abi.encodePacked(
+        "In Fukcing Community contract, increasing Extreme Reward Limit to ", 
+        Strings.toHexString(_newLimit), " from ", Strings.toHexString(extremeRewardLimit), "."
+    )); 
+
+    // Create a new proposal - DAO (contracts[4]) - Moderately Important Proposal (proposalTypes[1])
+    (bool txSuccess, bytes memory returnData) = contracts[4].call(
+         abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypes[1])
+    );
+    require(txSuccess, "Transaction failed to make new proposal!");
+
+    // Get the ID
+    (uint256 propID) = abi.decode(returnData, (uint256));
+
+    // Save data to the local proposal
+    proposals[propID].updateCode = 5;
+    proposals[propID].newUint = _newLimit;
+  }
+
+  function executeExtremeRewarLimitSetProposal(uint256 _proposalID) public {
+    Proposal storage proposal = proposals[_proposalID];
+
+    require(proposal.updateCode == 5, "Wrong proposal ID");
+    require(proposal.isExecuted == false, "Wrong proposal ID");
+
+    // Get the proposal result from DAO
+    (bool txSuccess, bytes memory returnData) = contracts[4].call(
+        abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
+    );
+    require(txSuccess, "Transaction failed to retrieve DAO result!");
+    (uint256 statusNum) = abi.decode(returnData, (uint256));
+
+    // Save the result here
+    proposal.status = Status(statusNum);
+
+    // Check if it is finalized or not
+    require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
+
+    // if the proposal is approved, apply the update the state
+    if (proposal.status == Status.Approved)
+      extremeRewardLimit = proposal.newUint;
 
     proposal.isExecuted = true;
   }
