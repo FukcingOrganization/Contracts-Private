@@ -1,6 +1,7 @@
 
 // Get these to have contract governance
 
+*********************************************************
 enum Status{
     NotStarted, // Index: 0
     OnGoing,    // Index: 1
@@ -41,6 +42,15 @@ struct Proposal {
 address[13] public contracts; 
 
 mapping(uint256 => Proposal) public proposals;          // Proposal ID => Proposal
+
+*********************************************************
+
+- Get the ID of new proposal
+- Write change data into the proposals[propID] to use.
+- Keep updateCode
+
+- Check if the proposal has been approved
+- If approved, apply changes to the state variables and set proposals[propID].isExecuted = true 
 
 Example Functions:
 
@@ -96,59 +106,58 @@ Array index change:
     }
 
 Normal variable change:
-    function proposeToIncreaseMaxSupply(uint256 _newMaxSupply) public {
+    function proposeToIncreaseMaxSupply(new value) public {
         require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
-        require(block.timestamp > twoYearsLater, "You can't increase the max supply till end of the second year!");
-        require(_newMaxSupply > maxSupply, "New max supply can't be equal or lower than the current one");
-
-        // Max supply can be increased by maxiumum of 13% at a time
-        uint256 changeRate = (_newMaxSupply - maxSupply) * 100 / maxSupply;
-        require(changeRate <= 13, "New mint per second can only have 13% change!");
 
         string memory proposalDescription = string(abi.encodePacked(
-            "MAX SUPPLY CHANGE !! NEW SUPPLY: ", Strings.toHexString(_newMaxSupply), 
-            ". The current supply is ", Strings.toHexString(maxSupply), "."
+            "DESCRIPTON: ", Strings.toHexString(new value), 
+            ". The current supply is ", Strings.toHexString(current value), "."
         )); 
 
-        // Create a new proposal - Call DAO contract (contracts[4]) - proposal type : 3 - MAX SUPPLY CHANGE
+        // Create a new proposal - Call DAO contract (contracts[4])
         (bool txSuccess, bytes memory returnData) = contracts[4].call(
-            abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypes[3])
+             abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposal type here)
         );
         require(txSuccess, "Transaction failed to make new proposal!");
 
-        // Save the ID
+        // Get the ID
         (uint256 propID) = abi.decode(returnData, (uint256));
 
-        // Save data to the proposal
-        proposals[propID].updateCode = 3;
-        proposals[propID].newUint = _newMaxSupply;
+        // Save data to the local proposal
+        proposals[propID].updateCode = upcode here ;
+        proposals[propID].change variable = new value;
     }
 
     function executeIncreaseMaxSupplyProposal(uint256 _proposalID) public {
         Proposal storage proposal = proposals[_proposalID];
 
-        require(proposal.updateCode == 3, "Wrong proposal ID");
+        require(proposal.updateCode == upcode here, "Wrong proposal ID");
         require(proposal.isExecuted == false, "Wrong proposal ID");
 
-        // Get the result from DAO
+        // Get the proposal result from DAO
         (bool txSuccess, bytes memory returnData) = contracts[4].call(
             abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
         );
         require(txSuccess, "Transaction failed to retrieve DAO result!");
         (uint256 statusNum) = abi.decode(returnData, (uint256));
 
-        // Save it here
+        // Save the result here
         proposal.status = Status(statusNum);
 
-        // Wait for the current one to finalize
+        // Check if it is finalized or not
         require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
 
-        // if the current one is approved, apply the update the state
+        // if the proposal is approved, apply the update the state
         if (proposal.status == Status.Approved)
-            maxSupply = proposal.newUint;
+            state variable = proposal.change variable;
 
         proposal.isExecuted = true;
     }
+
+
+
+*********************************************************
+
 
 Define an update code for each variable like; (update codes starts from 1 !!!)
 /**
