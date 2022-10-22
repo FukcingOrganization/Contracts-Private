@@ -325,7 +325,7 @@ contract FukcingToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
         );
 
         string memory proposalDescription = string(abi.encodePacked(
-            "In FukcingToken contract, Updating contract address of index ", Strings.toHexString(_contractIndex), " to ", 
+            "In FukcingToken contract, updating contract address of index ", Strings.toHexString(_contractIndex), " to ", 
             Strings.toHexString(_newAddress), " from ", Strings.toHexString(contracts[_contractIndex]), "."
         )); 
  
@@ -370,13 +370,13 @@ contract FukcingToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
         proposal.isExecuted = true;
     }
 
-    function updateProposalTypes(uint256 _proposalIndex, uint256 _newType) public {
+    function proposeProposalTypesUpdate(uint256 _proposalIndex, uint256 _newType) public {
         require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
         require(_newType != proposalTypes[_proposalIndex], "Proposal Types are already the same moron, check your input!");
         require(_proposalIndex != 0, "0 index of proposalTypes is not in service. No need to update!");
 
         string memory proposalDescription = string(abi.encodePacked(
-            "In Fukcing Token contract, Updating proposal types of index ", Strings.toHexString(_proposalIndex), 
+            "In Fukcing Token contract, updating proposal types of index ", Strings.toHexString(_proposalIndex), 
             " to ", Strings.toHexString(_newType), " from ", Strings.toHexString(proposalTypes[_proposalIndex]), "."
         ));
 

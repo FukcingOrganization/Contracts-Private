@@ -292,7 +292,7 @@ contract FukcingCommunity is Context {
     );
 
     string memory proposalDescription = string(abi.encodePacked(
-      "In Fukcing Community contract, Updating contract address of index ", Strings.toHexString(_contractIndex), 
+      "In Fukcing Community contract, updating contract address of index ", Strings.toHexString(_contractIndex), 
       " to ", Strings.toHexString(_newAddress), " from ", Strings.toHexString(contracts[_contractIndex]), "."
     )); 
 
@@ -314,8 +314,7 @@ contract FukcingCommunity is Context {
   function executeContractAddressUpdateProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
-    require(proposal.updateCode == 1, "Wrong proposal ID");
-    require(proposal.isExecuted == false, "Wrong proposal ID");
+    require(proposal.updateCode == 1 || proposal.isExecuted == false, "Wrong proposal ID");
     
     // Get the result from DAO
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
@@ -337,13 +336,13 @@ contract FukcingCommunity is Context {
     proposal.isExecuted = true;
   }
 
-  function updateProposalTypes(uint256 _proposalIndex, uint256 _newType) public {
+  function proposeProposalTypesUpdate(uint256 _proposalIndex, uint256 _newType) public {
     require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
     require(_newType != proposalTypes[_proposalIndex], "Proposal Types are already the same moron, check your input!");
     require(_proposalIndex != 0, "0 index of proposalTypes is not in service. No need to update!");
 
     string memory proposalDescription = string(abi.encodePacked(
-      "In Fukcing Community contract, Updating proposal types of index ", Strings.toHexString(_proposalIndex), 
+      "In Fukcing Community contract, updating proposal types of index ", Strings.toHexString(_proposalIndex), 
       " to ", Strings.toHexString(_newType), " from ", Strings.toHexString(proposalTypes[_proposalIndex]), "."
     )); 
 
@@ -365,8 +364,7 @@ contract FukcingCommunity is Context {
   function executeProposalTypesUpdateProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
-    require(proposal.updateCode == 2, "Wrong proposal ID");
-    require(proposal.isExecuted == false, "Wrong proposal ID");
+    require(proposal.updateCode == 2 || proposal.isExecuted == false, "Wrong proposal ID");
 
     // If there is already a proposal, Get its result from DAO
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
@@ -413,8 +411,7 @@ contract FukcingCommunity is Context {
   function executeHighRewarLimitSetProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
-    require(proposal.updateCode == 4, "Wrong proposal ID");
-    require(proposal.isExecuted == false, "Wrong proposal ID");
+    require(proposal.updateCode == 4 || proposal.isExecuted == false, "Wrong proposal ID");
 
     // Get the proposal result from DAO
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
@@ -461,8 +458,7 @@ contract FukcingCommunity is Context {
   function executeExtremeRewarLimitSetProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
-    require(proposal.updateCode == 5, "Wrong proposal ID");
-    require(proposal.isExecuted == false, "Wrong proposal ID");
+    require(proposal.updateCode == 5 || proposal.isExecuted == false, "Wrong proposal ID");
 
     // Get the proposal result from DAO
     (bool txSuccess, bytes memory returnData) = contracts[4].call(

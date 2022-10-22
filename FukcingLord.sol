@@ -8,9 +8,6 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "./IERC4907.sol";
-/**
-  * -> Update: DAO and Executer add, UpdatePropType, baseTax, taxchangeRate,
-  */
 
 /*
  * @author Bora
@@ -32,6 +29,13 @@ contract FukcingLord is ERC721, ERC721Burnable {
 
   Counters.Counter private _tokenIdCounter;
   Counters.Counter private rebellionCounter;
+
+  enum Status{
+    NotStarted, // Index: 0
+    OnGoing,    // Index: 1
+    Approved,   // Index: 2
+    Denied      // Index: 3
+  }
 
   enum RebellionStatus {    
     NotStarted, // Index: 0
@@ -62,6 +66,49 @@ contract FukcingLord is ERC721, ERC721Burnable {
     uint256 expires; // unix timestamp, user expires
   }
 
+  struct Proposal {
+    Status status;
+    uint256 updateCode; // Update code helps to differentiate different variables with same data type. Starts from 1.
+    bool isExecuted;    // If executed, the data and proposal no longer can be used.
+    
+    uint256 index;      // The index of target array. See arrays below.
+    uint256 newUint;
+    address newAddress;
+    bytes32 newBytes32;
+    bool newBool;
+  }
+
+  /**
+   * proposalTypes's Indexes with corresponding meaning
+   *  
+   * Index 0: Less important proposals
+   * Index 1: Moderately important proposals
+   * Index 2: Highly important proposals
+   * Index 3: MAX SUPPLY CHANGE PROPOSAL
+  */
+  uint256[4] public proposalTypes;
+
+  /**
+   * contracts' Indexes with corresponding meaning
+   *  
+   * Index 0: Boss Contract             
+   * Index 1: Clan Contract              
+   * Index 2: ClanLicence Contract        
+   * Index 3: Community Contract         
+   * Index 4: DAO Contract               
+   * Index 5: Executor Contract            
+   * Index 6: Items Contract            
+   * Index 7: Lord Contract               
+   * Index 8: Rent Contract               
+   * Index 9: Seance Contract             
+   * Index 10: Staking Contract           
+   * Index 11: Token Contract          
+   * Index 12: Developer Contract/address  
+   */
+  address[13] public contracts; 
+
+  mapping(uint256 => Proposal) public proposals;// Proposal ID => Proposal
+
   mapping(uint256 => uint256) public numberOfClans; // that the lord has | Lord ID => number of clans
   mapping(uint256 => uint256[]) public clansOf; // that the lord has | Lord ID => Clan IDs in array []
   // Lord ID => number of licencese in cirulation (not used therefore not burnt)
@@ -70,12 +117,6 @@ contract FukcingLord is ERC721, ERC721Burnable {
   mapping(uint256  => uint256) public rebellionOf;    // Lord ID => Rebellion ID
   mapping(uint256  => Rebellion) public rebellions;   // Rebellion ID => Rebellion
   mapping(uint256  => UserInfo) internal _users;      // People who rents
-
-  address public fukcingExecutors;    // Adjustable by DAO
-  address public fukcingDAO;          // Adjustable by DAO
-  address public fukcingToken;        // Adjustable by DAO
-  address public fukcingClan;         // Adjustable by DAO
-  address public fukcingClanLicence;  // Adjustable by DAO
 
   string baseURI;
 
@@ -118,7 +159,7 @@ contract FukcingLord is ERC721, ERC721Burnable {
     uint256 tokenId = _tokenIdCounter.current();
 
     require(tokenId < maxSupply, "Sorry mate, there can ever be only 666 Fukcing Lords, and they are all out!");
-    ERC20Burnable(fukcingToken).burnFrom(_msgSender(), mintCost);
+    ERC20Burnable(contracts[11]).burnFrom(_msgSender(), mintCost);
     
     _tokenIdCounter.increment();
     totalSupply++;
@@ -137,7 +178,7 @@ contract FukcingLord is ERC721, ERC721Burnable {
     require(ownerOf(_lordID) == _msgSender(), "Who are you fooling? You are not the Lord that you claim to be!");
     
     bytes memory payload = abi.encodeWithSignature("mintLicence(address,uint256,uint256,bytes)", _msgSender(), _lordID, _amount, _data);
-    (bool txSuccess, ) = address(fukcingClanLicence).call(payload);
+    (bool txSuccess, ) = address(contracts[2]).call(payload);
     require(txSuccess, "Transaction has fail to mint new licence from the Fukcing Licence contract!");
   }
 
@@ -145,12 +186,12 @@ contract FukcingLord is ERC721, ERC721Burnable {
     require(ownerOf(_lordID) == _msgSender(), "Who are you fooling? You are not the Lord that you claim to be!");
 
     bytes memory payload = abi.encodeWithSignature("setCustomURI(uint256,string)", _lordID, _newURI);
-    (bool txSuccess, ) = address(fukcingClanLicence).call(payload);
+    (bool txSuccess, ) = address(contracts[2]).call(payload);
     require(txSuccess, "Transaction has fail to set a new URI for the Fukcing Licence!");
   }
 
   function clanRegistration(uint256 _lordID, uint256 _clanID) public {
-    require(_msgSender() == fukcingClan, "Only the Fukcing Clan contract can call this fukcing function! Now, back off you domass!");
+    require(_msgSender() == contracts[1], "Only the Fukcing Clan contract can call this fukcing function! Now, back off you domass!");
 
     clansOf[_lordID].push(_clanID);     // Keep the record of the clan ID
     numberOfActiveLicences[_lordID]--;  // Reduce the number of active licences since one of them burnt via clan creation
@@ -162,7 +203,7 @@ contract FukcingLord is ERC721, ERC721Burnable {
     bytes memory payload = abi.encodeWithSignature(
       "lordVote(uint256,bool,uint256,uint256)", _proposalID, _isApproving, _lordID, totalSupply
     );
-    (bool txSuccess, ) = fukcingDAO.call(payload);
+    (bool txSuccess, ) = contracts[4].call(payload);
     require(txSuccess, "Transaction has fail to vote in DAO contract!");
   }
 
@@ -224,7 +265,7 @@ contract FukcingLord is ERC721, ERC721Burnable {
   }
 
   function signalRebellion(uint256 _lordID, uint256 _clanID) public {
-    require(_msgSender() == fukcingClan, "Only clans can call this function!");
+    require(_msgSender() == contracts[1], "Only clans can call this function!");
     require(clansOf[_lordID].length >= 13, "You can't start rebellion unless there are at least 13 clans!");
     require(_exists(_lordID), "This lord doesn't exists!");
 
@@ -282,7 +323,7 @@ contract FukcingLord is ERC721, ERC721Burnable {
 
       // Either way, burn some of the total funds as a war casualties
       uint256 casualties = _reb.totalFunds * warCasualtyRate / 100;
-      ERC20Burnable(fukcingToken).burn(casualties);
+      ERC20Burnable(contracts[11]).burn(casualties);
       _reb.totalFunds -= casualties;
     }
   }
@@ -297,7 +338,7 @@ contract FukcingLord is ERC721, ERC721Burnable {
     reb = rebellions[rebellionOf[_lordID]];
     require(reb.status == RebellionStatus.OnGoing, "The rebellion is not on going!");
 
-    ERC20(fukcingToken).transferFrom(_msgSender(), address(this), _amount);
+    ERC20(contracts[11]).transferFrom(_msgSender(), address(this), _amount);
 
     reb.lordFunds += _amount;
     reb.totalFunds += _amount;
@@ -314,7 +355,7 @@ contract FukcingLord is ERC721, ERC721Burnable {
     reb = rebellions[rebellionOf[_lordID]];
     require(reb.status == RebellionStatus.OnGoing, "The rebellion is not on going!");
 
-    ERC20(fukcingToken).transferFrom(_msgSender(), address(this), _amount);
+    ERC20(contracts[11]).transferFrom(_msgSender(), address(this), _amount);
 
     reb.rebelFunds += _amount;
     reb.totalFunds += _amount;
@@ -338,7 +379,7 @@ contract FukcingLord is ERC721, ERC721Burnable {
 
       uint256 contributionRate = reb.rebelBackers[sender] * 100 / reb.rebelFunds;
       uint256 trophy = reb.totalFunds * contributionRate / 100;
-      ERC20(fukcingToken).transfer(sender, trophy);
+      ERC20(contracts[11]).transfer(sender, trophy);
     }
     // If it is not successful, it must be failed. But it can fail without and funding because of lack of signals.
     // Therefore, check is there any fund to send to avoid unnecessary gas usage
@@ -348,7 +389,403 @@ contract FukcingLord is ERC721, ERC721Burnable {
 
       uint256 contributionRate = reb.lordBackers[sender] * 100 / reb.lordFunds;
       uint256 trophy = reb.totalFunds * contributionRate / 100;
-      ERC20(fukcingToken).transfer(sender, trophy);
+      ERC20(contracts[11]).transfer(sender, trophy);
     }
+  }
+
+  /**
+   * Updates by DAO - Update Codes
+   *
+   * Contract Address Change -> Code: 1
+   * Proposal Type Change -> Code: 2
+   * baseTaxRate -> Code: 3
+   * taxChangeRate -> Code: 4
+   * rebellionLenght -> Code: 5
+   * signalLenght -> Code: 6
+   * victoryRate -> Code: 7
+   * warCasualtyRate -> Code: 8
+   * 
+   */
+  function proposeContractAddressUpdate(uint256 _contractIndex, address _newAddress) public {
+    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+    require(_newAddress != address(0) || _newAddress != contracts[_contractIndex], 
+      "New address can not be the null or same address!"
+    );
+
+    string memory proposalDescription = string(abi.encodePacked(
+      "In Fukcing Lord contract, updating contract address of index ", Strings.toHexString(_contractIndex), " to ", 
+      Strings.toHexString(_newAddress), " from ", Strings.toHexString(contracts[_contractIndex]), "."
+    )); 
+
+    // Create a new proposal - Call DAO contract (contracts[4]) - proposal type : 2 - Highly Important
+    (bool txSuccess, bytes memory returnData) = contracts[4].call(
+      abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypes[2])
+    );
+    require(txSuccess, "Transaction failed to make new proposal!");
+
+    // Save the ID to create proposal in here
+    (uint256 propID) = abi.decode(returnData, (uint256));
+
+    // Save data to the proposal
+    proposals[propID].updateCode = 1;
+    proposals[propID].index = _contractIndex;
+    proposals[propID].newAddress = _newAddress;
+  }
+
+  function executeContractAddressUpdateProposal(uint256 _proposalID) public {
+    Proposal storage proposal = proposals[_proposalID];
+
+    require(proposal.updateCode == 1 || proposal.isExecuted == false, "Wrong proposal ID");
+    
+    // Get the result from DAO
+    (bool txSuccess, bytes memory returnData) = contracts[4].call(
+      abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
+    );
+    require(txSuccess, "Transaction failed to retrieve DAO result!");
+    (uint256 statusNum) = abi.decode(returnData, (uint256));
+
+    // Save it here
+    proposal.status = Status(statusNum);
+
+    // Wait for the current one to finalize
+    require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
+
+    // if approved, apply the update the state
+    if (proposal.status == Status.Approved)
+      contracts[proposal.index] = proposal.newAddress;
+
+    proposal.isExecuted = true;
+  }
+
+  function proposeProposalTypesUpdate(uint256 _proposalIndex, uint256 _newType) public {
+    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+    require(_newType != proposalTypes[_proposalIndex], "Proposal Types are already the same moron, check your input!");
+    require(_proposalIndex != 0, "0 index of proposalTypes is not in service. No need to update!");
+
+    string memory proposalDescription = string(abi.encodePacked(
+      "In Fukcing Lord contract, updating proposal types of index ", Strings.toHexString(_proposalIndex), " to ", 
+      Strings.toHexString(_newType), " from ", Strings.toHexString(proposalTypes[_proposalIndex]), "."
+    )); 
+
+    // Create a new proposal - Call DAO contract (contracts[4]) - proposal type : 2 - Highly Important
+    (bool txSuccess, bytes memory returnData) = contracts[4].call(
+        abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypes[2])
+    );
+    require(txSuccess, "Transaction failed to make new proposal!");
+
+    // Save the ID
+    (uint256 propID) = abi.decode(returnData, (uint256));
+
+    // Get data to the proposal
+    proposals[propID].updateCode = 2;
+    proposals[propID].index = _proposalIndex;
+    proposals[propID].newUint = _newType;
+  }
+
+  function executeProposalTypesUpdateProposal(uint256 _proposalID) public {
+    Proposal storage proposal = proposals[_proposalID];
+
+    require(proposal.updateCode == 2 || proposal.isExecuted == false, "Wrong proposal ID");
+
+    // If there is already a proposal, Get its result from DAO
+    (bool txSuccess, bytes memory returnData) = contracts[4].call(
+      abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
+    );
+    require(txSuccess, "Transaction failed to retrieve DAO result!");
+    (uint256 statusNum) = abi.decode(returnData, (uint256));
+
+    // Save it here
+    proposal.status = Status(statusNum);
+
+    // Wait for the current one to finalize
+    require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
+
+    // if the current one is approved, apply the update the state
+    if (proposal.status == Status.Approved)
+      proposalTypes[proposal.index] = proposal.newUint;
+
+    proposal.isExecuted = true;
+  }
+
+  function proposeBaseTaxRateUpdate(uint256 _newBaseTaxRate) public {
+    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+
+    string memory proposalDescription = string(abi.encodePacked(
+      "In Fukcing Lord contract, updating Base Tax Rate to ", 
+      Strings.toHexString(_newBaseTaxRate), " from ", Strings.toHexString(baseTaxRate), "."
+    )); 
+
+    // Create a new proposal - DAO (contracts[4]) - Moderately Important Proposal (proposalTypes[1])
+    (bool txSuccess, bytes memory returnData) = contracts[4].call(
+      abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypes[1])
+    );
+    require(txSuccess, "Transaction failed to make new proposal!");
+
+    // Get the ID
+    (uint256 propID) = abi.decode(returnData, (uint256));
+
+    // Save data to the local proposal
+    proposals[propID].updateCode = 3;
+    proposals[propID].newUint = _newBaseTaxRate;
+  }
+
+  function executeBaseTaxRateProposal(uint256 _proposalID) public {
+    Proposal storage proposal = proposals[_proposalID];
+
+    require(proposal.updateCode == 3 || proposal.isExecuted == false, "Wrong proposal ID");
+
+    // Get the proposal result from DAO
+    (bool txSuccess, bytes memory returnData) = contracts[4].call(
+      abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
+    );
+    require(txSuccess, "Transaction failed to retrieve DAO result!");
+    (uint256 statusNum) = abi.decode(returnData, (uint256));
+
+    // Save the result here
+    proposal.status = Status(statusNum);
+
+    // Check if it is finalized or not
+    require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
+
+    // if the proposal is approved, apply the update the state
+    if (proposal.status == Status.Approved)
+      baseTaxRate = proposal.newUint;
+
+    proposal.isExecuted = true;
+  }
+
+  function proposeTaxChangeRateUpdate(uint256 _newTaxChangeRate) public {
+    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+
+    string memory proposalDescription = string(abi.encodePacked(
+      "In Fukcing Lord contract, updating Tax Rate Change to ", 
+      Strings.toHexString(_newTaxChangeRate), " from ", Strings.toHexString(taxChangeRate), "."
+    )); 
+
+    // Create a new proposal - DAO (contracts[4]) - Moderately Important Proposal (proposalTypes[1])
+    (bool txSuccess, bytes memory returnData) = contracts[4].call(
+      abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypes[1])
+    );
+    require(txSuccess, "Transaction failed to make new proposal!");
+
+    // Get the ID
+    (uint256 propID) = abi.decode(returnData, (uint256));
+
+    // Save data to the local proposal
+    proposals[propID].updateCode = 4;
+    proposals[propID].newUint = _newTaxChangeRate;
+  }
+
+  function executeTaxRateChangeProposal(uint256 _proposalID) public {
+    Proposal storage proposal = proposals[_proposalID];
+
+    require(proposal.updateCode == 4 || proposal.isExecuted == false, "Wrong proposal ID");
+
+    // Get the proposal result from DAO
+    (bool txSuccess, bytes memory returnData) = contracts[4].call(
+      abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
+    );
+    require(txSuccess, "Transaction failed to retrieve DAO result!");
+    (uint256 statusNum) = abi.decode(returnData, (uint256));
+
+    // Save the result here
+    proposal.status = Status(statusNum);
+
+    // Check if it is finalized or not
+    require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
+
+    // if the proposal is approved, apply the update the state
+    if (proposal.status == Status.Approved)
+      taxChangeRate = proposal.newUint;
+
+    proposal.isExecuted = true;
+  }
+
+  function proposeRebellionLenghtUpdate(uint256 _newRebellionLenght) public {
+    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+
+    string memory proposalDescription = string(abi.encodePacked(
+      "In Fukcing Lord contract, updating Rebellion Lenght to ", 
+      Strings.toHexString(_newRebellionLenght), " from ", Strings.toHexString(rebellionLenght), "."
+    )); 
+
+    // Create a new proposal - DAO (contracts[4]) - Moderately Important Proposal (proposalTypes[1])
+    (bool txSuccess, bytes memory returnData) = contracts[4].call(
+      abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypes[1])
+    );
+    require(txSuccess, "Transaction failed to make new proposal!");
+
+    // Get the ID
+    (uint256 propID) = abi.decode(returnData, (uint256));
+
+    // Save data to the local proposal
+    proposals[propID].updateCode = 5;
+    proposals[propID].newUint = _newRebellionLenght;
+  }
+
+  function executeRebellionLenghtProposal(uint256 _proposalID) public {
+    Proposal storage proposal = proposals[_proposalID];
+
+    require(proposal.updateCode == 5 || proposal.isExecuted == false, "Wrong proposal ID");
+
+    // Get the proposal result from DAO
+    (bool txSuccess, bytes memory returnData) = contracts[4].call(
+      abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
+    );
+    require(txSuccess, "Transaction failed to retrieve DAO result!");
+    (uint256 statusNum) = abi.decode(returnData, (uint256));
+
+    // Save the result here
+    proposal.status = Status(statusNum);
+
+    // Check if it is finalized or not
+    require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
+
+    // if the proposal is approved, apply the update the state
+    if (proposal.status == Status.Approved)
+      rebellionLenght = proposal.newUint;
+
+    proposal.isExecuted = true;
+  }
+
+  function proposeSignalLenghtUpdate(uint256 _newSignalLenght) public {
+    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+
+    string memory proposalDescription = string(abi.encodePacked(
+      "In Fukcing Lord contract, updating Signal Lenght to ", 
+      Strings.toHexString(_newSignalLenght), " from ", Strings.toHexString(signalLenght), "."
+    )); 
+
+    // Create a new proposal - DAO (contracts[4]) - Moderately Important Proposal (proposalTypes[1])
+    (bool txSuccess, bytes memory returnData) = contracts[4].call(
+      abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypes[1])
+    );
+    require(txSuccess, "Transaction failed to make new proposal!");
+
+    // Get the ID
+    (uint256 propID) = abi.decode(returnData, (uint256));
+
+    // Save data to the local proposal
+    proposals[propID].updateCode = 6;
+    proposals[propID].newUint = _newSignalLenght;
+  }
+
+  function executeSignalLenghtProposal(uint256 _proposalID) public {
+    Proposal storage proposal = proposals[_proposalID];
+
+    require(proposal.updateCode == 6 || proposal.isExecuted == false, "Wrong proposal ID");
+
+    // Get the proposal result from DAO
+    (bool txSuccess, bytes memory returnData) = contracts[4].call(
+      abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
+    );
+    require(txSuccess, "Transaction failed to retrieve DAO result!");
+    (uint256 statusNum) = abi.decode(returnData, (uint256));
+
+    // Save the result here
+    proposal.status = Status(statusNum);
+
+    // Check if it is finalized or not
+    require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
+
+    // if the proposal is approved, apply the update the state
+    if (proposal.status == Status.Approved)
+      signalLenght = proposal.newUint;
+
+    proposal.isExecuted = true;
+  }
+
+  function proposeVictoryRateUpdate(uint256 _newVictoryRate) public {
+    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+
+    string memory proposalDescription = string(abi.encodePacked(
+      "In Fukcing Lord contract, updating Victory Rate to ", 
+      Strings.toHexString(_newVictoryRate), " from ", Strings.toHexString(victoryRate), "."
+    )); 
+
+    // Create a new proposal - DAO (contracts[4]) - Moderately Important Proposal (proposalTypes[1])
+    (bool txSuccess, bytes memory returnData) = contracts[4].call(
+      abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypes[1])
+    );
+    require(txSuccess, "Transaction failed to make new proposal!");
+
+    // Get the ID
+    (uint256 propID) = abi.decode(returnData, (uint256));
+
+    // Save data to the local proposal
+    proposals[propID].updateCode = 7;
+    proposals[propID].newUint = _newVictoryRate;
+  }
+
+  function executeVictoryRateProposal(uint256 _proposalID) public {
+    Proposal storage proposal = proposals[_proposalID];
+
+    require(proposal.updateCode == 7 || proposal.isExecuted == false, "Wrong proposal ID");
+
+    // Get the proposal result from DAO
+    (bool txSuccess, bytes memory returnData) = contracts[4].call(
+      abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
+    );
+    require(txSuccess, "Transaction failed to retrieve DAO result!");
+    (uint256 statusNum) = abi.decode(returnData, (uint256));
+
+    // Save the result here
+    proposal.status = Status(statusNum);
+
+    // Check if it is finalized or not
+    require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
+
+    // if the proposal is approved, apply the update the state
+    if (proposal.status == Status.Approved)
+      victoryRate = proposal.newUint;
+
+    proposal.isExecuted = true;
+  }
+
+  function proposeWarCasualtyRateUpdate(uint256 _newWarCasualtyRate) public {
+    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+
+    string memory proposalDescription = string(abi.encodePacked(
+      "In Fukcing Lord contract, updating War Casualty Rate to ", 
+      Strings.toHexString(_newWarCasualtyRate), " from ", Strings.toHexString(warCasualtyRate), "."
+    )); 
+
+    // Create a new proposal - DAO (contracts[4]) - Moderately Important Proposal (proposalTypes[1])
+    (bool txSuccess, bytes memory returnData) = contracts[4].call(
+      abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypes[1])
+    );
+    require(txSuccess, "Transaction failed to make new proposal!");
+
+    // Get the ID
+    (uint256 propID) = abi.decode(returnData, (uint256));
+
+    // Save data to the local proposal
+    proposals[propID].updateCode = 8;
+    proposals[propID].newUint = _newWarCasualtyRate;
+  }
+
+  function executeWarCasualtyRateProposal(uint256 _proposalID) public {
+    Proposal storage proposal = proposals[_proposalID];
+
+    require(proposal.updateCode == 8 || proposal.isExecuted == false, "Wrong proposal ID");
+
+    // Get the proposal result from DAO
+    (bool txSuccess, bytes memory returnData) = contracts[4].call(
+      abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
+    );
+    require(txSuccess, "Transaction failed to retrieve DAO result!");
+    (uint256 statusNum) = abi.decode(returnData, (uint256));
+
+    // Save the result here
+    proposal.status = Status(statusNum);
+
+    // Check if it is finalized or not
+    require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
+
+    // if the proposal is approved, apply the update the state
+    if (proposal.status == Status.Approved)
+      warCasualtyRate = proposal.newUint;
+
+    proposal.isExecuted = true;
   }
 }

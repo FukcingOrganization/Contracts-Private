@@ -357,7 +357,8 @@ contract FukcingDAO is ERC20 {
         );
         
         uint256 allowanceAmount = merkleCheck(proposal, _merkleProof);
-        require(allowanceAmount > 0, "You don't have any allowance, sorry dude!");        
+        require(allowanceAmount > 0, "You don't have any allowance, sorry dude!");      
+        require(allowanceAmount + proposal.totalClaimedAmount <= proposal.amount, "The approved amount exceeding!");  
 
         // Mint for the caller.
         _mint(_msgSender(), allowanceAmount);
@@ -416,7 +417,8 @@ contract FukcingDAO is ERC20 {
         );
         
         uint256 allowanceAmount = merkleCheck(proposal, _merkleProof);
-        require(allowanceAmount > 0, "You don't have any allowance, sorry dude!");   
+        require(allowanceAmount > 0, "You don't have any allowance, sorry dude!"); 
+        require(allowanceAmount + proposal.totalClaimedAmount <= proposal.amount, "The approved amount exceeding!");    
 
         // Send funds
         bytes memory payload = abi.encodeWithSignature("transfer(address,uint256)", _msgSender(), allowanceAmount);
@@ -455,7 +457,8 @@ contract FukcingDAO is ERC20 {
         );
         
         uint256 allowanceAmount = merkleCheck(proposal, _merkleProof);
-        require(allowanceAmount > 0, "You don't have any allowance, sorry dude!");        
+        require(allowanceAmount > 0, "You don't have any allowance, sorry dude!");  
+        require(allowanceAmount + proposal.totalClaimedAmount <= proposal.amount, "The approved amount exceeding!");        
 
         // Send funds
         (bool txSuccess, ) = payable(_msgSender()).call{value: allowanceAmount}('');
@@ -487,7 +490,7 @@ contract FukcingDAO is ERC20 {
         );
 
         string memory proposalDescription = string(abi.encodePacked(
-        "In Fukcing DAO contract, Updating contract address of index ", Strings.toHexString(_contractIndex), " to ", 
+        "In Fukcing DAO contract, updating contract address of index ", Strings.toHexString(_contractIndex), " to ", 
             Strings.toHexString(_newAddress), " from ", Strings.toHexString(contracts[_contractIndex]), "."
         )); 
 

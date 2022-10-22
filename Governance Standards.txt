@@ -21,7 +21,6 @@ struct Proposal {
     bool newBool;
 }
 
-
 /**
  * proposalTypes's Indexes with corresponding meaning
  *  
@@ -70,7 +69,7 @@ Array index change:
         require(_newAddress != address(0), "New address can not be the null address!");
 
         string memory proposalDescription = string(abi.encodePacked(
-            "Updating contract address of index ", Strings.toHexString(_contractIndex), " to ", 
+            "updating contract address of index ", Strings.toHexString(_contractIndex), " to ", 
             Strings.toHexString(_newAddress), " from ", Strings.toHexString(contracts[_contractIndex]), "."
         )); 
 
@@ -120,10 +119,9 @@ Normal variable change:
         require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
 
         string memory proposalDescription = string(abi.encodePacked(
-        here-> "DESCRIPTON: ", Strings.toHexString(new value), 
-            ". The current supply is ", Strings.toHexString(current value), "."
+            HERE -> "In Fukcing XXXXXX contract, updating YYYYY to ",
+            Strings.toHexString(_newMintCost), " from ", Strings.toHexString(mintCost), "."
         )); 
-
         // Create a new proposal - DAO (contracts[4]) - XXXXXXXXXXX Important Proposal (proposalTypes[XXXXXXXXXXXXXXXXXX])
         (bool txSuccess, bytes memory returnData) = contracts[4].call(
              abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposal type here)
@@ -187,7 +185,7 @@ function proposeContractAddressUpdate(uint256 _contractIndex, address _newAddres
     );
 
     string memory proposalDescription = string(abi.encodePacked(
-    here ->"In XXXXX contract, Updating contract address of index ", Strings.toHexString(_contractIndex), " to ", 
+    here ->"In XXXXX contract, updating contract address of index ", Strings.toHexString(_contractIndex), " to ", 
         Strings.toHexString(_newAddress), " from ", Strings.toHexString(contracts[_contractIndex]), "."
     )); 
 
@@ -209,8 +207,7 @@ function proposeContractAddressUpdate(uint256 _contractIndex, address _newAddres
 function executeContractAddressUpdateProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
-    require(proposal.updateCode == 1, "Wrong proposal ID");
-    require(proposal.isExecuted == false, "Wrong proposal ID");
+    require(proposal.updateCode == 1 || proposal.isExecuted == false, "Wrong proposal ID");
     
     // Get the result from DAO
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
@@ -232,13 +229,13 @@ function executeContractAddressUpdateProposal(uint256 _proposalID) public {
     proposal.isExecuted = true;
 }
 
-function updateProposalTypes(uint256 _proposalIndex, uint256 _newType) public {
+function proposeProposalTypesUpdate(uint256 _proposalIndex, uint256 _newType) public {
     require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
     require(_newType != proposalTypes[_proposalIndex], "Proposal Types are already the same moron, check your input!");
     require(_proposalIndex != 0, "0 index of proposalTypes is not in service. No need to update!");
 
     string memory proposalDescription = string(abi.encodePacked(
-    here ->"In XXXXX contract, Updating proposal types of index ", Strings.toHexString(_proposalIndex), " to ", 
+    here ->"In XXXXX contract, updating proposal types of index ", Strings.toHexString(_proposalIndex), " to ", 
         Strings.toHexString(_newType), " from ", Strings.toHexString(proposalTypes[_proposalIndex]), "."
     )); 
 
@@ -260,8 +257,7 @@ function updateProposalTypes(uint256 _proposalIndex, uint256 _newType) public {
 function executeProposalTypesUpdateProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
-    require(proposal.updateCode == 2, "Wrong proposal ID");
-    require(proposal.isExecuted == false, "Wrong proposal ID");
+    require(proposal.updateCode == 2 || proposal.isExecuted == false, "Wrong proposal ID");
 
     // If there is already a proposal, Get its result from DAO
     (bool txSuccess, bytes memory returnData) = contracts[4].call(

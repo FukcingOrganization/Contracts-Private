@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
-import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 /**
-  * -> Update: DAO and Executer add, UpdatePropType, points for levels, Clan tax for members, country Code
-  * -> Update max point to change
   * -> require executer
   */
 
@@ -28,7 +27,7 @@ import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol";
   */
 
 /**
-  * Clans gets their rewards for the last seance - Waits the fukcingToken contract
+  * Clans gets their rewards for the last seance - Waits the contracts[11] contract
   **/
 
 contract FukcingClan is Context, ReentrancyGuard {
@@ -69,18 +68,62 @@ contract FukcingClan is Context, ReentrancyGuard {
     bool canExecutorsSignalRebellion;
     bool canExecutorsSetPoints;
     bool isDisbanded;
-  } 
+  }
 
+  enum Status{
+    NotStarted, // Index: 0
+    OnGoing,    // Index: 1
+    Approved,   // Index: 2
+    Denied      // Index: 3
+  }
+
+  struct Proposal {
+    Status status;
+    uint256 updateCode; // Update code helps to differentiate different variables with same data type. Starts from 1.
+    bool isExecuted;    // If executed, the data and proposal no longer can be used.
+    
+    uint256 index;      // The index of target array. See arrays below.
+    uint256 newUint;
+    address newAddress;
+    bytes32 newBytes32;
+    bool newBool;
+  }
+
+  /**
+   * proposalTypes's Indexes with corresponding meaning
+   *  
+   * Index 0: Less important proposals
+   * Index 1: Moderately important proposals
+   * Index 2: Highly important proposals
+   * Index 3: MAX SUPPLY CHANGE PROPOSAL
+  */
+  uint256[4] public proposalTypes;
+
+  /**
+   * contracts' Indexes with corresponding meaning
+   *  
+   * Index 0: Boss Contract             
+   * Index 1: Clan Contract              
+   * Index 2: ClanLicence Contract        
+   * Index 3: Community Contract         
+   * Index 4: DAO Contract               
+   * Index 5: Executor Contract            
+   * Index 6: Items Contract            
+   * Index 7: Lord Contract               
+   * Index 8: Rent Contract               
+   * Index 9: Seance Contract             
+   * Index 10: Staking Contract           
+   * Index 11: Token Contract          
+   * Index 12: Developer Contract/address  
+   */
+  address[13] public contracts; 
+
+  mapping(uint256 => Proposal) public proposals;// Proposal ID => Proposal
   mapping(uint256 => Clan) public clans;      // Clan ID => Clan info
   mapping(address => uint256) public clanOf;  // ID of the clan of an address
 
   Counters.Counter public clanCounter;
   Counters.Counter public snapshotCounter;
-  
-  address public fukcingExecutors;
-  address public fukcingClanLicence;
-  address public fukcingLord;
-  address public fukcingToken;
                                                                 // Snapshot ID => Value
   mapping(uint256 => uint256) public totalClanPointsSnapshots;  // Total clan pts at the time
   mapping(uint256 => uint256) public clanRewards;               // Total clan reward at the time
@@ -105,13 +148,13 @@ contract FukcingClan is Context, ReentrancyGuard {
   public nonReentrant() {
     // Burn licence to create a clan | lord ID = licence ID
     // If caller can burn it, then the clan will be attached to the lord with same ID
-    ERC1155Burnable(fukcingClanLicence).burn(_msgSender() ,_lordID , 1);
+    ERC1155Burnable(contracts[1]).burn(_msgSender() ,_lordID , 1);
 
     uint256 clanID = clanCounter.current();
 
     // Register the clan to the lord
     bytes memory payload = abi.encodeWithSignature("clanRegistration(uint256,uint256)", _lordID, clanID);
-    (bool txSuccess, ) = address(fukcingLord).call(payload);
+    (bool txSuccess, ) = address(contracts[7]).call(payload);
     require(txSuccess, "Transaction has fail to register clan to the Fukcing Lord contract!");
 
     // Create the clan
@@ -145,7 +188,10 @@ contract FukcingClan is Context, ReentrancyGuard {
     clanOf[sender] = _clanID; 
   }
 
-  function giveClanPoints(uint256 _clanID, uint256 _points, bool _isDecreasing) public { // Test only executor can 
+  function giveClanPoints(uint256 _clanID, uint256 _points, bool _isDecreasing) public {
+    require(_msgSender() == contracts[5] || _msgSender() == contracts[4], 
+      "Only executors or DAO can call this fukcing function!"
+    ); 
     require(_points <= maxPointsToChange, "Maximum amount of points exceeded!");
     require(clans[_clanID].isDisbanded == false, "This clan is disbanded!");
 
@@ -185,9 +231,12 @@ contract FukcingClan is Context, ReentrancyGuard {
     uint256 currSnap = snapshotCounter.current();
     // If time is up AND current snap hasn't received any rewards yet, get rewards from FukcingToken contract first
     if ((block.timestamp > (currSnap * 1 days) + firstSeanceEnd) && clanRewards[currSnap] == 0){ // TEST -> make it 7 days
-      // Get the reward
-      // Waiting for FukcingToken Contract to be complete
-      clanRewards[currSnap] = 5; // TEST Change it to reward from FUKC
+      // Get the clans rewards from fukcing token
+      (bool txSuccess0, bytes memory returnData0) = contracts[11].call(abi.encodeWithSignature("backerMint()"));
+      require(txSuccess0, "Transaction has failed to get backer rewards from Fukcing Token contract!");
+
+      // Save it
+      (clanRewards[currSnap]) = abi.decode(returnData0, (uint256));
       
       // Pass on to the next snapshot
       snapshotCounter.increment();
@@ -218,12 +267,14 @@ contract FukcingClan is Context, ReentrancyGuard {
     claimedRewards[_snap] += reward;  // Keep record of the claimed rewards
 
     // Get the address and the tax rate of the lord
-    (bool txSuccess, bytes memory returnData) = address(fukcingLord).call(abi.encodeWithSignature("lordTaxInfo(uint256)", clan.lordID));
-    require(txSuccess, "Failed to get the address of the lord!");
-    (address lordAddress, uint256 taxRate) = abi.decode(returnData, (address, uint256));
+    (bool txSuccess1, bytes memory returnData1) = address(contracts[7]).call(abi.encodeWithSignature("lordTaxInfo(uint256)", clan.lordID));
+    require(txSuccess1, "Failed to get the address of the lord!");
+    (address lordAddress, uint256 taxRate) = abi.decode(returnData1, (address, uint256));
 
-    // Then transfer the taxes
-    IERC20(fukcingToken).transfer(lordAddress, reward * taxRate / 100);
+    // Then transfer the taxes if there lord address exist. (which means lord is alive)
+    if (lordAddress != address(0))
+      IERC20(contracts[11]).transfer(lordAddress, reward * taxRate / 100);
+
     // Then keep the remaining for the clan
     clan.clanRewardSnapshots[_snap] = reward * (100 - taxRate) / 100;
     clan.balance += reward * (100 - taxRate) / 100;
@@ -262,13 +313,13 @@ contract FukcingClan is Context, ReentrancyGuard {
     uint256 reward = // total reward of the clan * member Points * 100 / total member points of the clan
       clan.clanRewardSnapshots[_snap] * (clan.members[sender].pointsSnapshots[_snap] * 100 / clan.totalMemberPointsSnapshots[_snap]);
 
-    IERC20(fukcingToken).transfer(sender, reward);
+    IERC20(contracts[11]).transfer(sender, reward);
     clan.balance -= reward; // Update the balance of the clan
     clan.claimedRewards[_snap] += reward; // Update the claimed rewards
   }
 
   // Governance Functions
-  function setPoints(uint256 _clanID, address _memberAddress, uint256 _points) public nonReentrant() {
+  function setMemberPoints(uint256 _clanID, address _memberAddress, uint256 _points) public nonReentrant() {
     Clan storage clan = clans[_clanID];
     ClanMember storage member = clans[_clanID].members[_memberAddress];
     address sender = _msgSender();
@@ -301,7 +352,7 @@ contract FukcingClan is Context, ReentrancyGuard {
     member.pointsSnapshots[currSnap] = _points;
   }
 
-  function setExecutor(uint256 _clanID, address _address, bool _isExecutor) public  {
+  function setClanExecutor(uint256 _clanID, address _address, bool _isExecutor) public  {
     require(clans[_clanID].leader == _msgSender(), "You have no authority to set a rank for this clan!");
     clans[_clanID].members[_address].isExecutor = _isExecutor;
   }
@@ -331,7 +382,7 @@ contract FukcingClan is Context, ReentrancyGuard {
     }
 
     // Signal a rebellion,
-    (bool txSuccess, ) = fukcingLord.call(abi.encodeWithSignature(
+    (bool txSuccess, ) = contracts[7].call(abi.encodeWithSignature(
       "signalRebellion(uint256,uint256)", clan.lordID, _clanID)
     );
     require(txSuccess, "The transaction has failed when signalling");
@@ -371,5 +422,161 @@ contract FukcingClan is Context, ReentrancyGuard {
   // Returns the member's points
   function getMemberPoints(address _memberAddress) public view returns (uint256) {
     return clans[clanOf[_memberAddress]].members[_memberAddress].currentPoints;
+  }
+
+  /**
+   * Updates by DAO - Update Codes
+   *
+   * Contract Address Change -> Code: 1
+   * Proposal Type Change -> Code: 2
+   * maxPointsToChange -> Code: 3
+   * 
+   */
+  function proposeContractAddressUpdate(uint256 _contractIndex, address _newAddress) public {
+    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+    require(_newAddress != address(0) || _newAddress != contracts[_contractIndex], 
+      "New address can not be the null or same address!"
+    );
+
+    string memory proposalDescription = string(abi.encodePacked(
+      "In Fukcing Clan contract, updating contract address of index ", Strings.toHexString(_contractIndex), " to ", 
+      Strings.toHexString(_newAddress), " from ", Strings.toHexString(contracts[_contractIndex]), "."
+    )); 
+
+    // Create a new proposal - Call DAO contract (contracts[4]) - proposal type : 2 - Highly Important
+    (bool txSuccess, bytes memory returnData) = contracts[4].call(
+      abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypes[2])
+    );
+    require(txSuccess, "Transaction failed to make new proposal!");
+
+    // Save the ID to create proposal in here
+    (uint256 propID) = abi.decode(returnData, (uint256));
+
+    // Save data to the proposal
+    proposals[propID].updateCode = 1;
+    proposals[propID].index = _contractIndex;
+    proposals[propID].newAddress = _newAddress;
+  }
+
+  function executeContractAddressUpdateProposal(uint256 _proposalID) public {
+    Proposal storage proposal = proposals[_proposalID];
+
+    require(proposal.updateCode == 1 || proposal.isExecuted == false, "Wrong proposal ID");
+    
+    // Get the result from DAO
+    (bool txSuccess, bytes memory returnData) = contracts[4].call(
+      abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
+    );
+    require(txSuccess, "Transaction failed to retrieve DAO result!");
+    (uint256 statusNum) = abi.decode(returnData, (uint256));
+
+    // Save it here
+    proposal.status = Status(statusNum);
+
+    // Wait for the current one to finalize
+    require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
+
+    // if approved, apply the update the state
+    if (proposal.status == Status.Approved)
+      contracts[proposal.index] = proposal.newAddress;
+
+    proposal.isExecuted = true;
+  }
+
+  function proposeProposalTypesUpdate(uint256 _proposalIndex, uint256 _newType) public {
+    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+    require(_newType != proposalTypes[_proposalIndex], "Proposal Types are already the same moron, check your input!");
+    require(_proposalIndex != 0, "0 index of proposalTypes is not in service. No need to update!");
+
+    string memory proposalDescription = string(abi.encodePacked(
+      "In Fukcing Clan contract, updating proposal types of index ", Strings.toHexString(_proposalIndex), " to ", 
+      Strings.toHexString(_newType), " from ", Strings.toHexString(proposalTypes[_proposalIndex]), "."
+    )); 
+
+    // Create a new proposal - Call DAO contract (contracts[4]) - proposal type : 2 - Highly Important
+    (bool txSuccess, bytes memory returnData) = contracts[4].call(
+        abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypes[2])
+    );
+    require(txSuccess, "Transaction failed to make new proposal!");
+
+    // Save the ID
+    (uint256 propID) = abi.decode(returnData, (uint256));
+
+    // Get data to the proposal
+    proposals[propID].updateCode = 2;
+    proposals[propID].index = _proposalIndex;
+    proposals[propID].newUint = _newType;
+  }
+
+  function executeProposalTypesUpdateProposal(uint256 _proposalID) public {
+    Proposal storage proposal = proposals[_proposalID];
+
+    require(proposal.updateCode == 2 || proposal.isExecuted == false, "Wrong proposal ID");
+
+    // If there is already a proposal, Get its result from DAO
+    (bool txSuccess, bytes memory returnData) = contracts[4].call(
+      abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
+    );
+    require(txSuccess, "Transaction failed to retrieve DAO result!");
+    (uint256 statusNum) = abi.decode(returnData, (uint256));
+
+    // Save it here
+    proposal.status = Status(statusNum);
+
+    // Wait for the current one to finalize
+    require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
+
+    // if the current one is approved, apply the update the state
+    if (proposal.status == Status.Approved)
+      proposalTypes[proposal.index] = proposal.newUint;
+
+    proposal.isExecuted = true;
+  }
+
+  function proposeMaxPointToChangeUpdate(uint256 _newMaxPoint) public {
+    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+
+    string memory proposalDescription = string(abi.encodePacked(
+      "In Fukcing Clan contract, updating maximum clan points to change at a time to ",
+      Strings.toHexString(_newMaxPoint), " from ", Strings.toHexString(maxPointsToChange), "."
+    )); 
+
+    // Create a new proposal - DAO (contracts[4]) - Moderately Important Proposal (proposalTypes[1])
+    (bool txSuccess, bytes memory returnData) = contracts[4].call(
+         abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypes[1])
+    );
+    require(txSuccess, "Transaction failed to make new proposal!");
+
+    // Get the ID
+    (uint256 propID) = abi.decode(returnData, (uint256));
+
+    // Save data to the local proposal
+    proposals[propID].updateCode = 3;
+    proposals[propID].newUint = _newMaxPoint;
+  }
+
+  function executeMaxPointToChangeProposal(uint256 _proposalID) public {
+    Proposal storage proposal = proposals[_proposalID];
+
+    require(proposal.updateCode == 3 || proposal.isExecuted == false, "Wrong proposal ID");
+
+    // Get the proposal result from DAO
+    (bool txSuccess, bytes memory returnData) = contracts[4].call(
+      abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
+    );
+    require(txSuccess, "Transaction failed to retrieve DAO result!");
+    (uint256 statusNum) = abi.decode(returnData, (uint256));
+
+    // Save the result here
+    proposal.status = Status(statusNum);
+
+    // Check if it is finalized or not
+    require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
+
+    // if the proposal is approved, apply the update the state
+    if (proposal.status == Status.Approved)
+      maxPointsToChange = proposal.newUint;
+
+    proposal.isExecuted = true;
   }
 }
