@@ -4,29 +4,27 @@ pragma solidity ^0.8.4;
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol";
-import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+import "@openzeppelin/contracts/utils/Counters.sol";
 
 /**
-  * -> Based on ERC-721
-  * -> Update: DAO and Executer add, UpdatePropType, Mint Cost
+  * @notice
+  * -> You can mint, select, and fukc a boss!
+  * -> Boss NFTs can't be transferred therefore can't be sold!
+  * -> The minter can only change metadata by setting token URI.
+  * -> Minters have to burn certaion amount of FUKC token to mint a boss.
+  * -> Executers can propose to update contract addresses, proposal types, and the mint cost.
   */
 
 /**
-  * Info:
-  * -> Each token ID is represents the lords' ID that mint it. For instance, licence with id 5 is the licence of lord ID 5.
-  * -> Executers proposes changes in mintCost to FDAO to approve.
+  * @author Bora
   */
-
-/*
- * @author Bora
- */
-
-
 contract FukcingBoss is ERC721, ERC721URIStorage, ERC721Burnable {
   using Counters for Counters.Counter;
 
   Counters.Counter private _tokenIdCounter;
+
   enum Status{
     NotStarted, // Index: 0
     OnGoing,    // Index: 1
@@ -82,10 +80,10 @@ contract FukcingBoss is ERC721, ERC721URIStorage, ERC721Burnable {
   uint256 public mintCost;
 
   constructor() ERC721("FukcingBoss", "FBOSS") {
-    mintCost = 50 ether; // TEST -> Change it with final value
+    mintCost = 66666 ether; // TEST -> Change it with final value
   }
     
-  /*
+  /**
    *  @dev Making token non-transferable by overriding all the transfer functions
    */
   function approve(address spender, uint256 tokenId) public virtual override {
@@ -120,8 +118,8 @@ contract FukcingBoss is ERC721, ERC721URIStorage, ERC721Burnable {
   }
 
   function safeMint(address to, string memory uri) public {
-    (bool txSuccess, ) = address(contracts[11]).call(abi.encodeWithSignature("burnFrom(address,uint256)", _msgSender(), mintCost));
-    require(txSuccess, "Burn to mint tx has failed! Insufficient approval amount or ERC20 token is not burnable!");
+    // Burn the mist cost to mint
+    ERC20Burnable(contracts[11]).burnFrom(_msgSender(), mintCost);
 
     uint256 tokenId = _tokenIdCounter.current();
     _tokenIdCounter.increment();
@@ -178,7 +176,7 @@ contract FukcingBoss is ERC721, ERC721URIStorage, ERC721Burnable {
   function executeContractAddressUpdateProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
-    require(proposal.updateCode == 1 || proposal.isExecuted == false, "Wrong proposal ID");
+    require(proposal.updateCode == 1 && !proposal.isExecuted, "Wrong proposal ID");
     
     // Get the result from DAO
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
@@ -228,7 +226,7 @@ contract FukcingBoss is ERC721, ERC721URIStorage, ERC721Burnable {
   function executeProposalTypesUpdateProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
-    require(proposal.updateCode == 2 || proposal.isExecuted == false, "Wrong proposal ID");
+    require(proposal.updateCode == 2 && !proposal.isExecuted, "Wrong proposal ID");
 
     // If there is already a proposal, Get its result from DAO
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
@@ -275,7 +273,7 @@ contract FukcingBoss is ERC721, ERC721URIStorage, ERC721Burnable {
   function executeMintCostProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
-    require(proposal.updateCode == 3 || proposal.isExecuted == false, "Wrong proposal ID");
+    require(proposal.updateCode == 3 && !proposal.isExecuted, "Wrong proposal ID");
 
     // Get the proposal result from DAO
     (bool txSuccess, bytes memory returnData) = contracts[4].call(

@@ -8,8 +8,17 @@ import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 /**
-  * -> DAO can give point to clans as well !!
-  * -> Add non renandant modifiers to functions
+  * @notice
+  * -> FDAO tokens are non-transferable! Therefore, you can't buy the governance,
+  * you can't transfer the governance! You should earn it.
+  * -> Executers of WeFukc proposes new updated and FDAO decide wheter apply or deny
+  * the update. These updates are fully on-chain and not optional for the team to apply.
+  * -> Addresses with a minimum balance to propose can propose new custom proposals to
+  * show community's decision on specific topics.
+  * -> FDAO issues the new FDAO tokens for distribution to designated accounts.
+  * -> The DAO has 5% allocation of FUKC tokens. The DAO will vote for spending of these tokens
+  * alongside with other ERC20 tokens and native coins that might be donated to the DAO.
+  * -> Fukcing Lords represents 50% of the DAO. The lord contract holds 50% of FDAO tokens.
   */
 
 /*
@@ -200,17 +209,15 @@ contract FukcingDAO is ERC20 {
         // Start with index of 1 to avoid some double propose in state updates
         proposalCounter.increment(); 
     }
+
     // Events: event NewProposal(x, y); CapitalizedWords
-/*  
-    >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< ><  >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< ><
-    >< >< >< >< >< >< >< >< >< >< >< >< ><                                            >< >< >< >< >< >< >< >< >< >< >< >< ><
-    >< >< >< >< >< >< >< >< >< ><               Making The Token Non-Transferable              >< >< >< >< >< >< >< >< >< ><
-    >< >< >< >< >< >< >< >< >< >< >< >< ><                                            >< >< >< >< >< >< >< >< >< >< >< >< ><
-    >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< ><  >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< 
-*/
-    /*
+
+    // >< >< >< >< >< >< >< >< ><                                                              >< >< >< >< >< >< >< >< >< //
+    // >< >< >< >< >< >< >< >< ><               Making The Token Non-Transferable              >< >< >< >< >< >< >< >< >< //
+    // >< >< >< >< >< >< >< >< ><                                                              >< >< >< >< >< >< >< >< >< //
+    /**
      *  @dev Making token non-transferable by overriding all the transfer functions
-    */
+     */
     function transfer(address to, uint256 amount) public virtual override returns (bool) {
         revert("This is a non-transferable token!");
     }
@@ -234,20 +241,27 @@ contract FukcingDAO is ERC20 {
     function decreaseAllowance(address spender, uint256 subtractedValue) public virtual override returns (bool) {
         revert("This is a non-transferable token!");
     }  
-/*  
-    >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< ><  >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< ><
-    >< >< >< >< >< >< >< >< >< >< >< >< ><                                            >< >< >< >< >< >< >< >< >< >< >< >< ><
-    >< >< >< >< >< >< >< >< >< ><                       Proposal Mechanism                     >< >< >< >< >< >< >< >< >< ><
-    >< >< >< >< >< >< >< >< >< >< >< >< ><                                            >< >< >< >< >< >< >< >< >< >< >< >< ><
-    >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< ><  >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< 
-*/
+ 
+    // >< >< >< >< >< >< >< >< ><                                                              >< >< >< >< >< >< >< >< >< //
+    // >< >< >< >< >< >< >< >< ><                       Proposal Mechanism                     >< >< >< >< >< >< >< >< >< //
+    // >< >< >< >< >< >< >< >< ><                                                              >< >< >< >< >< >< >< >< >< //
+
     /* 
      * @dev New Proposal method returns the created proposal ID for the caller to track the result
      * To finalize a proposal, check the proposal result with isProposalPassed or proposalResult functions.
      */
     function newProposal(string memory _description, uint256 _proposalType) public returns(uint256) {
-        // Only exetures and the ones who has enough balance to propose can propose
-        require(_msgSender() == contracts[5] || balanceOf(_msgSender()) >= minBalanceToPropose, 
+        // Detect if the caller is a fukcing contract
+        bool isFukcingContract;
+        for (uint i = 0; i < contracts.length; i++) { 
+            if (_msgSender() == contracts[i]){ 
+                isFukcingContract = true; 
+                break; 
+            }
+        }
+
+        // Only the fukcing contracts and the ones who has enough balance to propose can propose
+        require(isFukcingContract || balanceOf(_msgSender()) >= minBalanceToPropose, 
             "You don't have enough voting power to propose, sorry dude!"
         );
         require(_proposalType >= 0 && _proposalType < proposalTypes.length, "Invalid proposal type you fool!");
@@ -322,13 +336,11 @@ contract FukcingDAO is ERC20 {
 
         return "Very wise decision my lord!";        
     }    
-/*  
-    >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< ><  >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< ><
-    >< >< >< >< >< >< >< >< >< >< >< >< ><                                            >< >< >< >< >< >< >< >< >< >< >< >< ><
-    >< >< >< >< >< >< >< >< >< ><                      Monetary Executions                     >< >< >< >< >< >< >< >< >< ><
-    >< >< >< >< >< >< >< >< >< >< >< >< ><                                            >< >< >< >< >< >< >< >< >< >< >< >< ><
-    >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< ><  >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< 
-*/    
+
+    // >< >< >< >< >< >< >< >< >< ><                                                              >< >< >< >< >< >< >< >< //
+    // >< >< >< >< >< >< >< >< >< ><                      Monetary Executions                     >< >< >< >< >< >< >< >< //
+    // >< >< >< >< >< >< >< >< >< ><                                                              >< >< >< >< >< >< >< >< //
+
     // New FDAO token mint
     function proposeNewMint(bytes32[] memory _merkleRoots, uint256[] memory _allowances, uint256 _totalMintAmount) 
     public {
@@ -467,19 +479,17 @@ contract FukcingDAO is ERC20 {
         // Keep track of total claimed amount
         proposal.totalClaimedAmount += allowanceAmount;
     }
-/*  
-    >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< ><  >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< ><
-    >< >< >< >< >< >< >< >< >< >< >< >< ><                                            >< >< >< >< >< >< >< >< >< >< >< >< ><
-    >< >< >< >< >< >< >< >< >< ><                    Updating State Variables                  >< >< >< >< >< >< >< >< >< ><
-    >< >< >< >< >< >< >< >< >< >< >< >< ><                                            >< >< >< >< >< >< >< >< >< >< >< >< ><
-    >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< ><  >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< 
-*/
+
+    // >< >< >< >< >< >< >< >< ><                                                              >< >< >< >< >< >< >< >< >< //
+    // >< >< >< >< >< >< >< >< ><                    Updating State Variables                  >< >< >< >< >< >< >< >< >< //
+    // >< >< >< >< >< >< >< >< ><                                                              >< >< >< >< >< >< >< >< >< //
     /**
      * Updates by DAO - Update Codes - Not required for monetaryUpdates and proposalTypeUpdates
      *
      * Contract Address Change -> Code: 1
      * Proposal Type Index Change -> Code: 2
      * minBalanceToProp -> Code: 3
+     * Clan Point Change -> Code: 4
      * 
      */
 
@@ -506,8 +516,7 @@ contract FukcingDAO is ERC20 {
     function executeContractAddressUpdateProposal(uint256 _proposalID) public {
         ProposalTracker storage proposal = proposalTrackers[_proposalID];
 
-        require(proposal.updateCode == 1, "Wrong proposal ID");
-        require(proposal.isExecuted == false, "Wrong proposal ID");
+        require(proposal.updateCode == 1 && !proposal.isExecuted, "Wrong proposal ID");
         
         // Save the staus
         proposal.status = Status(proposalResult(_proposalID));
@@ -544,8 +553,7 @@ contract FukcingDAO is ERC20 {
     function executeProposalTypeIndexUpdateProposal(uint256 _proposalID) public {
         ProposalTracker storage proposal = proposalTrackers[_proposalID];
 
-        require(proposal.updateCode == 2, "Wrong proposal ID");
-        require(proposal.isExecuted == false, "Wrong proposal ID");
+        require(proposal.updateCode == 2 && !proposal.isExecuted, "Wrong proposal ID");
 
         // Save the staus
         proposal.status = Status(proposalResult(_proposalID));
@@ -579,8 +587,7 @@ contract FukcingDAO is ERC20 {
     function executeMinBalanceToPropUpdateProposal(uint256 _proposalID) public {
         ProposalTracker storage proposal = proposalTrackers[_proposalID];
 
-        require(proposal.updateCode == 3, "Wrong proposal ID");
-        require(proposal.isExecuted == false, "Wrong proposal ID");
+        require(proposal.updateCode == 3 && !proposal.isExecuted, "Wrong proposal ID");
         
         // Save the staus
         proposal.status = Status(proposalResult(_proposalID));
@@ -710,13 +717,55 @@ contract FukcingDAO is ERC20 {
         update.isExecuted = true;
     }
 
-/*  
-    >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< ><  >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< ><
-    >< >< >< >< >< >< >< >< >< >< >< >< ><                                            >< >< >< >< >< >< >< >< >< >< >< >< ><
-    >< >< >< >< >< >< >< >< >< ><                     Functions as a Tool                      >< >< >< >< >< >< >< >< >< ><
-    >< >< >< >< >< >< >< >< >< >< >< >< ><                                            >< >< >< >< >< >< >< >< >< >< >< >< ><
-    >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< ><  >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< >< 
-*/  
+    // Changing clan point by DAO approval
+    function proposeClanPointChange(uint256 _clanID, uint256 _pointsToChange, bool _isDecreasing) public {
+        string memory proposalDescription;
+        if (_isDecreasing){
+            proposalDescription = string(abi.encodePacked(
+                "Decreasing the points of clan ID: ", Strings.toHexString(_clanID),
+                " by ", Strings.toHexString(minBalanceToPropose), " points."
+            )); 
+        }
+        else {
+            proposalDescription = string(abi.encodePacked(
+                "Increasing the points of clan ID: ", Strings.toHexString(_clanID),
+                " by ", Strings.toHexString(minBalanceToPropose), " points."
+            )); 
+        }
+
+        // Create a new proposal- proposal type Index : 2 - Highly Important
+        uint256 propID = newProposal(proposalDescription, proposalTypeIndexes[2]);
+
+        // Save data to the local proposal
+        proposalTrackers[propID].updateCode = 4;
+        proposalTrackers[propID].index = _clanID;
+        proposalTrackers[propID].newUint = _pointsToChange;
+        proposalTrackers[propID].newBool = _isDecreasing;
+    }
+
+    function executeClanPointChangeProposal(uint256 _proposalID) public {
+        ProposalTracker storage proposal = proposalTrackers[_proposalID];
+
+        require(proposal.updateCode == 4 && !proposal.isExecuted, "Wrong proposal ID");
+        
+        // Save the staus
+        proposal.status = Status(proposalResult(_proposalID));
+
+        // Check if it is finalized or not
+        require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
+
+        // if the proposal is approved, apply the update the state
+        if (proposal.status == Status.Approved) {
+            // TEST -> contracts[1].giveClanPoints(proposal.index, proposal.newUint, proposal.newBool);
+        }
+
+        proposal.isExecuted = true;        
+    }
+
+    // >< >< >< >< >< >< >< >< ><                                                              >< >< >< >< >< >< >< >< >< //
+    // >< >< >< >< >< >< >< >< ><                     Functions as a Tool                      >< >< >< >< >< >< >< >< >< //
+    // >< >< >< >< >< >< >< >< ><                                                              >< >< >< >< >< >< >< >< >< //
+
     receive() external payable {}
 
     /*

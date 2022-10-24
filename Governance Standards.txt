@@ -91,8 +91,7 @@ Array index change:
     function executeContractAddressUpdateProposal(uint256 _proposalID) public {
         Proposal storage proposal = proposals[_proposalID];
 
-        require(proposal.updateCode == 1, "Wrong proposal ID");
-        require(proposal.isExecuted == false, "Wrong proposal ID");
+        require(proposal.updateCode == 1 && !proposal.isExecuted, "Wrong proposal ID");
         
         // Get the result from DAO
         (bool txSuccess, bytes memory returnData) = contracts[4].call(
@@ -139,8 +138,7 @@ Normal variable change:
     function executeXXXProposal(uint256 _proposalID) public {
         Proposal storage proposal = proposals[_proposalID];
 
-        require(proposal.updateCode == upcode here, "Wrong proposal ID");
-        require(proposal.isExecuted == false, "Wrong proposal ID");
+        require(proposal.updateCode == upcode here && !proposal.isExecuted, "Wrong proposal ID");
 
         // Get the proposal result from DAO
         (bool txSuccess, bytes memory returnData) = contracts[4].call(
@@ -207,7 +205,7 @@ function proposeContractAddressUpdate(uint256 _contractIndex, address _newAddres
 function executeContractAddressUpdateProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
-    require(proposal.updateCode == 1 || proposal.isExecuted == false, "Wrong proposal ID");
+    require(proposal.updateCode == 1 && !proposal.isExecuted, "Wrong proposal ID");
     
     // Get the result from DAO
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
@@ -257,7 +255,7 @@ function proposeProposalTypesUpdate(uint256 _proposalIndex, uint256 _newType) pu
 function executeProposalTypesUpdateProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
-    require(proposal.updateCode == 2 || proposal.isExecuted == false, "Wrong proposal ID");
+    require(proposal.updateCode == 2 && !proposal.isExecuted, "Wrong proposal ID");
 
     // If there is already a proposal, Get its result from DAO
     (bool txSuccess, bytes memory returnData) = contracts[4].call(

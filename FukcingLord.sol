@@ -9,21 +9,32 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "./IERC4907.sol";
 
-/*
- * @author Bora
+
+/**
+ * @notice
+ * -> Executers can propose to change mint cost by FDAO approval.
+ * -> A Lord can mint maximum of 3 clan licences. Once a licences used by a clan leader to create
+ * clan, the licence burns and lord can mint a new licence.
+ * -> Lords can set custom URI for their licences
+ * -> Lords collects taxes from their clans. Initial tax rate is 13%. Which means, 13% of the clan rewards
+ * will go to the lord of the clan.
+ * -> If the clans starts a rebellion and fails, tax rate increases according to formula below.
+ * Tax rate formula: tax rate = base tax rate + (tax rate change * number of glories);
+ * If the rebellion wins the war, lord dies and clans would be free. No more taxes!
+ * War is a simply battle of resources. Lord or rebels should have at least 66% of funding to win.
+ * 13% of the total funds in a war burns as war casualties. Remaining funds goes to the winner side.
+ * Everyone can support the lord or rebels! Supporters of winner side shares the losers' funds after war!
+ * -> Fukcing Lord NFTs are rentable. Lords can rent them out by setting renter address and expire date.
+ * An owner can't rent out the NFT until the current expire date passes.
+ * -> The Lord Tax goes to the renter. If there no renter, tax goes to the owner.
+ * The renter can't mint clan licences but can vote for DAO proposals and collects taxes.
+ * -> Owner can rent out the Lord without any fee from the contract or another interfaces. Lords who want
+ * to get rent fees in FUKC tokens can use FukcingRent contract to rent them out.
  */
 
 /**
-  * notice:
-  * -> Each token ID is represents the lords' ID that mint it. For instance, licence with id 5 is the licence of lord ID 5.
-  * -> Executers proposes changes in mintCost to FDAO to approve.
-  * -> Mint clanLicence (max 3 licence can exist in the same time), can set custom URI for it licences
-  * -> Tax rate : base + (taxRateChange * num of glories)
-  * -> Rentable: Set user and end time as unix. Can't rent to someone else until the expire date
-  * -> Rebellion Mechanism: kills the lord if the rebllion successful, raises the taxes if the rebellion failes.
-  * ---> 13% of the total funds burns as a consequense of the war, remaining gets claimed by winner side.
-  */
-
+ * @author Bora
+ */
 contract FukcingLord is ERC721, ERC721Burnable {  
   using Counters for Counters.Counter;
 
@@ -435,7 +446,7 @@ contract FukcingLord is ERC721, ERC721Burnable {
   function executeContractAddressUpdateProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
-    require(proposal.updateCode == 1 || proposal.isExecuted == false, "Wrong proposal ID");
+    require(proposal.updateCode == 1 && !proposal.isExecuted, "Wrong proposal ID");
     
     // Get the result from DAO
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
@@ -485,7 +496,7 @@ contract FukcingLord is ERC721, ERC721Burnable {
   function executeProposalTypesUpdateProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
-    require(proposal.updateCode == 2 || proposal.isExecuted == false, "Wrong proposal ID");
+    require(proposal.updateCode == 2 && !proposal.isExecuted, "Wrong proposal ID");
 
     // If there is already a proposal, Get its result from DAO
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
@@ -532,7 +543,7 @@ contract FukcingLord is ERC721, ERC721Burnable {
   function executeBaseTaxRateProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
-    require(proposal.updateCode == 3 || proposal.isExecuted == false, "Wrong proposal ID");
+    require(proposal.updateCode == 3 && !proposal.isExecuted, "Wrong proposal ID");
 
     // Get the proposal result from DAO
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
@@ -579,7 +590,7 @@ contract FukcingLord is ERC721, ERC721Burnable {
   function executeTaxRateChangeProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
-    require(proposal.updateCode == 4 || proposal.isExecuted == false, "Wrong proposal ID");
+    require(proposal.updateCode == 4 && !proposal.isExecuted, "Wrong proposal ID");
 
     // Get the proposal result from DAO
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
@@ -626,7 +637,7 @@ contract FukcingLord is ERC721, ERC721Burnable {
   function executeRebellionLenghtProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
-    require(proposal.updateCode == 5 || proposal.isExecuted == false, "Wrong proposal ID");
+    require(proposal.updateCode == 5 && !proposal.isExecuted, "Wrong proposal ID");
 
     // Get the proposal result from DAO
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
@@ -673,7 +684,7 @@ contract FukcingLord is ERC721, ERC721Burnable {
   function executeSignalLenghtProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
-    require(proposal.updateCode == 6 || proposal.isExecuted == false, "Wrong proposal ID");
+    require(proposal.updateCode == 6 && !proposal.isExecuted, "Wrong proposal ID");
 
     // Get the proposal result from DAO
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
@@ -720,7 +731,7 @@ contract FukcingLord is ERC721, ERC721Burnable {
   function executeVictoryRateProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
-    require(proposal.updateCode == 7 || proposal.isExecuted == false, "Wrong proposal ID");
+    require(proposal.updateCode == 7 && !proposal.isExecuted, "Wrong proposal ID");
 
     // Get the proposal result from DAO
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
@@ -767,7 +778,7 @@ contract FukcingLord is ERC721, ERC721Burnable {
   function executeWarCasualtyRateProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
-    require(proposal.updateCode == 8 || proposal.isExecuted == false, "Wrong proposal ID");
+    require(proposal.updateCode == 8 && !proposal.isExecuted, "Wrong proposal ID");
 
     // Get the proposal result from DAO
     (bool txSuccess, bytes memory returnData) = contracts[4].call(

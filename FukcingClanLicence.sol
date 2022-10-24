@@ -7,15 +7,17 @@ import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 
 /**
-  * @notice:
-  * -> Each token ID is represents the lords' ID that mint it. For instance, licence with id 5 is the licence of lord ID 5.
-  * -> Executers proposes changes in mintCost to FDAO to approve.
+  * @notice
+  * -> You can create a fukcing clan with a fukcing clan licence! Licences can only minted
+  * by fukcing lords!
+  * -> Each token ID is represents the lords' ID that mint it. 
+  * For instance, licence with id 5 is the licence of lord ID 5.
+  * -> Executers can propose to update contract addresses, proposal types, and mint cost.
   */
 
 /**
   * @author Bora
   */
-
 contract FukcingClanLicence is ERC1155, ERC1155Burnable {
 
   enum Status{
@@ -73,6 +75,7 @@ contract FukcingClanLicence is ERC1155, ERC1155Burnable {
   uint256 public mintCost;
 
   constructor() ERC1155("link/{id}.json") { // TEST 
+    mintCost = 5555 ether;
   }
 
   // @dev returns the valid URI of the licence
@@ -144,7 +147,7 @@ contract FukcingClanLicence is ERC1155, ERC1155Burnable {
   function executeContractAddressUpdateProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
-    require(proposal.updateCode == 1 || proposal.isExecuted == false, "Wrong proposal ID");
+    require(proposal.updateCode == 1 && !proposal.isExecuted, "Wrong proposal ID");
     
     // Get the result from DAO
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
@@ -194,7 +197,7 @@ contract FukcingClanLicence is ERC1155, ERC1155Burnable {
   function executeProposalTypesUpdateProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
-    require(proposal.updateCode == 2 || proposal.isExecuted == false, "Wrong proposal ID");
+    require(proposal.updateCode == 2 && !proposal.isExecuted, "Wrong proposal ID");
 
     // If there is already a proposal, Get its result from DAO
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
@@ -241,7 +244,7 @@ contract FukcingClanLicence is ERC1155, ERC1155Burnable {
   function executeMintCostProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
-    require(proposal.updateCode == 3 || proposal.isExecuted == false, "Wrong proposal ID");
+    require(proposal.updateCode == 3 && !proposal.isExecuted, "Wrong proposal ID");
 
     // Get the proposal result from DAO
     (bool txSuccess, bytes memory returnData) = contracts[4].call(

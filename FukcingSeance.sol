@@ -10,22 +10,27 @@ import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 /**
-  * -> To-do: 
-  * -> View funcion for the levels and elections. Get winner or winners from level(s)
-  */
-
-/*
- * @author Bora
+ * -> To-do: 
+ * -> View funcion for the levels and elections. Get winner or winners from level(s)
  */
 
+
 /**
-  * Info:
-  * -> Each token ID is represents the lords' ID that mint it. For instance, licence with id 5 is the licence of lord ID 5.
-  * -> Executers proposes changes in mintCost to FDAO to approve.
+  * @notice
+  * -> A seance is a week and in every seance, players selects 1 boss for each level by funding them.
+  * The funds of the winner boss goes to the players of that level in the following seance.
+  * The funds of the loser bosses burns!
   * -> Every player can claim just 1 reward for each level no matter how many times he/she played. 
-  * ---> We put the players in a merkle root and they claim their reward. 
+  * -> Executers sets merkle roots for players to claim their rewards.
+  * -> Backers of winner bosses can claim their reward without executers. 
+  * Backer rewards accounts 5% of FUKC total supply.
+  * -> Higher levels have higher backer reward which will result with higher funding and 
+  * higher reward for players.
   */
 
+/**
+ * @author Bora
+ */
 contract FukcingSeance is Context, ReentrancyGuard {
   using Counters for Counters.Counter;
 
@@ -312,7 +317,7 @@ contract FukcingSeance is Context, ReentrancyGuard {
   function executeContractAddressUpdateProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
-    require(proposal.updateCode == 1 || proposal.isExecuted == false, "Wrong proposal ID");
+    require(proposal.updateCode == 1 && !proposal.isExecuted, "Wrong proposal ID");
     
     // Get the result from DAO
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
@@ -362,7 +367,7 @@ contract FukcingSeance is Context, ReentrancyGuard {
   function executeProposalTypesUpdateProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
-    require(proposal.updateCode == 2 || proposal.isExecuted == false, "Wrong proposal ID");
+    require(proposal.updateCode == 2 && !proposal.isExecuted, "Wrong proposal ID");
 
     // If there is already a proposal, Get its result from DAO
     (bool txSuccess, bytes memory returnData) = contracts[4].call(

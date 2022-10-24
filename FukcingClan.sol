@@ -8,28 +8,35 @@ import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
-/**
-  * -> require executer
-  */
-
-/*
- * @author Bora
- */
 
 /**
-  * @notice:
+  * @notice
+  * -> To create clan, you need a clan licence. When you create a clan, your clan licence burns.
   * -> By default, everyone is a member of every clan. An address is an actual member if and only if 
   * the member has at least 1 point in the clan. Therefore, clan leaders or executers should give at 
   * least 1 point to all members to indicate them as members. Setting a member's points to 0 means 
   * kicking it out of the clan. 
-  *
   * -> Only the leader can update clan name, description, motto, and logo.
+  * -> Clan leader can set any member as an executer to set members points and signal rebellion.
+  * This will help clan leaders to reach large number of members.
+  * -> When we enter a new seance timeline, first clan that claims the reward triggers the snapshot.
+  * -> Clan leaders sets the members points and all members gets their clan reward based on their
+  * member points compared to total member points.
+  * -> Executers and Fukcing DAO increases or decreases the points of clans. Executers doesn't need a
+  * DAO approval to increase or decrease points of a clan. If DAO considers there has been a violation
+  * of rights, DAO can start an proposal to take action. Executers and DAO have a maxiumum limit to change
+  * points of a clan. DAO will have 3 days long proposal to make changes and Executers will have 6 days
+  * cool down to make changes.
+  * -> Total clan rewards is limited by total supply of FDAO tokens. This incentivizes the DAO members
+  * who are most likely the clans members to approve new FDAO token mints to expand DAO's member base and
+  * increases decentralization of DAO.
+  * -> Executers can propose to update contract addresses, proposal types, cooldown time, and maximum 
+  * point to change at a time.
   */
 
 /**
-  * Clans gets their rewards for the last seance - Waits the contracts[11] contract
-  **/
-
+  * @author Bora
+  */
 contract FukcingClan is Context, ReentrancyGuard {
   using Counters for Counters.Counter;
 
@@ -58,7 +65,7 @@ contract FukcingClan is Context, ReentrancyGuard {
     uint256 firstSnap;
 
     // Snapshots | Snap number => value
-    mapping(uint256 => uint256) clanPointsSnapshots;   // Keep clan points for clan to claim
+    mapping(uint256 => uint256) clanPointsSnapshots;  // Keep clan points for clan to claim
     mapping(uint256 => uint256) clanRewardSnapshots;  // Keep reward for memebers to claim
     mapping(uint256 => uint256) totalMemberPointsSnapshots; // Total member pts at the time
     mapping(uint256 => mapping(address => bool)) isMemberClaimed; // Snapshot Number => Address => isclaimed?
@@ -118,24 +125,28 @@ contract FukcingClan is Context, ReentrancyGuard {
    */
   address[13] public contracts; 
 
-  mapping(uint256 => Proposal) public proposals;// Proposal ID => Proposal
-  mapping(uint256 => Clan) public clans;      // Clan ID => Clan info
-  mapping(address => uint256) public clanOf;  // ID of the clan of an address
+  mapping(uint256 => Proposal) public proposals;  // Proposal ID => Proposal
+  mapping(uint256 => Clan) public clans;          // Clan ID => Clan info
+  mapping(address => uint256) public clanOf;      // ID of the clan of an address
 
   Counters.Counter public clanCounter;
   Counters.Counter public snapshotCounter;
-                                                                // Snapshot ID => Value
-  mapping(uint256 => uint256) public totalClanPointsSnapshots;  // Total clan pts at the time
-  mapping(uint256 => uint256) public clanRewards;               // Total clan reward at the time
-  mapping(uint256 => uint256) public claimedRewards;            // Total claimd reward at the time
-  mapping(uint256 => mapping(uint256 => bool)) public isClanClaimed; // snapshot Number => Clan ID => is claimed?
+                                                                      // Snapshot ID => Value
+  mapping(uint256 => uint256) public totalClanPointsSnapshots;        // Total clan pts at the time
+  mapping(uint256 => uint256) public clanRewards;                     // Total clan reward at the time
+  mapping(uint256 => uint256) public claimedRewards;                  // Total claimd reward at the time
+  mapping(uint256 => mapping(uint256 => bool)) public isClanClaimed;  // snapshot Number => Clan ID => is claimed?
+  mapping(uint256 => uint256) public clanCooldownTime;                  // Total claimd reward at the time
 
   uint256 public currentTotalClanPoints;
-  uint256 public maxPointsToChange;               // Maximum point that can be given in a propsal
-  uint256 public firstSeanceEnd;   // End of the first seance, hence the first reward time
+  uint256 public maxPointsToChange;       // Maximum point that can be given in a propsal
+  uint256 public cooldownTime;            // Maximum point that can be given in a propsal
+  uint256 public firstSeanceEnd;          // End of the first seance, hence the first reward time
 
   constructor(){
     clanCounter.increment();  // clan ID's should start from 1
+    maxPointsToChange = 666;
+    cooldownTime = 3 days;
   }
 
   function createClan(
@@ -190,10 +201,16 @@ contract FukcingClan is Context, ReentrancyGuard {
 
   function giveClanPoints(uint256 _clanID, uint256 _points, bool _isDecreasing) public {
     require(_msgSender() == contracts[5] || _msgSender() == contracts[4], 
-      "Only executors or DAO can call this fukcing function!"
+      "Only Executers or DAO can call this fukcing function!"
     ); 
     require(_points <= maxPointsToChange, "Maximum amount of points exceeded!");
     require(clans[_clanID].isDisbanded == false, "This clan is disbanded!");
+
+    // If executers making a change, check the cooldown
+    if (_msgSender() == contracts[5]){
+      require(block.timestamp > clanCooldownTime[_clanID], "Wait for the cooldown time!");
+      clanCooldownTime[_clanID] = block.timestamp + cooldownTime; // set a new cooldown time
+    }
 
     uint256 currSnap = snapshotCounter.current();
     Clan storage clan = clans[_clanID];
@@ -232,7 +249,7 @@ contract FukcingClan is Context, ReentrancyGuard {
     // If time is up AND current snap hasn't received any rewards yet, get rewards from FukcingToken contract first
     if ((block.timestamp > (currSnap * 1 days) + firstSeanceEnd) && clanRewards[currSnap] == 0){ // TEST -> make it 7 days
       // Get the clans rewards from fukcing token
-      (bool txSuccess0, bytes memory returnData0) = contracts[11].call(abi.encodeWithSignature("backerMint()"));
+      (bool txSuccess0, bytes memory returnData0) = contracts[11].call(abi.encodeWithSignature("clanMint()"));
       require(txSuccess0, "Transaction has failed to get backer rewards from Fukcing Token contract!");
 
       // Save it
@@ -251,7 +268,7 @@ contract FukcingClan is Context, ReentrancyGuard {
 
     Clan storage clan = clans[_clanID];
 
-    // Update Current Clan points
+    // Update Current Clan point snaps
     if (clan.clanPointsSnapshots[currSnap] == 0) {
       clan.clanPointsSnapshots[currSnap] = clan.currentPoints; 
       clan.totalMemberPointsSnapshots[currSnap] = clan.currentTotalMemberPoints;           
@@ -276,8 +293,9 @@ contract FukcingClan is Context, ReentrancyGuard {
       IERC20(contracts[11]).transfer(lordAddress, reward * taxRate / 100);
 
     // Then keep the remaining for the clan
-    clan.clanRewardSnapshots[_snap] = reward * (100 - taxRate) / 100;
-    clan.balance += reward * (100 - taxRate) / 100;
+    uint256 clanRewardAfterTax = reward * (100 - taxRate) / 100;
+    clan.clanRewardSnapshots[_snap] = clanRewardAfterTax;
+    clan.balance += clanRewardAfterTax;
   }
 
   function memberRewardClaim(uint256 _clanID, uint256 _snapshotNumber) public {
@@ -319,53 +337,40 @@ contract FukcingClan is Context, ReentrancyGuard {
   }
 
   // Governance Functions
-  function setMemberPoints(uint256 _clanID, address _memberAddress, uint256 _points) public nonReentrant() {
+  function setMemberPoints(uint256 _clanID, address _memberAddress, uint256 _points, bool _isDecreasing) public nonReentrant() {
     Clan storage clan = clans[_clanID];
     ClanMember storage member = clans[_clanID].members[_memberAddress];
-    address sender = _msgSender();
     uint256 currSnap = snapshotCounter.current();
 
     require(clan.isDisbanded == false, "This clan is disbanded!");
 
-    if (clan.canExecutorsSetPoints)
-      require(clan.leader == sender || clan.members[sender].isExecutor, "You have no authority to set points for this clan!");
-    else
-      require(clan.leader == sender, "You have no authority to set points for this clan!");
+    if (clan.canExecutorsSetPoints){
+      require(clan.leader == _msgSender() || clan.members[_msgSender()].isExecutor, 
+        "You have no authority to set points for this clan!"
+      );
+    }
+    else{      
+      require(clan.leader == _msgSender(), "You have no authority to set points for this clan!");
+    }
 
 
     // Update the clan point if we are in a new seance. (Zero snap value indicates a new snap or non-member)
-    if (clan.members[sender].pointsSnapshots[currSnap] == 0) {
-      clan.members[sender].pointsSnapshots[currSnap] = clan.members[sender].currentPoints;      
+    if (member.pointsSnapshots[currSnap] == 0) {
+      member.pointsSnapshots[currSnap] = member.currentPoints;      
       clan.totalMemberPointsSnapshots[currSnap] = clan.currentTotalMemberPoints;      
     }
 
-    require(member.pointsSnapshots[currSnap] != _points, "The member has the exact points already!");
-
-    // Update total member points of the clan
-    if (_points > member.pointsSnapshots[currSnap])     
-      clan.totalMemberPointsSnapshots[currSnap] += _points - member.pointsSnapshots[currSnap];
-    else      
-      clan.totalMemberPointsSnapshots[currSnap] -= member.pointsSnapshots[currSnap] - _points; 
-    
-    // Save the current points
-    member.currentPoints = _points;
-    member.pointsSnapshots[currSnap] = _points;
-  }
-
-  function setClanExecutor(uint256 _clanID, address _address, bool _isExecutor) public  {
-    require(clans[_clanID].leader == _msgSender(), "You have no authority to set a rank for this clan!");
-    clans[_clanID].members[_address].isExecutor = _isExecutor;
-  }
-
-  function transferLeadership(uint256 _clanID, address _newLeader) public  {
-    require(clans[_clanID].leader == _msgSender(), "You have no authority to transfer leadership for this clan!");
-    clans[_clanID].leader = _newLeader;
-  }
-
-  function disbandClan(uint256 _clanID) public {
-    require(clans[_clanID].leader == _msgSender(), "You have no authority to disband this clan!");
-    clans[_clanID].leader = address(0);    
-    clans[_clanID].isDisbanded = true;
+    // Update member points and total member points of the clan
+    if (_isDecreasing) {
+      member.currentPoints -= _points;
+      member.pointsSnapshots[currSnap] -= _points;
+      clan.totalMemberPointsSnapshots[currSnap] -= _points;
+    }
+    else {
+      member.currentPoints += _points;
+      member.pointsSnapshots[currSnap] += _points;
+      clan.totalMemberPointsSnapshots[currSnap] += _points;
+    }
   }
 
   function signalRebellion(uint256 _clanID) public {
@@ -386,6 +391,22 @@ contract FukcingClan is Context, ReentrancyGuard {
       "signalRebellion(uint256,uint256)", clan.lordID, _clanID)
     );
     require(txSuccess, "The transaction has failed when signalling");
+  }
+
+  function setClanExecutor(uint256 _clanID, address _address, bool _isExecutor) public  {
+    require(clans[_clanID].leader == _msgSender(), "You have no authority to set a rank for this clan!");
+    clans[_clanID].members[_address].isExecutor = _isExecutor;
+  }
+
+  function transferLeadership(uint256 _clanID, address _newLeader) public  {
+    require(clans[_clanID].leader == _msgSender(), "You have no authority to transfer leadership for this clan!");
+    clans[_clanID].leader = _newLeader;
+  }
+
+  function disbandClan(uint256 _clanID) public {
+    require(clans[_clanID].leader == _msgSender(), "You have no authority to disband this clan!");
+    clans[_clanID].leader = address(0);    
+    clans[_clanID].isDisbanded = true;
   }
 
   // Update Clan Info
@@ -430,6 +451,7 @@ contract FukcingClan is Context, ReentrancyGuard {
    * Contract Address Change -> Code: 1
    * Proposal Type Change -> Code: 2
    * maxPointsToChange -> Code: 3
+   * cooldownTime -> Code: 4
    * 
    */
   function proposeContractAddressUpdate(uint256 _contractIndex, address _newAddress) public {
@@ -461,7 +483,7 @@ contract FukcingClan is Context, ReentrancyGuard {
   function executeContractAddressUpdateProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
-    require(proposal.updateCode == 1 || proposal.isExecuted == false, "Wrong proposal ID");
+    require(proposal.updateCode == 1 && !proposal.isExecuted, "Wrong proposal ID");
     
     // Get the result from DAO
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
@@ -511,7 +533,7 @@ contract FukcingClan is Context, ReentrancyGuard {
   function executeProposalTypesUpdateProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
-    require(proposal.updateCode == 2 || proposal.isExecuted == false, "Wrong proposal ID");
+    require(proposal.updateCode == 2 && !proposal.isExecuted, "Wrong proposal ID");
 
     // If there is already a proposal, Get its result from DAO
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
@@ -555,10 +577,10 @@ contract FukcingClan is Context, ReentrancyGuard {
     proposals[propID].newUint = _newMaxPoint;
   }
 
-  function executeMaxPointToChangeProposal(uint256 _proposalID) public {
+  function executeMaxPointToChangeUpdateProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
-    require(proposal.updateCode == 3 || proposal.isExecuted == false, "Wrong proposal ID");
+    require(proposal.updateCode == 3 && !proposal.isExecuted, "Wrong proposal ID");
 
     // Get the proposal result from DAO
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
@@ -576,6 +598,53 @@ contract FukcingClan is Context, ReentrancyGuard {
     // if the proposal is approved, apply the update the state
     if (proposal.status == Status.Approved)
       maxPointsToChange = proposal.newUint;
+
+    proposal.isExecuted = true;
+  }
+
+  function proposeCooldownTimeUpdate(uint256 _newCooldownTime) public {
+    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+
+    string memory proposalDescription = string(abi.encodePacked(
+      "In Fukcing Clan contract, updating cooldown time (Unix Time) to ",
+      Strings.toHexString(_newCooldownTime), " from ", Strings.toHexString(cooldownTime), "."
+    )); 
+
+    // Create a new proposal - DAO (contracts[4]) - Moderately Important Proposal (proposalTypes[1])
+    (bool txSuccess, bytes memory returnData) = contracts[4].call(
+         abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypes[1])
+    );
+    require(txSuccess, "Transaction failed to make new proposal!");
+
+    // Get the ID
+    (uint256 propID) = abi.decode(returnData, (uint256));
+
+    // Save data to the local proposal
+    proposals[propID].updateCode = 4;
+    proposals[propID].newUint = _newCooldownTime;
+  }
+
+  function executeCooldownTimeUpdateProposal(uint256 _proposalID) public {
+    Proposal storage proposal = proposals[_proposalID];
+
+    require(proposal.updateCode == 4 && !proposal.isExecuted, "Wrong proposal ID");
+
+    // Get the proposal result from DAO
+    (bool txSuccess, bytes memory returnData) = contracts[4].call(
+      abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
+    );
+    require(txSuccess, "Transaction failed to retrieve DAO result!");
+    (uint256 statusNum) = abi.decode(returnData, (uint256));
+
+    // Save the result here
+    proposal.status = Status(statusNum);
+
+    // Check if it is finalized or not
+    require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
+
+    // if the proposal is approved, apply the update the state
+    if (proposal.status == Status.Approved)
+      cooldownTime = proposal.newUint;
 
     proposal.isExecuted = true;
   }

@@ -11,9 +11,10 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 
 /**
   * @notice:
-  * -> maxSupply can change by DAO 13 days long proposal with %90 approval rate after there is 1 month left until the max supply
+  * -> FUKC token has dynamic minting mechanism. Every allocation part has its mint per second to mint in any time.
+  * -> maxSupply can change by DAO 13 days long proposal with %90 approval rate after 2 years from
+  * and there is 1 month left to reach the current max supply
   * -> Mint rate can chage with same hard approval after 1 year: backers, clans, community, staking
-  * -> Make changable all the receivers except testnet and team. The address of them.
   */
 
 /**
@@ -31,7 +32,7 @@ import "@openzeppelin/contracts/utils/Counters.sol";
   * Therefore, DAO members (most of them are clans) should approve new DAO token mints that are proposed by the Executors.
   */
 
-/*
+/**
  * @author Bora
  */
 
@@ -347,8 +348,7 @@ contract FukcingToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
     function executeContractAddressUpdateProposal(uint256 _proposalID) public {
         Proposal storage proposal = proposals[_proposalID];
 
-        require(proposal.updateCode == 1, "Wrong proposal ID");
-        require(proposal.isExecuted == false, "Wrong proposal ID");
+        require(proposal.updateCode == 1 && !proposal.isExecuted, "Wrong proposal ID");
         
         // Get the result from DAO
         (bool txSuccess, bytes memory returnData) = contracts[4].call(
@@ -398,8 +398,7 @@ contract FukcingToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
     function executeProposalTypesUpdateProposal(uint256 _proposalID) public {
         Proposal storage proposal = proposals[_proposalID];
 
-        require(proposal.updateCode == 2, "Wrong proposal ID");
-        require(proposal.isExecuted == false, "Wrong proposal ID");
+        require(proposal.updateCode == 2 && !proposal.isExecuted, "Wrong proposal ID");
 
         // If there is already a proposal, Get its result from DAO
         (bool txSuccess, bytes memory returnData) = contracts[4].call(
@@ -459,8 +458,7 @@ contract FukcingToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
     function executeMintPerSecondProposal(uint256 _proposalID) public {
         Proposal storage proposal = proposals[_proposalID];
 
-        require(proposal.updateCode == 3, "Wrong proposal ID");
-        require(proposal.isExecuted == false, "Wrong proposal ID");
+        require(proposal.updateCode == 3 && !proposal.isExecuted, "Wrong proposal ID");
 
         // If the variable is the same (updateCode), then get its result from DAO
         (bool txSuccess, bytes memory returnData) = contracts[4].call(
@@ -513,8 +511,7 @@ contract FukcingToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
     function executeIncreaseMaxSupplyProposal(uint256 _proposalID) public {
         Proposal storage proposal = proposals[_proposalID];
 
-        require(proposal.updateCode == 4, "Wrong proposal ID");
-        require(proposal.isExecuted == false, "Wrong proposal ID");
+        require(proposal.updateCode == 4 && !proposal.isExecuted, "Wrong proposal ID");
 
         // Get the result from DAO
         (bool txSuccess, bytes memory returnData) = contracts[4].call(

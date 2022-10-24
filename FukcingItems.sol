@@ -5,17 +5,18 @@ import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155URIStorage.sol";
 import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol";
 
+// TEST -> Control the URI things
+
 /**
-  * Info:
-  * -> Executers proposes changes in mintCost and stop item to be minted to FDAO to approve.
+  * @notice
+  * -> Executers can propose to change mintCost and stop item to be minted by FDAO approval.
+  * -> Executers can update token URI without any DAO approval.
+  * -> Minters have to burn certaion amount of FUKC token to mint items.
   */
 
-/*
+/**
  * @author Bora
  */
-
-
-
 contract FukcingItems is ERC1155, ERC1155Burnable {
     
   struct Item {
@@ -193,7 +194,7 @@ contract FukcingItems is ERC1155, ERC1155Burnable {
   function executeContractAddressUpdateProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
-    require(proposal.updateCode == 1 || proposal.isExecuted == false, "Wrong proposal ID");
+    require(proposal.updateCode == 1 && !proposal.isExecuted, "Wrong proposal ID");
     
     // Get the result from DAO
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
@@ -243,7 +244,7 @@ contract FukcingItems is ERC1155, ERC1155Burnable {
   function executeProposalTypesUpdateProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
-    require(proposal.updateCode == 2 || proposal.isExecuted == false, "Wrong proposal ID");
+    require(proposal.updateCode == 2 && !proposal.isExecuted, "Wrong proposal ID");
 
     // If there is already a proposal, Get its result from DAO
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
@@ -291,7 +292,7 @@ contract FukcingItems is ERC1155, ERC1155Burnable {
   function executeMintCostProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
-    require(proposal.updateCode == 3 || proposal.isExecuted == false, "Wrong proposal ID");
+    require(proposal.updateCode == 3 && !proposal.isExecuted, "Wrong proposal ID");
 
     // Get the proposal result from DAO
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
@@ -349,7 +350,7 @@ contract FukcingItems is ERC1155, ERC1155Burnable {
   function executeItemActivationProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
-    require(proposal.updateCode == 4 || proposal.isExecuted == false, "Wrong proposal ID");
+    require(proposal.updateCode == 4 && !proposal.isExecuted, "Wrong proposal ID");
 
     // Get the proposal result from DAO
     (bool txSuccess, bytes memory returnData) = contracts[4].call(

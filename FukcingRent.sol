@@ -5,6 +5,17 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 
+// NOT FINISHED: There should be list and rent options. If you pay asked amount of listed lord, you can rent.
+// Now: Once we get approvals from both sides, random person can rent someone else's lord to someone else!
+
+/**
+ * @notice
+ * Renting contract using FUKC token as a medium of exchange.
+ */
+
+/**
+ * @author Bora
+ */
 contract FukcingRent is Context {
 
   enum Status{
@@ -64,7 +75,7 @@ contract FukcingRent is Context {
 
   function rent(uint256 _lordID, address _lordAddress, uint256 _rentFee, address _user, uint256 _expires) public {
     // Get money
-    IERC20(contracts[11]).transfer(_lordAddress, _rentFee);
+    IERC20(contracts[11]).transferFrom(_msgSender(), _lordAddress, _rentFee);
 
     // Rent the NFT
     bytes memory payload = abi.encodeWithSignature("setUser(uint256,address,uint256)", _lordID, _user, _expires);
@@ -108,7 +119,7 @@ contract FukcingRent is Context {
   function executeContractAddressUpdateProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
-    require(proposal.updateCode == 1 || proposal.isExecuted == false, "Wrong proposal ID");
+    require(proposal.updateCode == 1 && !proposal.isExecuted, "Wrong proposal ID");
     
     // Get the result from DAO
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
@@ -158,7 +169,7 @@ contract FukcingRent is Context {
   function executeProposalTypesUpdateProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
-    require(proposal.updateCode == 2 || proposal.isExecuted == false, "Wrong proposal ID");
+    require(proposal.updateCode == 2 && !proposal.isExecuted, "Wrong proposal ID");
 
     // If there is already a proposal, Get its result from DAO
     (bool txSuccess, bytes memory returnData) = contracts[4].call(

@@ -5,20 +5,19 @@ import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 
 /**
-  * -> Add contract addresses
   * -> Not finished
   */
 
-/*
- * @author Bora
- */
  
 /**
-  * notice:
-  * -> Each token ID is represents the lords' ID that mint it. For instance, licence with id 5 is the licence of lord ID 5.
-  * -> Executers proposes changes in mintCost to FDAO to approve.
-  */
+ * @notice
+ * -> Executers executes update proposals to maintain the sustainablity and balance in WeFukc.
+ * -> FDAO can hire or fire executers.
+ */
 
+/**
+ * @author Bora
+ */
 contract FukcingExecuters is Context, AccessControl {
 
   enum Status{
@@ -98,7 +97,7 @@ contract FukcingExecuters is Context, AccessControl {
    * Proposal Type Change -> Code: 2
    * Executer Propsosal -> Code: 3
    * 
-  **/
+   */
   function proposeContractAddressUpdate(uint256 _contractIndex, address _newAddress) public onlyRole(EXECUTER_ROLE) {
     require(_newAddress != address(0) || _newAddress != contracts[_contractIndex], 
       "New address can not be the null or same address!"
@@ -127,7 +126,7 @@ contract FukcingExecuters is Context, AccessControl {
   function executeContractAddressUpdateProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
-    require(proposal.updateCode == 1 || proposal.isExecuted == false, "Wrong proposal ID");
+    require(proposal.updateCode == 1 && !proposal.isExecuted, "Wrong proposal ID");
     
     // Get the result from DAO
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
@@ -176,7 +175,7 @@ contract FukcingExecuters is Context, AccessControl {
   function executeProposalTypesUpdateProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
   
-    require(proposal.updateCode == 2 || proposal.isExecuted == false, "Wrong proposal ID");
+    require(proposal.updateCode == 2 && !proposal.isExecuted, "Wrong proposal ID");
   
     // If there is already a proposal, Get its result from DAO
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
@@ -255,7 +254,7 @@ contract FukcingExecuters is Context, AccessControl {
   function executeRoleProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
-    require(proposal.updateCode == 3 || proposal.isExecuted == false, "Wrong proposal ID");
+    require(proposal.updateCode == 3 && !proposal.isExecuted, "Wrong proposal ID");
 
     // Get the proposal result from DAO
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
