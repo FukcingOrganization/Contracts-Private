@@ -2,15 +2,15 @@
 pragma solidity ^0.8.4;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 
-// NOT FINISHED: There should be list and rent options. If you pay asked amount of listed lord, you can rent.
-// Now: Once we get approvals from both sides, random person can rent someone else's lord to someone else!
-
 /**
  * @notice
- * Renting contract using FUKC token as a medium of exchange.
+ * -> Renting contract using FUKC token as a medium of exchange.
+ * -> Lord owner can list and delist its NFT for a specific lenght and fee.
+ * -> Everyone can rent a listed lord NFT except the owner of the lord.
  */
 
 /**
@@ -35,6 +35,14 @@ contract FukcingRent is Context {
     address newAddress;
     bytes32 newBytes32;
     bool newBool;
+  }
+
+  struct Listing {
+    bool isListed;
+    uint256 lordID;
+    address ownerAddress;
+    uint256 fee;
+    uint256 length;
   }
 
   /**
@@ -66,19 +74,50 @@ contract FukcingRent is Context {
    */
   address[13] public contracts; 
 
-  mapping(uint256 => Proposal) public proposals;// Proposal ID => Proposal
+  mapping(uint256 => Proposal) public proposals;  // Proposal ID => Proposal
+  mapping(uint256 => Listing) public listings;    // Lord ID => Listing
 
   constructor (address _lordContract, address _tokenContract) {
     contracts[7] = _lordContract;
     contracts[11] = _tokenContract;
   }
 
-  function rent(uint256 _lordID, address _lordAddress, uint256 _rentFee, address _user, uint256 _expires) public {
-    // Get money
-    IERC20(contracts[11]).transferFrom(_msgSender(), _lordAddress, _rentFee);
+  function list(uint256 _lordID, uint256 _rentFee, uint256 _length) public {
+    address owner = ERC721(contracts[7]).ownerOf(_lordID);
+    require(_msgSender() == owner, "You can't list a lord NFT that you don't have!");
+
+    Listing storage listing = listings[_lordID];
+
+    listing.isListed = true;
+    listing.lordID = _lordID;
+    listing.ownerAddress = owner;
+    listing.fee = _rentFee;
+    listing.length = _length;
+  }
+
+  function delist(uint256 _lordID) public {
+    // Get the owner from the fukcing lord contract (contracts[7])
+    address owner = ERC721(contracts[7]).ownerOf(_lordID);
+    require(_msgSender() == owner, "You can't delist a lord NFT that you don't have!");
+
+    Listing storage listing = listings[_lordID];
+
+    listing.isListed = false;
+    listing.fee = 0;
+    listing.length = 0;    
+  }
+
+  function rent(uint256 _lordID) public {
+    // Get the listing
+    Listing storage listing = listings[_lordID];
+    require(listing.isListed, "This lord isn't listed. Sorry!");
+    require(_msgSender() != listing.ownerAddress, "Dude! WTF? You can't rent your own shit!");
+
+    // Transfer the fee from caler to owner
+    IERC20(contracts[11]).transferFrom(_msgSender(), listing.ownerAddress, listing.fee);
 
     // Rent the NFT
-    bytes memory payload = abi.encodeWithSignature("setUser(uint256,address,uint256)", _lordID, _user, _expires);
+    bytes memory payload = abi.encodeWithSignature("setUser(uint256,address,uint256)", listing.lordID, _msgSender(), (block.timestamp + listing.length));
     (bool txSuccess, ) = contracts[7].call(payload);
     require(txSuccess, "Transaction has fail to set rent from the Fukcing Lord contract!");
   }

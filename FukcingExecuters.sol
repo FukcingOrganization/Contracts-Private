@@ -3,15 +3,17 @@ pragma solidity ^0.8.4;
 
 import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/utils/Counters.sol";
 
 /**
-  * -> Not finished
+  * -> Update: signal time
   */
 
  
 /**
  * @notice
  * -> Executers executes update proposals to maintain the sustainablity and balance in WeFukc.
+ * -> At least half of the executers should signal to propose a new proposal within the signal time
  * -> FDAO can hire or fire executers.
  */
 
@@ -19,6 +21,7 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
  * @author Bora
  */
 contract FukcingExecuters is Context, AccessControl {
+  using Counters for Counters.Counter;  
 
   enum Status{
     NotStarted, // Index: 0
@@ -39,7 +42,21 @@ contract FukcingExecuters is Context, AccessControl {
     bool newBool;
   }
 
-  mapping(uint256 => Proposal) public proposals;  // proposalID => Proposal
+  struct Signal {
+    uint256 expires;
+    uint256 numOfSignals;
+    mapping(address => bool) isSignaled;
+
+    uint256 contractIndex;
+    uint256 subjectIndex;
+    address propAddrees;
+    uint256 propUint;
+  }
+
+  Counters.Counter private signalCounter;
+
+  mapping(uint256 => Proposal) public proposals;  // proposal ID => Proposal
+  mapping(uint256 => Signal) public signals;      // function ID => Signal
   mapping(address => bool) public isExecutor;     // The executors
 
   bytes32 public constant EXECUTER_ROLE = keccak256("EXECUTER_ROLE");
@@ -71,23 +88,68 @@ contract FukcingExecuters is Context, AccessControl {
    */
   uint256[4] public proposalTypes;
 
-  address[] public executors;   // List of executors
+  uint256 public numOfExecuters;
+  uint256[] public signalTrackerID;
+  uint256 public signalTime;
 
   constructor() {
-    executors.push(_msgSender());
+    // Grant the deployer as an executer
     _grantRole(EXECUTER_ROLE, _msgSender());
+    numOfExecuters++;  
+
+    // At least half of the executer should signal within (initially) 1 day to execute a new proposal 
+    signalTime = 1 days;        
+    signalCounter.increment();  // Start the counter from 1
   }
 
-
+  /**
+   * Signal Tracker IDs
+   *
+   * Contract Address Update: 1
+   * Proposal Type Update: 2
+   */
   function createContractAddressUpdateProposal(
-    uint256 contractIndex,  // Destination Contract address
-    uint256 subjectIndex,   // The address that we want to update in the destination contract. Same index as contracts
-    address newAddress     // New address
+    uint256 _contractIndex,  // Destination Contract address
+    uint256 _subjectIndex,   // The address that we want to update in the destination contract. Same index as contracts
+    address _newAddress     // New address
   ) public onlyRole(EXECUTER_ROLE) {
-    (bool txSuccess, ) = contracts[contractIndex].call(abi.encodeWithSignature(
-      "proposeContractAddressUpdate(uint256,address)", subjectIndex, newAddress
-    ));
-    require(txSuccess, "Transaction failed to execute update function!");   
+    // Get the current signal ID for this proposal function
+    uint256 sID = signalTrackerID[1];
+
+    // If current signal date passed, then start a new signal
+    if (block.timestamp > signals[sID].expires) {
+      require(_newAddress != address(0), "You can't set the address to null!");
+
+      signalTrackerID[1] = signalCounter.current();           // Save the current signal ID to the tracker
+      Signal storage newSignal = signals[signalTrackerID[1]]; // Get the signal
+      signalCounter.increment();  // Increment the counter for other signals
+
+      // Save data
+      newSignal.expires = block.timestamp + signalTime;
+      newSignal.contractIndex = _contractIndex;
+      newSignal.subjectIndex = _subjectIndex;
+      newSignal.propAddrees = _newAddress;
+
+      newSignal.numOfSignals++;
+      newSignal.isSignaled[_msgSender()] = true;  // Save the executer address as signaled
+      return; // finish the function
+    }   
+
+    // If we are in the signal time, get the signal and check caller's signal status
+    Signal storage signal = signals[signalTrackerID[1]];
+    require(!signal.isSignaled[_msgSender()], "You already signaled for this proposal");
+
+    // If not signaled, save it and increase the number of signals
+    signal.isSignaled[_msgSender()] = true;
+    signal.numOfSignals++;
+
+    // Execute proposal if the half of the executers signaled
+    if (signal.numOfSignals >= (numOfExecuters / 2)){
+      (bool txSuccess, ) = contracts[_contractIndex].call(abi.encodeWithSignature(
+        "proposeContractAddressUpdate(uint256,address)", _subjectIndex, _newAddress
+      ));
+      require(txSuccess, "Transaction failed to execute update function!");
+    }       
   }
 
   
@@ -271,7 +333,7 @@ contract FukcingExecuters is Context, AccessControl {
 
     // if the proposal is approved, apply the update the state
     if (proposal.status == Status.Approved){
-      if (proposal.newBool == true)
+      if (proposal.newBool == true) // MISSING !!!!
         _grantRole(EXECUTER_ROLE, proposal.newAddress);
       else
         _revokeRole(EXECUTER_ROLE, proposal.newAddress);

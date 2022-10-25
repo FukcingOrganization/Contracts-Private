@@ -11,9 +11,11 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 /**
   * @notice
   * -> You can mint, select, and fukc a boss!
+  *
   * -> Boss NFTs can't be transferred therefore can't be sold!
   * -> The minter can only change metadata by setting token URI.
   * -> Minters have to burn certaion amount of FUKC token to mint a boss.
+  *
   * -> Executers can propose to update contract addresses, proposal types, and the mint cost.
   */
 

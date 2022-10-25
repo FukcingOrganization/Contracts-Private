@@ -12,8 +12,10 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 /**
   * @notice:
   * -> FUKC token has dynamic minting mechanism. Every allocation part has its mint per second to mint in any time.
+  *
   * -> maxSupply can change by DAO 13 days long proposal with %90 approval rate after 2 years from
   * and there is 1 month left to reach the current max supply
+  *
   * -> Mint rate can chage with same hard approval after 1 year: backers, clans, community, staking
   */
 

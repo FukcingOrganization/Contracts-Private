@@ -13,21 +13,28 @@ import "./IERC4907.sol";
 /**
  * @notice
  * -> Executers can propose to change mint cost by FDAO approval.
+  *
  * -> A Lord can mint maximum of 3 clan licences. Once a licences used by a clan leader to create
  * clan, the licence burns and lord can mint a new licence.
+  *
  * -> Lords can set custom URI for their licences
+  *
  * -> Lords collects taxes from their clans. Initial tax rate is 13%. Which means, 13% of the clan rewards
  * will go to the lord of the clan.
+  *
  * -> If the clans starts a rebellion and fails, tax rate increases according to formula below.
  * Tax rate formula: tax rate = base tax rate + (tax rate change * number of glories);
  * If the rebellion wins the war, lord dies and clans would be free. No more taxes!
  * War is a simply battle of resources. Lord or rebels should have at least 66% of funding to win.
  * 13% of the total funds in a war burns as war casualties. Remaining funds goes to the winner side.
  * Everyone can support the lord or rebels! Supporters of winner side shares the losers' funds after war!
+  *
  * -> Fukcing Lord NFTs are rentable. Lords can rent them out by setting renter address and expire date.
  * An owner can't rent out the NFT until the current expire date passes.
+  *
  * -> The Lord Tax goes to the renter. If there no renter, tax goes to the owner.
  * The renter can't mint clan licences but can vote for DAO proposals and collects taxes.
+  *
  * -> Owner can rent out the Lord without any fee from the contract or another interfaces. Lords who want
  * to get rent fees in FUKC tokens can use FukcingRent contract to rent them out.
  */

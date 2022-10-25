@@ -12,24 +12,32 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 /**
   * @notice
   * -> To create clan, you need a clan licence. When you create a clan, your clan licence burns.
+  *
   * -> By default, everyone is a member of every clan. An address is an actual member if and only if 
   * the member has at least 1 point in the clan. Therefore, clan leaders or executers should give at 
   * least 1 point to all members to indicate them as members. Setting a member's points to 0 means 
   * kicking it out of the clan. 
+  *
   * -> Only the leader can update clan name, description, motto, and logo.
+  *
   * -> Clan leader can set any member as an executer to set members points and signal rebellion.
   * This will help clan leaders to reach large number of members.
+  *
   * -> When we enter a new seance timeline, first clan that claims the reward triggers the snapshot.
+  *
   * -> Clan leaders sets the members points and all members gets their clan reward based on their
   * member points compared to total member points.
+  *
   * -> Executers and Fukcing DAO increases or decreases the points of clans. Executers doesn't need a
   * DAO approval to increase or decrease points of a clan. If DAO considers there has been a violation
   * of rights, DAO can start an proposal to take action. Executers and DAO have a maxiumum limit to change
   * points of a clan. DAO will have 3 days long proposal to make changes and Executers will have 6 days
   * cool down to make changes.
+  *
   * -> Total clan rewards is limited by total supply of FDAO tokens. This incentivizes the DAO members
   * who are most likely the clans members to approve new FDAO token mints to expand DAO's member base and
   * increases decentralization of DAO.
+  *
   * -> Executers can propose to update contract addresses, proposal types, cooldown time, and maximum 
   * point to change at a time.
   */

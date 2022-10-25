@@ -9,10 +9,13 @@ import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 /**
   * @notice
   * -> Fukcing community contract mints its allocation from fukcing token contract. 
+  *
   * -> Executers propose a reward distribution to fukcing DAO. Receivers can claim
   * their rewards once its approved by the DAO.
+  *
   * -> The length of the reward distribution proposals differ according to amount
   * of reward. It can be normal, high, or extreme amount of reward.
+  *
   * -> Executers can propose to update contract addresses, proposal types, high reward
   * limit, and extreme reward limit.
   */

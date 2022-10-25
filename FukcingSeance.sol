@@ -20,10 +20,14 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
   * -> A seance is a week and in every seance, players selects 1 boss for each level by funding them.
   * The funds of the winner boss goes to the players of that level in the following seance.
   * The funds of the loser bosses burns!
+  *
   * -> Every player can claim just 1 reward for each level no matter how many times he/she played. 
+  *
   * -> Executers sets merkle roots for players to claim their rewards.
+  *
   * -> Backers of winner bosses can claim their reward without executers. 
   * Backer rewards accounts 5% of FUKC total supply.
+  *
   * -> Higher levels have higher backer reward which will result with higher funding and 
   * higher reward for players.
   */

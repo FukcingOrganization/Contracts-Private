@@ -11,13 +11,18 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
   * @notice
   * -> FDAO tokens are non-transferable! Therefore, you can't buy the governance,
   * you can't transfer the governance! You should earn it.
+  *
   * -> Executers of WeFukc proposes new updated and FDAO decide wheter apply or deny
   * the update. These updates are fully on-chain and not optional for the team to apply.
+  *
   * -> Addresses with a minimum balance to propose can propose new custom proposals to
   * show community's decision on specific topics.
+  *
   * -> FDAO issues the new FDAO tokens for distribution to designated accounts.
+  *
   * -> The DAO has 5% allocation of FUKC tokens. The DAO will vote for spending of these tokens
   * alongside with other ERC20 tokens and native coins that might be donated to the DAO.
+  *
   * -> Fukcing Lords represents 50% of the DAO. The lord contract holds 50% of FDAO tokens.
   */
 
