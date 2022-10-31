@@ -90,8 +90,8 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
     DAO will decide how to spend its treasury with monetary proposals.
 */
 
-/*
- * @author Bora
+/**
+    @author Bora
  */
 contract FukcingDAO is ERC20 {
     using Counters for Counters.Counter;   
@@ -124,7 +124,7 @@ contract FukcingDAO is ERC20 {
         mapping (uint256 => bool) isLordVoted; // Voted Lords lordID => true/false
     }
 
-    struct MonetaryProposal {
+    struct SpendingProposal {
         Status status;
         uint256 proposalID;
         uint256 amount;             // It can be minting or spending amount
@@ -188,11 +188,11 @@ contract FukcingDAO is ERC20 {
     address[13] public contracts; 
     
     Counters.Counter private proposalCounter;
-    Counters.Counter private monetaryProposalCounter;
+    Counters.Counter private spendingProposalCounter;
 
     mapping(uint256 => Proposal) public proposals; // proposalID => Proposal
     mapping(uint256 => ProposalTracker) public proposalTrackers; // proposalID => Proposal Tracker
-    mapping(uint256 => MonetaryProposal) public monetaryProposals;
+    mapping(uint256 => SpendingProposal) public spendingProposals;
     mapping(uint256 => ProposalTypeUpdate) public proposalTypeUpdates;  // proposalTypeUpdateID => ProposalTypeUpdate
 
     ProposalType[] public proposalTypes;
@@ -221,7 +221,7 @@ contract FukcingDAO is ERC20 {
     // >< >< >< >< >< >< >< >< ><               Making The Token Non-Transferable              >< >< >< >< >< >< >< >< >< //
     // >< >< >< >< >< >< >< >< ><                                                              >< >< >< >< >< >< >< >< >< //
     /**
-     *  @dev Making token non-transferable by overriding all the transfer functions
+        @dev Making token non-transferable by overriding all the transfer functions
      */
     function transfer(address to, uint256 amount) public virtual override returns (bool) {
         revert("This is a non-transferable token!");
@@ -346,44 +346,20 @@ contract FukcingDAO is ERC20 {
     // >< >< >< >< >< >< >< >< >< ><                      Monetary Executions                     >< >< >< >< >< >< >< >< //
     // >< >< >< >< >< >< >< >< >< ><                                                              >< >< >< >< >< >< >< >< //
 
-    // New FDAO token mint
-    function proposeNewMint(bytes32[] memory _merkleRoots, uint256[] memory _allowances, uint256 _totalMintAmount) 
-    public {
-        require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
-        
-        MonetaryProposal storage proposal = monetaryProposals[monetaryProposalCounter.current()];        
-        require(proposal.status == Status.NotStarted, "The current monetary proposal is not finalized bro! Come back later.");
+    /**
+        @dev Clan members mint as much FDAO tokens as they received in FUKC token reward by Clan Rewards. 
+        Therefore, only clan contract can call this functions and only clan members can mint new tokens.
+        Total supply of FDAO tokens will be equal to total claimed clan rewards.
+    */
+    function mintTokens(address _minter, uint256 _amount) public {
+        require(_msgSender() == contracts[1], "Only the Fukcing Clan contract can call this fukcing function!");
 
-        proposal.status = Status.OnGoing;
-        proposal.amount = _totalMintAmount;
-        proposal.merkleRoots = _merkleRoots;
-        proposal.allowances = _allowances;
+        // Mint for the minter (The address that claims its clan reward).
+        _mint(_minter, _amount);
 
-        string memory proposalDescription = string(abi.encodePacked(
-            "Minting ", Strings.toString(_totalMintAmount), " new FDAO tokens."
-        ));
-
-        proposal.proposalID = newProposal(proposalDescription, proposalTypeIndexes[1]);
-    }
-
-    function mintTokens(uint256 _monetaryProposalNumber, bytes32[] calldata _merkleProof) public {
-        MonetaryProposal storage proposal = monetaryProposals[_monetaryProposalNumber];
-
-        require(proposal.status == Status.Approved,
-            "This proposal didn't pass or not finalized bro! Check your monetary proposal number!"
-        );
-        
-        uint256 allowanceAmount = merkleCheck(proposal, _merkleProof);
-        require(allowanceAmount > 0, "You don't have any allowance, sorry dude!");      
-        require(allowanceAmount + proposal.totalClaimedAmount <= proposal.amount, "The approved amount exceeding!");  
-
-        // Mint for the caller.
-        _mint(_msgSender(), allowanceAmount);
-        // Lords don't mint tokens themselves. Therefore, everyone mints for them as many as they mint for themselves.
+        // Lords don't mint tokens themselves. Therefore, everyone mints for them as much as they mint for themselves.
         // And this is how Lords hold 50% of the balance and represent 50% of the DAO.
-        _mint(contracts[7], allowanceAmount);   
-
-        proposal.totalClaimedAmount += allowanceAmount;
+        _mint(contracts[7], _amount);   
     }
 
     // DAO Token Spendings
@@ -397,7 +373,7 @@ contract FukcingDAO is ERC20 {
         require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
 
         // First of all, create a new monetary proposal and check the current slot is empty for a new one.
-        MonetaryProposal storage proposal = monetaryProposals[monetaryProposalCounter.current()];
+        SpendingProposal storage proposal = spendingProposals[spendingProposalCounter.current()];
         require(proposal.status == Status.NotStarted, "The current monetary proposal is not finalized bro! Come back later!");
 
         // Checking the balance of DAO in the target token
@@ -426,8 +402,8 @@ contract FukcingDAO is ERC20 {
         proposal.proposalID = newProposal(proposalDescription, proposalTypeIndexes[1]);
     }
 
-    function claimTokenSpending(uint256 _monetaryProposalNumber, bytes32[] calldata _merkleProof) public {
-        MonetaryProposal storage proposal = monetaryProposals[_monetaryProposalNumber];
+    function claimTokenSpending(uint256 _spendingProposalNumber, bytes32[] calldata _merkleProof) public {
+        SpendingProposal storage proposal = spendingProposals[_spendingProposalNumber];
 
         require(proposal.status == Status.Approved,
             "This proposal didn't pass or not finalized bro! Check your monetary proposal number!"
@@ -453,7 +429,7 @@ contract FukcingDAO is ERC20 {
         require(address(this).balance >= _totalSpending, "DAO has not enough balance to spend! Sad, isn't it?");
 
         // Create a new monetary proposal and check the current slot is empty for a new one.
-        MonetaryProposal storage proposal = monetaryProposals[monetaryProposalCounter.current()];
+        SpendingProposal storage proposal = spendingProposals[spendingProposalCounter.current()];
         require(proposal.status == Status.NotStarted, "The current monetary proposal is not finalized bro! Come back later.");
 
         proposal.status = Status.OnGoing;
@@ -466,8 +442,8 @@ contract FukcingDAO is ERC20 {
         proposal.proposalID = newProposal(proposalDescription, proposalTypeIndexes[1]);
     }
 
-    function claimCoinSpending(uint256 _monetaryProposalNumber, bytes32[] calldata _merkleProof) public {
-        MonetaryProposal storage proposal = monetaryProposals[_monetaryProposalNumber];
+    function claimCoinSpending(uint256 _spendingProposalNumber, bytes32[] calldata _merkleProof) public {
+        SpendingProposal storage proposal = spendingProposals[_spendingProposalNumber];
 
         require(proposal.status == Status.Approved,
             "This proposal didn't pass or not finalized bro! Check your monetary proposal number!"
@@ -887,8 +863,8 @@ contract FukcingDAO is ERC20 {
         return proposal.status == Status.Approved;
     }
 
-    function finalizeMonetaryProposal() public {
-        MonetaryProposal storage proposal = monetaryProposals[monetaryProposalCounter.current()];
+    function finalizeSpendingProposal() public {
+        SpendingProposal storage proposal = spendingProposals[spendingProposalCounter.current()];
 
         require(proposal.status == Status.OnGoing,
             "Dude, there is no monetary proposal to finalize! Are you okay?"
@@ -903,10 +879,10 @@ contract FukcingDAO is ERC20 {
         // Write the decision of DAO to the monetary proposal
         proposal.status = DAOproposal.status;
         // Switch to a new proposal
-        monetaryProposalCounter.increment();
+        spendingProposalCounter.increment();
     }
 
-    function merkleCheck(MonetaryProposal storage _proposal, bytes32[] calldata _merkleProof) internal returns (uint256) {
+    function merkleCheck(SpendingProposal storage _proposal, bytes32[] calldata _merkleProof) internal returns (uint256) {
         require(_proposal.claimed[_msgSender()] == false, "Dude! You have already claimed your allowance! Why too aggressive?");
 
         uint256 allowanceAmount;
@@ -924,12 +900,12 @@ contract FukcingDAO is ERC20 {
         return allowanceAmount;
     }
 
-    function returnMerkleRoots(uint256 _monetaryProposalNumber) public view returns (bytes32[] memory) {
-        return monetaryProposals[_monetaryProposalNumber].merkleRoots;
+    function returnMerkleRoots(uint256 _spendingProposalNumber) public view returns (bytes32[] memory) {
+        return spendingProposals[_spendingProposalNumber].merkleRoots;
     }
 
-    function returnAllowances(uint256 _monetaryProposalNumber) public view returns (uint256[] memory) {
-        return monetaryProposals[_monetaryProposalNumber].allowances;
+    function returnAllowances(uint256 _spendingProposalNumber) public view returns (uint256[] memory) {
+        return spendingProposals[_spendingProposalNumber].allowances;
     }
 
     function getContractCoinBalance() public view returns (uint256){ return address(this).balance; }

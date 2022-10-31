@@ -342,6 +342,10 @@ contract FukcingClan is Context, ReentrancyGuard {
     IERC20(contracts[11]).transfer(sender, reward);
     clan.balance -= reward; // Update the balance of the clan
     clan.claimedRewards[_snap] += reward; // Update the claimed rewards
+
+    // Mint FDAO tokens
+    (bool txSuccess,) = contracts[4].call(abi.encodeWithSignature("mintTokens(address,uint256)", sender, reward));
+    require(txSuccess, "Transaction failed to mint new FDAO tokens!");
   }
 
   // Governance Functions
