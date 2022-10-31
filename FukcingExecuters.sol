@@ -333,10 +333,14 @@ contract FukcingExecuters is Context, AccessControl {
 
     // if the proposal is approved, apply the update the state
     if (proposal.status == Status.Approved){
-      if (proposal.newBool == true) // MISSING !!!!
+      if (proposal.newBool == true){ 
         _grantRole(EXECUTER_ROLE, proposal.newAddress);
-      else
+        numOfExecuters++;
+      }
+      else {
         _revokeRole(EXECUTER_ROLE, proposal.newAddress);
+        numOfExecuters--;
+      }
     }
 
     proposal.isExecuted = true;

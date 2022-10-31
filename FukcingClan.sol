@@ -144,11 +144,11 @@ contract FukcingClan is Context, ReentrancyGuard {
   mapping(uint256 => uint256) public clanRewards;                     // Total clan reward at the time
   mapping(uint256 => uint256) public claimedRewards;                  // Total claimd reward at the time
   mapping(uint256 => mapping(uint256 => bool)) public isClanClaimed;  // snapshot Number => Clan ID => is claimed?
-  mapping(uint256 => uint256) public clanCooldownTime;                  // Total claimd reward at the time
+  mapping(uint256 => uint256) public clanCooldownTime;                // Cooldown time for each clan. Clan ID => Cooldown time
 
   uint256 public currentTotalClanPoints;
   uint256 public maxPointsToChange;       // Maximum point that can be given in a propsal
-  uint256 public cooldownTime;            // Maximum point that can be given in a propsal
+  uint256 public cooldownTime;            // Cool down time to give clan points by executers
   uint256 public firstSeanceEnd;          // End of the first seance, hence the first reward time
 
   constructor(){
