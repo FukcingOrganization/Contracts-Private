@@ -23,7 +23,7 @@ import "@openzeppelin/contracts/utils/Strings.sol";
   * -> Clan leader can set any member as an executer to set members points and signal rebellion.
   * This will help clan leaders to reach large number of members.
   *
-  * -> When we enter a new seance timeline, first clan that claims the reward triggers the snapshot.
+  * -> When we enter a new seance timeline, first clan that claims the reward triggers the seance.
   *
   * -> Clan leaders sets the members points and all members gets their clan reward based on their
   * member points compared to total member points.
@@ -49,9 +49,10 @@ contract FukcingClan is Context, ReentrancyGuard {
   using Counters for Counters.Counter;
 
   struct ClanMember {
-    bool isExecutor;
-    uint256 currentPoints;
-    mapping(uint256 => uint256) pointsSnapshots;   // snapshot ID => the last point recorded
+    bool isMember;
+    bool isExecuter;
+    bool isMod;
+    mapping(uint256 => uint256) points;   // Seance Number => the last point recorded
   }
 
   struct Clan {
@@ -67,21 +68,20 @@ contract FukcingClan is Context, ReentrancyGuard {
 
     // Clan points and balance
     uint256 balance;    
-    uint256 currentPoints;
-    uint256 currentTotalMemberPoints;
     mapping(address => ClanMember) members;
     uint256 firstSnap;
 
-    // Snapshots | Snap number => value
-    mapping(uint256 => uint256) clanPointsSnapshots;  // Keep clan points for clan to claim
-    mapping(uint256 => uint256) clanRewardSnapshots;  // Keep reward for memebers to claim
-    mapping(uint256 => uint256) totalMemberPointsSnapshots; // Total member pts at the time
-    mapping(uint256 => mapping(address => bool)) isMemberClaimed; // Snapshot Number => Address => isclaimed?
-    mapping(uint256 => uint256) claimedRewards;   // Total claimed rewards by members in a snap
+    // Seance Number => value
+    mapping(uint256 => uint256) points;   // Keep clan points for clan to claim
+    mapping(uint256 => uint256) rewards;  // Keep reward for members to claim
+    mapping(uint256 => uint256) totalMemberPoints; // Total member pts at the time
+    mapping(uint256 => mapping(address => bool)) isMemberClaimed; // Seance Number => Address => isclaimed?
+    mapping(uint256 => uint256) claimedRewards;     // Total claimed rewards by members in a seance
 
     // Admin settings of the Clan set by the leader
     bool canExecutorsSignalRebellion;
     bool canExecutorsSetPoints;
+    bool canModerateMembers;
     bool isDisbanded;
   }
 
@@ -103,6 +103,16 @@ contract FukcingClan is Context, ReentrancyGuard {
     bytes32 newBytes32;
     bool newBool;
   }
+
+  struct Seance {
+    uint256 totalClanPoints;                // Total clan pts at the time
+    uint256 clanRewards;                    // Total clan reward at the time
+    uint256 claimedRewards;                 // Total claimd reward at the time
+    mapping(uint256 => bool) isClanClaimed; // Clan ID => is claimed?
+  }
+  
+  Counters.Counter public clanCounter;
+  Counters.Counter public seanceCounter;
 
   /**
    * proposalTypes's Indexes with corresponding meaning
@@ -134,19 +144,11 @@ contract FukcingClan is Context, ReentrancyGuard {
   address[13] public contracts; 
 
   mapping(uint256 => Proposal) public proposals;  // Proposal ID => Proposal
+  mapping(uint256 => Seance) public seances;      // Proposal Number => Seance
   mapping(uint256 => Clan) public clans;          // Clan ID => Clan info
   mapping(address => uint256) public clanOf;      // ID of the clan of an address
+  mapping(uint256 => uint256) public clanCooldownTime;  // Cooldown time for each clan | Clan ID => Cooldown time
 
-  Counters.Counter public clanCounter;
-  Counters.Counter public snapshotCounter;
-                                                                      // Snapshot ID => Value
-  mapping(uint256 => uint256) public totalClanPointsSnapshots;        // Total clan pts at the time
-  mapping(uint256 => uint256) public clanRewards;                     // Total clan reward at the time
-  mapping(uint256 => uint256) public claimedRewards;                  // Total claimd reward at the time
-  mapping(uint256 => mapping(uint256 => bool)) public isClanClaimed;  // snapshot Number => Clan ID => is claimed?
-  mapping(uint256 => uint256) public clanCooldownTime;                // Cooldown time for each clan. Clan ID => Cooldown time
-
-  uint256 public currentTotalClanPoints;
   uint256 public maxPointsToChange;       // Maximum point that can be given in a propsal
   uint256 public cooldownTime;            // Cool down time to give clan points by executers
   uint256 public firstSeanceEnd;          // End of the first seance, hence the first reward time
@@ -155,6 +157,30 @@ contract FukcingClan is Context, ReentrancyGuard {
     clanCounter.increment();  // clan ID's should start from 1
     maxPointsToChange = 666;
     cooldownTime = 3 days;
+  }
+
+  /// @dev Starts the new seance if the time is up
+  function updateSeance() public {
+    uint256 currSeance = seanceCounter.current();
+
+    // If time is up, get rewards from FukcingToken contract first
+    if (block.timestamp > (currSeance * 1 days) + firstSeanceEnd){ // TEST -> make it 7 days
+      // Get the clans rewards from fukcing token
+      (bool txSuccess0, bytes memory returnData0) = contracts[11].call(abi.encodeWithSignature("clanMint()"));
+      require(txSuccess0, "Transaction has failed to get backer rewards from Fukcing Token contract!");
+
+      // Save the reward to the seance
+      (seances[currSeance].clanRewards) = abi.decode(returnData0, (uint256));
+
+      // Keep the total clan points to pass on to the next seance
+      uint256 currentTotalClanPoints = seances[currSeance].totalClanPoints;
+
+      // Pass on to the next seance
+      seanceCounter.increment();
+
+      // Pass on the current total clan points to the next seance
+      seances[seanceCounter.current()].totalClanPoints = currentTotalClanPoints;
+    }
   }
 
   function createClan(
@@ -186,228 +212,287 @@ contract FukcingClan is Context, ReentrancyGuard {
     clan.description = _clanDescription;
     clan.motto = _clanMotto;
     clan.logoURI = _clanLogoURI;
+
+    // Sign the leader as a member of the clan as well and give full authority
+    clan.members[_msgSender()].isMember = true;
+    clan.members[_msgSender()].isExecuter = true;
+    clan.members[_msgSender()].isMod = true;
   }
 
   function joinToClan(uint256 _clanID) public {
     require(clans[_clanID].leader != address(0), "There is no such clan with that ID!");
     require(clans[_clanID].isDisbanded == false, "This clan is disbanded!");
+    
+    updateSeance();
 
     address sender = _msgSender();
-    uint256 currSnap = snapshotCounter.current();
+    uint256 currSeance = seanceCounter.current();
     Clan storage currClan = clans[clanOf[sender]];
 
     // Erase data from the current clan
-    currClan.totalMemberPointsSnapshots[currSnap] -= currClan.members[sender].currentPoints;
-    currClan.members[sender].pointsSnapshots[currSnap] = 0;
-    currClan.members[sender].currentPoints = 0;
-    currClan.members[sender].isExecutor = false;
+    currClan.members[sender].points[currSeance] = 0;
+    currClan.members[sender].isMember = false;
+    currClan.members[sender].isExecuter = false;
+    currClan.members[sender].isMod = false;
 
     // Keep record of the new clan ID of the address
     // Note: By default, everyone a member of all clans. Being a true member requires at least 1 point.
     clanOf[sender] = _clanID; 
   }
 
+  /**
+    @dev Only the fukcing executers can give clan point. 
+    There is a cooldown time to avoid executers change clan point as they wish.
+    Executers can give clan point on for the current seance.
+  */
   function giveClanPoints(uint256 _clanID, uint256 _points, bool _isDecreasing) public {
-    require(_msgSender() == contracts[5] || _msgSender() == contracts[4], 
-      "Only Executers or DAO can call this fukcing function!"
-    ); 
+    require(_msgSender() == contracts[5], "Only Fukcing Executers can call this fukcing function!"); 
+    require(_points <= maxPointsToChange, "Maximum amount of points exceeded!");
+    require(clans[_clanID].isDisbanded == false, "This clan is disbanded!");
+    
+    // Wait if the cooldown time is not passed. Avoids executers to change points as they wish!
+    require(block.timestamp > clanCooldownTime[_clanID], "Wait for the cooldown time!");
+    clanCooldownTime[_clanID] = block.timestamp + cooldownTime; // set a new cooldown time
+
+    // If the are in the new seance
+    updateSeance();
+
+    uint256 currSeance = seanceCounter.current();
+    Clan storage clan = clans[_clanID];
+
+    // Update clan points before interact with them. Not member (0)
+    pointUpdate(_clanID, address(0));
+    
+    if (_isDecreasing){
+      clan.points[currSeance] -= _points;
+      seances[currSeance].totalClanPoints -= _points;
+    }
+    else {
+      clan.points[currSeance] += _points;
+      seances[currSeance].totalClanPoints += _points;
+    }
+
+    // If this was the first time of this clan, record the first seance
+    if (clan.firstSnap == 0) { clan.firstSnap = currSeance; }
+  }
+
+  /// @notice 
+  function proposeClanPointAdjustment(uint256 _seanceNumber, uint256 _clanID, uint256 _points, bool _isDecreasing) public {
     require(_points <= maxPointsToChange, "Maximum amount of points exceeded!");
     require(clans[_clanID].isDisbanded == false, "This clan is disbanded!");
 
-    // If executers making a change, check the cooldown
-    if (_msgSender() == contracts[5]){
-      require(block.timestamp > clanCooldownTime[_clanID], "Wait for the cooldown time!");
-      clanCooldownTime[_clanID] = block.timestamp + cooldownTime; // set a new cooldown time
-    }
+    // If the are in the new seance
+    updateSeance();
 
-    uint256 currSnap = snapshotCounter.current();
+    uint256 currSeance = seanceCounter.current();
     Clan storage clan = clans[_clanID];
 
-    // If the current snapshot 0, that indicates a new snapshot and we need to update it. 
-    if (clans[_clanID].clanPointsSnapshots[currSnap] == 0)
-      clan.clanPointsSnapshots[currSnap] = clan.currentPoints;
-    
-    if (_isDecreasing){
-      // Give points to clan
-      clan.clanPointsSnapshots[currSnap] -= _points;
-      clan.currentPoints -= _points;
+    // FDAO can execute clan point change function after the current seance and up to 1 seance later.
+    require(_seanceNumber == currSeance - 1, "Invalid seance number!");
+    require(_msgSender() == clan.leader, "Only clan leaders can propose point adjustment!");
 
-      // Update the total points of all clans
-      totalClanPointsSnapshots[currSnap] -= _points;
-      currentTotalClanPoints -= _points;
-    }
-    else {
-      // Give points to clan
-      clan.clanPointsSnapshots[currSnap] += _points;
-      clan.currentPoints += _points;
-
-      // Update the total points of all clans
-      totalClanPointsSnapshots[currSnap] += _points;
-      currentTotalClanPoints += _points;
-    }
-
-    // If this was the first time of this clan, record the first snap
-    if (clan.firstSnap == 0) { clan.firstSnap = currSnap; }
+    // PROPOSE
   }
 
-  function clanRewardClaim(uint256 _clanID, uint256 _snapshotNumber) public {    
-    require(clans[_clanID].leader != address(0), "There is no such clan with that ID!");
+  /**
+    @dev Only the fukcing DAO can clan point change AFTER the current seance UP TO 2 seance later. 
+    DAO will need 2-3 days to get approved clan point change execution. Therefore, there are limited times to do so.
+  */
+  function executeDAOClanPointChange(uint256 _seanceNumber, uint256 _clanID, uint256 _points, bool _isDecreasing) public {
+    require(_msgSender() == contracts[4], "Only the Fukcing DAO can call this fukcing function!"); 
+    require(_points <= maxPointsToChange, "Maximum amount of points exceeded!");
+    require(clans[_clanID].isDisbanded == false, "This clan is disbanded!");
 
-    uint256 currSnap = snapshotCounter.current();
-    // If time is up AND current snap hasn't received any rewards yet, get rewards from FukcingToken contract first
-    if ((block.timestamp > (currSnap * 1 days) + firstSeanceEnd) && clanRewards[currSnap] == 0){ // TEST -> make it 7 days
-      // Get the clans rewards from fukcing token
-      (bool txSuccess0, bytes memory returnData0) = contracts[11].call(abi.encodeWithSignature("clanMint()"));
-      require(txSuccess0, "Transaction has failed to get backer rewards from Fukcing Token contract!");
+    // If the are in the new seance
+    updateSeance();
 
-      // Save it
-      (clanRewards[currSnap]) = abi.decode(returnData0, (uint256));
-      
-      // Pass on to the next snapshot
-      snapshotCounter.increment();
-      totalClanPointsSnapshots[snapshotCounter.current()] = currentTotalClanPoints;
+    uint256 currSeance = seanceCounter.current();
+    Clan storage clan = clans[_clanID];
+
+    // FDAO can execute clan point change function after the current seance and up to 2 seance later.
+    require(_seanceNumber < currSeance && _seanceNumber >= currSeance - 2, "Invalid seance number!");
+    
+    // Update clan points before interact with them. Not member (0)
+    pointUpdate(_clanID, address(0));  
+    
+    if (_isDecreasing){
+      clan.points[currSeance] -= _points;
+      seances[currSeance].totalClanPoints -= _points;
+    }
+    else {
+      clan.points[currSeance] += _points;
+      seances[currSeance].totalClanPoints += _points;
     }
 
-    uint256 _snap = _snapshotNumber;
-    require(_snap < currSnap, "You can't claim the current or future seances' snaps. Check snapshot number!");
+    // If this was the first time of this clan, record the first seance
+    if (clan.firstSnap == 0) { clan.firstSnap = currSeance; }
+  }
 
-    require(isClanClaimed[_snap][_clanID] == false, "Your clan already claimed its reward for this snapshot!");
-    isClanClaimed[_snap][_clanID] == true;  // If not claimed yet, mark it claimed.
+  function clanRewardClaim(uint256 _clanID, uint256 _seanceNumber) public {    
+    require(clans[_clanID].leader != address(0), "There is no such clan with that ID!");
+
+    // If the are in the new seance
+    updateSeance();
+
+    uint256 currSeance = seanceCounter.current();
+
+    uint256 _seance = _seanceNumber;
+    require(_seance < currSeance, "You can't claim the current or future seances' seances. Check seance number!");
+
+    require(seances[currSeance].isClanClaimed[_clanID] == false, "Your clan already claimed its reward for this seance!");
+    seances[currSeance].isClanClaimed[_clanID] == true;  // If not claimed yet, mark it claimed.
 
     Clan storage clan = clans[_clanID];
 
-    // Update Current Clan point snaps
-    if (clan.clanPointsSnapshots[currSnap] == 0) {
-      clan.clanPointsSnapshots[currSnap] = clan.currentPoints; 
-      clan.totalMemberPointsSnapshots[currSnap] = clan.currentTotalMemberPoints;           
-    }
-
-    // Update clan points of desired snapshot ID as well
-    uint256 index = _snap;
-    while (clan.clanPointsSnapshots[index] == 0 && index > clan.firstSnap) { index--; }
-    clan.clanPointsSnapshots[_snap] = clan.clanPointsSnapshots[index];
+    // Update clan points before interact with them. Not member (0)
+    pointUpdate(_clanID, address(0));  
 
     // total clan reward * clan Points * 100 / total clan points
-    uint256 reward = clanRewards[_snap] * (clan.clanPointsSnapshots[_snap] * 100 / totalClanPointsSnapshots[_snap]);
-    claimedRewards[_snap] += reward;  // Keep record of the claimed rewards
+    uint256 reward = seances[currSeance].clanRewards * (clan.points[_seance] * 100 / seances[currSeance].totalClanPoints);
+    seances[currSeance].claimedRewards += reward;  // Keep record of the claimed rewards
 
     // Get the address and the tax rate of the lord
     (bool txSuccess1, bytes memory returnData1) = address(contracts[7]).call(abi.encodeWithSignature("lordTaxInfo(uint256)", clan.lordID));
     require(txSuccess1, "Failed to get the address of the lord!");
     (address lordAddress, uint256 taxRate) = abi.decode(returnData1, (address, uint256));
 
+    // Get the lord tax and update the reward after tax
+    uint256 lordTax = reward * taxRate / 100;
+    reward -= lordTax;
+
     // Then transfer the taxes if there lord address exist. (which means lord is alive)
     if (lordAddress != address(0))
-      IERC20(contracts[11]).transfer(lordAddress, reward * taxRate / 100);
+      IERC20(contracts[11]).transfer(lordAddress, lordTax);
 
     // Then keep the remaining for the clan
-    uint256 clanRewardAfterTax = reward * (100 - taxRate) / 100;
-    clan.clanRewardSnapshots[_snap] = clanRewardAfterTax;
-    clan.balance += clanRewardAfterTax;
+    clan.rewards[currSeance] = reward;
+    clan.balance += reward;
   }
 
-  function memberRewardClaim(uint256 _clanID, uint256 _snapshotNumber) public {
+  function memberRewardClaim(uint256 _clanID, uint256 _seanceNumber) public {
+    // If the are in the new seance
+    updateSeance();
+
     Clan storage clan = clans[_clanID];
-    uint256 _snap = _snapshotNumber;
-    uint256 currSnap = snapshotCounter.current();
+    uint256 _seance = _seanceNumber;
+    uint256 currSeance = seanceCounter.current();
     address sender = _msgSender();
     
-    require(_snap < currSnap, "You can't claim the current or future seances' snaps. Check snapshot number!");
-    require(clan.isMemberClaimed[_snap][sender] == false, "You already claimed your reward for this snapshot!");
-    clan.isMemberClaimed[_snap][sender] == true;  // If not claimed yet, mark it claimed.
+    require(clan.members[sender].isMember, "You are not a member of this clan!");
+    require(3 <= currSeance, "Wait for the first 3 seance to finish to have finalized reward!");
+    require(_seance <= currSeance - 3, "You can't claim the reward until it finalizes. Rewards are getting finalized after 3 seances!");
+    require(clan.isMemberClaimed[_seance][sender] == false, "You already claimed your reward for this seance!");
+    clan.isMemberClaimed[_seance][sender] == true;  // If not claimed yet, mark it claimed.
 
-    // Update the clan point if we are in a new seance. (Zero snap value indicates a new snap or non-member)
-    if (clan.members[sender].pointsSnapshots[currSnap] == 0) {
-      clan.members[sender].pointsSnapshots[currSnap] = clan.members[sender].currentPoints;      
-      clan.totalMemberPointsSnapshots[currSnap] = clan.currentTotalMemberPoints;      
-    }
-
-    // Update member points of desired snapshot ID as well
-    uint256 index = _snap;
-    while (clan.members[sender].pointsSnapshots[index] == 0 && index > clan.firstSnap) { index--; }
-    clan.members[sender].pointsSnapshots[_snap] = clan.members[sender].pointsSnapshots[index];
-
-    // Update Total member points of desired snapshot ID as well
-    index = _snap;
-    while (clan.totalMemberPointsSnapshots[index] == 0 && index > clan.firstSnap) { index--; }
-    clan.totalMemberPointsSnapshots[_snap] = clan.totalMemberPointsSnapshots[index];
+    // Update clan points before interact with them.
+    pointUpdate(_clanID, sender);  
 
     // if clan reward is not claimed by clan executors or the leader, claim it.
-    if (clan.clanRewardSnapshots[_snap] == 0) { clanRewardClaim(_clanID, _snap); }      
+    if (clan.rewards[_seance] == 0) { clanRewardClaim(_clanID, _seance); }      
 
     // calculate the reward and send it to the member!
     uint256 reward = // total reward of the clan * member Points * 100 / total member points of the clan
-      clan.clanRewardSnapshots[_snap] * (clan.members[sender].pointsSnapshots[_snap] * 100 / clan.totalMemberPointsSnapshots[_snap]);
+      clan.rewards[_seance] * (clan.members[sender].points[_seance] * 100 / clan.totalMemberPoints[_seance]);
 
     IERC20(contracts[11]).transfer(sender, reward);
     clan.balance -= reward; // Update the balance of the clan
-    clan.claimedRewards[_snap] += reward; // Update the claimed rewards
+    clan.claimedRewards[_seance] += reward; // Update the claimed rewards
 
-    // Mint FDAO tokens
+    // Mint FDAO tokens as much as the clan member reward
     (bool txSuccess,) = contracts[4].call(abi.encodeWithSignature("mintTokens(address,uint256)", sender, reward));
     require(txSuccess, "Transaction failed to mint new FDAO tokens!");
   }
 
-  // Governance Functions
-  function setMemberPoints(uint256 _clanID, address _memberAddress, uint256 _points, bool _isDecreasing) public nonReentrant() {
+  function pointUpdate(uint256 _clanID, address _member) internal {  
+    uint256 currSeance = seanceCounter.current();
     Clan storage clan = clans[_clanID];
-    ClanMember storage member = clans[_clanID].members[_memberAddress];
-    uint256 currSnap = snapshotCounter.current();
+    
+    // Update clan point
+    uint256 index = currSeance;
+    while (clan.points[index] == 0 && index > clan.firstSnap) { index--; }
+    clan.points[currSeance] = clan.points[index];
+
+    // Update total member points of the clan
+    index = currSeance;
+    while (clan.totalMemberPoints[index] == 0 && index > clan.firstSnap) { index--; }
+    clan.totalMemberPoints[currSeance] = clan.totalMemberPoints[index];
+    
+    // Member point of the clan
+    if (_member == address(0)) { return; }  // If the member address is null, then skip it
+    index = currSeance;
+    while (clan.members[_member].points[index] == 0 && index > clan.firstSnap) { index--; }
+    clan.members[_member].points[currSeance] = clan.members[_member].points[index];
+  }
+
+  // Governance Functions
+  function setClanMember(uint256 _clanID, address _address, bool _isMember) public {
+    Clan storage clan = clans[_clanID];
+    ClanMember storage member = clans[_clanID].members[_address];
 
     require(clan.isDisbanded == false, "This clan is disbanded!");
+    require(clan.members[_msgSender()].isMod, "You have no authority to moderate memberships for this clan!");
 
-    if (clan.canExecutorsSetPoints){
-      require(clan.leader == _msgSender() || clan.members[_msgSender()].isExecutor, 
-        "You have no authority to set points for this clan!"
-      );
-    }
-    else{      
-      require(clan.leader == _msgSender(), "You have no authority to set points for this clan!");
-    }
+    if (_isMember) { member.isMember = true; }
+    else { member.isMember = false; }
+  }
 
+  function setClanExecuter(uint256 _clanID, address _address, bool _isExecuter) public  {
+    Clan storage clan = clans[_clanID];
+    ClanMember storage member = clans[_clanID].members[_address];
 
-    // Update the clan point if we are in a new seance. (Zero snap value indicates a new snap or non-member)
-    if (member.pointsSnapshots[currSnap] == 0) {
-      member.pointsSnapshots[currSnap] = member.currentPoints;      
-      clan.totalMemberPointsSnapshots[currSnap] = clan.currentTotalMemberPoints;      
-    }
+    require(clan.isDisbanded == false, "This clan is disbanded!");
+    require(_msgSender() == clan.leader, "You have no authority to give Executer Role for this clan!");
+
+    if (_isExecuter) { member.isExecuter = true; }
+    else { member.isExecuter = false; }
+  }
+
+  function setClanMod(uint256 _clanID, address _address, bool _isMod) public  {
+    Clan storage clan = clans[_clanID];
+    ClanMember storage member = clans[_clanID].members[_address];
+
+    require(clan.isDisbanded == false, "This clan is disbanded!");
+    require(_msgSender() == clan.leader, "You have no authority to give Executer Role for this clan!");
+
+    if (_isMod) { member.isMod = true; }
+    else { member.isMod = false; }
+  }
+
+  function giveMemberPoints(uint256 _clanID, address _memberAddress, uint256 _points, bool _isDecreasing) public nonReentrant() {
+    Clan storage clan = clans[_clanID];
+    ClanMember storage member = clans[_clanID].members[_memberAddress];
+    
+    updateSeance();
+    uint256 currSeance = seanceCounter.current();
+
+    require(clan.isDisbanded == false, "This clan is disbanded!");
+    require(clan.members[_msgSender()].isExecuter, "You have no authority to give points for this clan!");
+
+    // Update clan points before interact with them.
+    pointUpdate(_clanID, _memberAddress);  
 
     // Update member points and total member points of the clan
     if (_isDecreasing) {
-      member.currentPoints -= _points;
-      member.pointsSnapshots[currSnap] -= _points;
-      clan.totalMemberPointsSnapshots[currSnap] -= _points;
+      member.points[currSeance] -= _points;
+      clan.totalMemberPoints[currSeance] -= _points;
     }
     else {
-      member.currentPoints += _points;
-      member.pointsSnapshots[currSnap] += _points;
-      clan.totalMemberPointsSnapshots[currSnap] += _points;
+      member.points[currSeance] += _points;
+      clan.totalMemberPoints[currSeance] += _points;
     }
   }
 
   function signalRebellion(uint256 _clanID) public {
     Clan storage clan = clans[_clanID];
-    require(clan.isDisbanded == false, "This clan is disbanded!");
-    
-    if (clan.canExecutorsSignalRebellion){
-      require(clan.leader == _msgSender() || clan.members[_msgSender()].isExecutor, 
-        "You have no authority to signal a rebellion for this clan!"
-      );
-    }
-    else{      
-      require(clan.leader == _msgSender(), "You have no authority to signal a rebellion for this clan!");
-    }
+
+    require(clan.isDisbanded == false, "This clan is disbanded!");    
+    require(clan.members[_msgSender()].isExecuter, "You have no authority to signal a rebellion for this clan!");
 
     // Signal a rebellion,
     (bool txSuccess, ) = contracts[7].call(abi.encodeWithSignature(
       "signalRebellion(uint256,uint256)", clan.lordID, _clanID)
     );
     require(txSuccess, "The transaction has failed when signalling");
-  }
-
-  function setClanExecutor(uint256 _clanID, address _address, bool _isExecutor) public  {
-    require(clans[_clanID].leader == _msgSender(), "You have no authority to set a rank for this clan!");
-    clans[_clanID].members[_address].isExecutor = _isExecutor;
   }
 
   function transferLeadership(uint256 _clanID, address _newLeader) public  {
@@ -444,17 +529,29 @@ contract FukcingClan is Context, ReentrancyGuard {
   
   // Returns the real clan of an address. Only members with points are real members, others are default
   function getClan(address _address) public view returns (uint256) {
-    return clans[clanOf[_address]].members[_address].currentPoints > 0 ? clanOf[_address] : 0;
+    return clans[clanOf[_address]].members[_address].isMember ? clanOf[_address] : 0;
   }
 
   // Returns true if the member is an executor in its clan
   function isMemberExecutor(address _memberAddress) public view returns (bool) {
-    return clans[clanOf[_memberAddress]].members[_memberAddress].isExecutor;
+    return clans[clanOf[_memberAddress]].members[_memberAddress].isExecuter;
+  }
+
+  // Returns true if the member is an executor in its clan
+  function isMemberMod(address _memberAddress) public view returns (bool) {
+    return clans[clanOf[_memberAddress]].members[_memberAddress].isMod;
   }
 
   // Returns the member's points
-  function getMemberPoints(address _memberAddress) public view returns (uint256) {
-    return clans[clanOf[_memberAddress]].members[_memberAddress].currentPoints;
+  function getMemberPoints(address _memberAddress) public returns (uint256) {
+    uint256 clanID = clanOf[_memberAddress];
+    ClanMember storage member = clans[clanOf[_memberAddress]].members[_memberAddress];
+
+    // Update clan points before interact with them.
+    updateSeance();
+    pointUpdate(clanID, _memberAddress); 
+
+    return member.points[seanceCounter.current()];
   }
 
   /**
