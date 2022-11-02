@@ -69,7 +69,9 @@ contract FukcingClan is Context, ReentrancyGuard {
     // Clan points and balance
     uint256 balance;    
     mapping(address => ClanMember) members;
-    uint256 firstSnap;
+    uint256 firstSeance;
+
+    uint256 proposal_ID;
 
     // Seance Number => value
     mapping(uint256 => uint256) points;   // Keep clan points for clan to claim
@@ -159,30 +161,6 @@ contract FukcingClan is Context, ReentrancyGuard {
     cooldownTime = 3 days;
   }
 
-  /// @dev Starts the new seance if the time is up
-  function updateSeance() public {
-    uint256 currSeance = seanceCounter.current();
-
-    // If time is up, get rewards from FukcingToken contract first
-    if (block.timestamp > (currSeance * 1 days) + firstSeanceEnd){ // TEST -> make it 7 days
-      // Get the clans rewards from fukcing token
-      (bool txSuccess0, bytes memory returnData0) = contracts[11].call(abi.encodeWithSignature("clanMint()"));
-      require(txSuccess0, "Transaction has failed to get backer rewards from Fukcing Token contract!");
-
-      // Save the reward to the seance
-      (seances[currSeance].clanRewards) = abi.decode(returnData0, (uint256));
-
-      // Keep the total clan points to pass on to the next seance
-      uint256 currentTotalClanPoints = seances[currSeance].totalClanPoints;
-
-      // Pass on to the next seance
-      seanceCounter.increment();
-
-      // Pass on the current total clan points to the next seance
-      seances[seanceCounter.current()].totalClanPoints = currentTotalClanPoints;
-    }
-  }
-
   function createClan(
     uint256 _lordID, 
     string memory _clanName, 
@@ -261,7 +239,7 @@ contract FukcingClan is Context, ReentrancyGuard {
     Clan storage clan = clans[_clanID];
 
     // Update clan points before interact with them. Not member (0)
-    pointUpdate(_clanID, address(0));
+    updatePoints(_clanID, address(0));
     
     if (_isDecreasing){
       clan.points[currSeance] -= _points;
@@ -273,59 +251,7 @@ contract FukcingClan is Context, ReentrancyGuard {
     }
 
     // If this was the first time of this clan, record the first seance
-    if (clan.firstSnap == 0) { clan.firstSnap = currSeance; }
-  }
-
-  /// @notice 
-  function proposeClanPointAdjustment(uint256 _seanceNumber, uint256 _clanID, uint256 _points, bool _isDecreasing) public {
-    require(_points <= maxPointsToChange, "Maximum amount of points exceeded!");
-    require(clans[_clanID].isDisbanded == false, "This clan is disbanded!");
-
-    // If the are in the new seance
-    updateSeance();
-
-    uint256 currSeance = seanceCounter.current();
-    Clan storage clan = clans[_clanID];
-
-    // FDAO can execute clan point change function after the current seance and up to 1 seance later.
-    require(_seanceNumber == currSeance - 1, "Invalid seance number!");
-    require(_msgSender() == clan.leader, "Only clan leaders can propose point adjustment!");
-
-    // PROPOSE
-  }
-
-  /**
-    @dev Only the fukcing DAO can clan point change AFTER the current seance UP TO 2 seance later. 
-    DAO will need 2-3 days to get approved clan point change execution. Therefore, there are limited times to do so.
-  */
-  function executeDAOClanPointChange(uint256 _seanceNumber, uint256 _clanID, uint256 _points, bool _isDecreasing) public {
-    require(_msgSender() == contracts[4], "Only the Fukcing DAO can call this fukcing function!"); 
-    require(_points <= maxPointsToChange, "Maximum amount of points exceeded!");
-    require(clans[_clanID].isDisbanded == false, "This clan is disbanded!");
-
-    // If the are in the new seance
-    updateSeance();
-
-    uint256 currSeance = seanceCounter.current();
-    Clan storage clan = clans[_clanID];
-
-    // FDAO can execute clan point change function after the current seance and up to 2 seance later.
-    require(_seanceNumber < currSeance && _seanceNumber >= currSeance - 2, "Invalid seance number!");
-    
-    // Update clan points before interact with them. Not member (0)
-    pointUpdate(_clanID, address(0));  
-    
-    if (_isDecreasing){
-      clan.points[currSeance] -= _points;
-      seances[currSeance].totalClanPoints -= _points;
-    }
-    else {
-      clan.points[currSeance] += _points;
-      seances[currSeance].totalClanPoints += _points;
-    }
-
-    // If this was the first time of this clan, record the first seance
-    if (clan.firstSnap == 0) { clan.firstSnap = currSeance; }
+    if (clan.firstSeance == 0) { clan.firstSeance = currSeance; }
   }
 
   function clanRewardClaim(uint256 _clanID, uint256 _seanceNumber) public {    
@@ -345,7 +271,7 @@ contract FukcingClan is Context, ReentrancyGuard {
     Clan storage clan = clans[_clanID];
 
     // Update clan points before interact with them. Not member (0)
-    pointUpdate(_clanID, address(0));  
+    updatePoints(_clanID, address(0));  
 
     // total clan reward * clan Points * 100 / total clan points
     uint256 reward = seances[currSeance].clanRewards * (clan.points[_seance] * 100 / seances[currSeance].totalClanPoints);
@@ -385,7 +311,7 @@ contract FukcingClan is Context, ReentrancyGuard {
     clan.isMemberClaimed[_seance][sender] == true;  // If not claimed yet, mark it claimed.
 
     // Update clan points before interact with them.
-    pointUpdate(_clanID, sender);  
+    updatePoints(_clanID, sender);  
 
     // if clan reward is not claimed by clan executors or the leader, claim it.
     if (clan.rewards[_seance] == 0) { clanRewardClaim(_clanID, _seance); }      
@@ -403,24 +329,48 @@ contract FukcingClan is Context, ReentrancyGuard {
     require(txSuccess, "Transaction failed to mint new FDAO tokens!");
   }
 
-  function pointUpdate(uint256 _clanID, address _member) internal {  
+  /// @dev Starts the new seance if the time is up
+  function updateSeance() public {
+    uint256 currSeance = seanceCounter.current();
+
+    // If time is up, get rewards from FukcingToken contract first
+    if (block.timestamp > (currSeance * 1 days) + firstSeanceEnd){ // TEST -> make it 7 days
+      // Get the clans rewards from fukcing token
+      (bool txSuccess0, bytes memory returnData0) = contracts[11].call(abi.encodeWithSignature("clanMint()"));
+      require(txSuccess0, "Transaction has failed to get backer rewards from Fukcing Token contract!");
+
+      // Save the reward to the seance
+      (seances[currSeance].clanRewards) = abi.decode(returnData0, (uint256));
+
+      // Keep the total clan points to pass on to the next seance
+      uint256 currentTotalClanPoints = seances[currSeance].totalClanPoints;
+
+      // Pass on to the next seance
+      seanceCounter.increment();
+
+      // Pass on the current total clan points to the next seance
+      seances[seanceCounter.current()].totalClanPoints = currentTotalClanPoints;
+    }
+  }
+
+  function updatePoints(uint256 _clanID, address _member) internal {  
     uint256 currSeance = seanceCounter.current();
     Clan storage clan = clans[_clanID];
     
     // Update clan point
     uint256 index = currSeance;
-    while (clan.points[index] == 0 && index > clan.firstSnap) { index--; }
+    while (clan.points[index] == 0 && index > clan.firstSeance) { index--; }
     clan.points[currSeance] = clan.points[index];
 
     // Update total member points of the clan
     index = currSeance;
-    while (clan.totalMemberPoints[index] == 0 && index > clan.firstSnap) { index--; }
+    while (clan.totalMemberPoints[index] == 0 && index > clan.firstSeance) { index--; }
     clan.totalMemberPoints[currSeance] = clan.totalMemberPoints[index];
     
     // Member point of the clan
     if (_member == address(0)) { return; }  // If the member address is null, then skip it
     index = currSeance;
-    while (clan.members[_member].points[index] == 0 && index > clan.firstSnap) { index--; }
+    while (clan.members[_member].points[index] == 0 && index > clan.firstSeance) { index--; }
     clan.members[_member].points[currSeance] = clan.members[_member].points[index];
   }
 
@@ -469,7 +419,7 @@ contract FukcingClan is Context, ReentrancyGuard {
     require(clan.members[_msgSender()].isExecuter, "You have no authority to give points for this clan!");
 
     // Update clan points before interact with them.
-    pointUpdate(_clanID, _memberAddress);  
+    updatePoints(_clanID, _memberAddress);  
 
     // Update member points and total member points of the clan
     if (_isDecreasing) {
@@ -549,7 +499,7 @@ contract FukcingClan is Context, ReentrancyGuard {
 
     // Update clan points before interact with them.
     updateSeance();
-    pointUpdate(clanID, _memberAddress); 
+    updatePoints(clanID, _memberAddress); 
 
     return member.points[seanceCounter.current()];
   }
@@ -561,12 +511,13 @@ contract FukcingClan is Context, ReentrancyGuard {
    * Proposal Type Change -> Code: 2
    * maxPointsToChange -> Code: 3
    * cooldownTime -> Code: 4
+   * clan Point Adjustment -> Code: 5
    * 
    */
   function proposeContractAddressUpdate(uint256 _contractIndex, address _newAddress) public {
     require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
     require(_newAddress != address(0) || _newAddress != contracts[_contractIndex], 
-      "New address can not be the null or same address!"
+      "New address can not be null or the same address!"
     );
 
     string memory proposalDescription = string(abi.encodePacked(
@@ -756,5 +707,106 @@ contract FukcingClan is Context, ReentrancyGuard {
       cooldownTime = proposal.newUint;
 
     proposal.isExecuted = true;
+  }  
+
+  /// @notice Clan leaders can propose point adjustmen right after the seance is complete and until the next seance.
+  /// @notice Proposls takes some time (probably 2-3 days). Therefore, within 1 week, clan leader can only propose limited times.
+  function proposeClanPointAdjustment(uint256 _seanceNumber, uint256 _clanID, uint256 _pointsToChange, bool _isDecreasing) public {
+    require(_pointsToChange <= maxPointsToChange, "Maximum amount of points exceeded!");
+    require(clans[_clanID].isDisbanded == false, "This clan is disbanded!");
+
+    // If the are in the new seance
+    updateSeance();
+
+    uint256 currSeance = seanceCounter.current();
+    Clan storage clan = clans[_clanID];
+
+    // Clan leaders can make proposals after end of the seance but until the end of the second seance
+    require(_seanceNumber == currSeance - 1, "Invalid seance number!");
+    require(_msgSender() == clan.leader, "Only clan leaders can propose point adjustment!");
+
+    // If the proposal is not executed yet, wait for the proposal to finish or execute it.
+    if (!proposals[clan.proposal_ID].isExecuted) { return; }
+
+    // PROPOSE
+    string memory proposalDescription;
+    if (!_isDecreasing){
+      proposalDescription = string(abi.encodePacked(
+        "In Fukcing Clan contract, adding ", Strings.toHexString(_pointsToChange), 
+        " points to the clan ID: ", Strings.toHexString(_clanID), "." 
+      )); 
+    }
+    else {
+      proposalDescription = string(abi.encodePacked(
+        "In Fukcing Clan contract, subtracting ", Strings.toHexString(_pointsToChange), 
+        " points from the clan ID: ", Strings.toHexString(_clanID), "." 
+      )); 
+    }
+
+    // Create a new proposal - Call DAO contract (contracts[4]) - proposal type : 1 - Moderately Important
+    (bool txSuccess, bytes memory returnData) = contracts[4].call(
+      abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypes[1])
+    );
+    require(txSuccess, "Transaction failed to make new proposal!");
+
+    // Save the ID to create proposal in here
+    (uint256 propID) = abi.decode(returnData, (uint256));
+
+    // Save data to the proposal
+    proposals[propID].updateCode = 5;
+    proposals[propID].index = _clanID;
+    proposals[propID].newUint = _pointsToChange;
+    proposals[propID].newBool = _isDecreasing;
+
+    // Save the proposal ID to the clan as well
+    clan.proposal_ID = propID;
+  }
+
+  /**
+    @dev Only the fukcing DAO can clan point change AFTER the current seance UP TO 2 seance later. 
+    DAO will need 2-3 days to get approved clan point change execution. Therefore, there are limited times to do so.
+  */
+  function executeClanPointAdjustment(uint256 _proposalID) public {
+    Proposal storage proposal = proposals[_proposalID];
+
+    require(proposal.updateCode == 5 && !proposal.isExecuted, "Wrong proposal ID");
+    
+    // Get the result from DAO
+    (bool txSuccess, bytes memory returnData) = contracts[4].call(
+      abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
+    );
+    require(txSuccess, "Transaction failed to retrieve DAO result!");
+    (uint256 statusNum) = abi.decode(returnData, (uint256));
+
+    // Save it here
+    proposal.status = Status(statusNum);
+
+    // Wait for the current one to finalize
+    require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
+    
+    Clan storage clan = clans[proposal.index]; // Proposal index is the Clan ID
+
+    // Update clan points before interact with them. Not member (0)
+    updatePoints(proposal.index, address(0));
+
+    // If the are in the new seance
+    updateSeance();
+    uint256 currSeance = seanceCounter.current();
+
+    // if approved, apply the update the state
+    if (proposal.status == Status.Approved){
+      // If the porposal bool (isDecreasing) is true, then subtract the points
+      if (proposal.newBool){
+        clan.points[currSeance] -= proposal.newUint;
+        seances[currSeance].totalClanPoints -= proposal.newUint;
+      }
+      else {
+        clan.points[currSeance] += proposal.newUint;
+        seances[currSeance].totalClanPoints += proposal.newUint;
+      }
+    }
+
+    // If this was the first time of this clan to get points, record the first seance
+    if (clan.firstSeance == 0) { clan.firstSeance = currSeance; }    
   }
 }
