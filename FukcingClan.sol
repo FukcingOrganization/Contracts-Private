@@ -787,12 +787,13 @@ contract FukcingClan is Context, ReentrancyGuard {
     
     Clan storage clan = clans[proposal.index]; // Proposal index is the Clan ID
 
+    // Check seance update
+    updateSeance();
+    uint256 currSeance = seanceCounter.current();
+
     // Update clan points before interact with them. Not member (0)
     updatePoints(proposal.index, address(0));
 
-    // If the are in the new seance
-    updateSeance();
-    uint256 currSeance = seanceCounter.current();
 
     // if approved, apply the update the state
     if (proposal.status == Status.Approved){

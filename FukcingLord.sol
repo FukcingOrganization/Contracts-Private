@@ -37,6 +37,8 @@ import "./IERC4907.sol";
   *
  * -> Owner can rent out the Lord without any fee from the contract or another interfaces. Lords who want
  * to get rent fees in FUKC tokens can use FukcingRent contract to rent them out.
+ *
+ * -> Upper limit of mint cost is 666$.
  */
 
 /**
@@ -152,7 +154,7 @@ contract FukcingLord is ERC721, ERC721Burnable {
     _tokenIdCounter.increment();  // token IDs starts from 1 and goes to 666
     rebellionCounter.increment(); // Leave first (0) rebellion empty for all lords to start a new one
     maxSupply = 666;
-    mintCost = 66 ether;  // TEST -> Change it with the final value
+    mintCost = 6666 ether;  // TEST -> Change it with the final value
     baseTaxRate = 13;     // TEST -> Change it with the final value
     taxChangeRate = 7;    // TEST -> Change it with the final value
     rebellionLenght = 7 days;     // TEST -> Change it with the final value
@@ -409,6 +411,17 @@ contract FukcingLord is ERC721, ERC721Burnable {
       uint256 trophy = reb.totalFunds * contributionRate / 100;
       ERC20(contracts[11]).transfer(sender, trophy);
     }
+  }
+
+  /**
+    @notice Fukcing Executors can update mint cost without DAO approval. This is due to the expected 
+    extreme volatility at the beginning of the game. The upper limit of the mint cost will be 666$. 
+    Executors will the mint cost according to the token price. This process will end when the lords 
+    reach the maximum supply.
+   */
+  function updateMintCost(uint256 _newCost) {
+    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+    mintCost = _newCost;
   }
 
   /**

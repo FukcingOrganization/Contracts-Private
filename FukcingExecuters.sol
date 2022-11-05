@@ -107,6 +107,7 @@ contract FukcingExecuters is Context, AccessControl {
    *
    * Contract Address Update: 1
    * Proposal Type Update: 2
+   * Lord mint cost update: 3
    */
   function createContractAddressUpdateProposal(
     uint256 _contractIndex,  // Destination Contract address
@@ -145,10 +146,46 @@ contract FukcingExecuters is Context, AccessControl {
 
     // Execute proposal if the half of the executers signaled
     if (signal.numOfSignals >= (numOfExecuters / 2)){
-      (bool txSuccess, ) = contracts[_contractIndex].call(abi.encodeWithSignature(
-        "proposeContractAddressUpdate(uint256,address)", _subjectIndex, _newAddress
+      (bool txSuccess, ) = contracts[signal.contractIndex].call(abi.encodeWithSignature(
+        "proposeContractAddressUpdate(uint256,address)", signal.subjectIndex, signal.propAddrees
       ));
       require(txSuccess, "Transaction failed to execute update function!");
+      signal.expires = 0; // To avoid further executions
+    }       
+  }
+  
+  function updateLordMintCost(uint256 _newCost) public onlyRole(EXECUTER_ROLE) {
+    // Get the current signal ID for this proposal function
+    uint256 sID = signalTrackerID[3];
+
+    // If current signal date passed, then start a new signal
+    if (block.timestamp > signals[sID].expires) {
+      signalTrackerID[3] = signalCounter.current();           // Save the current signal ID to the tracker
+      Signal storage newSignal = signals[signalTrackerID[3]]; // Get the signal
+      signalCounter.increment();  // Increment the counter for other signals
+
+      // Save data
+      newSignal.expires = block.timestamp + signalTime;
+      newSignal.propUint = _newCost;
+
+      newSignal.numOfSignals++;
+      newSignal.isSignaled[_msgSender()] = true;  // Save the executer address as signaled
+      return; // finish the function
+    }   
+
+    // If we are in the signal time, get the signal and check caller's signal status
+    Signal storage signal = signals[signalTrackerID[3]];
+    require(!signal.isSignaled[_msgSender()], "You already signaled for this proposal");
+
+    // If not signaled, save it and increase the number of signals
+    signal.isSignaled[_msgSender()] = true;
+    signal.numOfSignals++;
+
+    // Execute proposal if the half of the executers signaled
+    if (signal.numOfSignals >= (numOfExecuters / 2)){
+      (bool txSuccess, ) = contracts[7].call(abi.encodeWithSignature("updateMintCost(uint256)", signal.propUint));
+      require(txSuccess, "Transaction failed to execute update function!");
+      signal.expires = 0; // To avoid further executions
     }       
   }
 
