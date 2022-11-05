@@ -709,8 +709,10 @@ contract FukcingClan is Context, ReentrancyGuard {
     proposal.isExecuted = true;
   }  
 
-  /// @notice Clan leaders can propose point adjustmen right after the seance is complete and until the next seance.
-  /// @notice Proposls takes some time (probably 2-3 days). Therefore, within 1 week, clan leader can only propose limited times.
+  /**
+    @notice Anyone can propose point adjustmen right after the seance is complete and until the next seance.
+    You can't propose a new proposal until the current proposal gets executed
+   */ 
   function proposeClanPointAdjustment(uint256 _seanceNumber, uint256 _clanID, uint256 _pointsToChange, bool _isDecreasing) public {
     require(_pointsToChange <= maxPointsToChange, "Maximum amount of points exceeded!");
     require(clans[_clanID].isDisbanded == false, "This clan is disbanded!");
@@ -723,10 +725,9 @@ contract FukcingClan is Context, ReentrancyGuard {
 
     // Clan leaders can make proposals after end of the seance but until the end of the second seance
     require(_seanceNumber == currSeance - 1, "Invalid seance number!");
-    require(_msgSender() == clan.leader, "Only clan leaders can propose point adjustment!");
 
-    // If the proposal is not executed yet, wait for the proposal to finish or execute it.
-    if (!proposals[clan.proposal_ID].isExecuted) { return; }
+    // Wait for the proposal to finish or execute it.
+    require(proposals[clan.proposal_ID].isExecuted, "Current proposal is not executed yet!");
 
     // PROPOSE
     string memory proposalDescription;
