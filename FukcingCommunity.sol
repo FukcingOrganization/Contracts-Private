@@ -7,22 +7,20 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 /**
-  * @notice
-  * -> Fukcing community contract mints its allocation from fukcing token contract. 
-  *
-  * -> Executers propose a reward distribution to fukcing DAO. Receivers can claim
-  * their rewards once its approved by the DAO.
-  *
-  * -> The length of the reward distribution proposals differ according to amount
-  * of reward. It can be normal, high, or extreme amount of reward.
-  *
-  * -> Executers can propose to update contract addresses, proposal types, high reward
-  * limit, and extreme reward limit.
+  @notice
+  - Fukcing community contract mints its allocation from fukcing token contract. 
+  
+  - Executers propose a reward distribution to fukcing DAO. Receivers can claim
+  their rewards once its approved by the DAO.
+  
+  - The length of the reward distribution proposals differ according to amount
+  of reward. It can be normal, high, or extreme amount of reward.
+  
+  - Executers can propose to update contract addresses, proposal types, high reward
+  limit, and extreme reward limit.
   */
 
-/**
-  * @author Bora
-  */
+/// @author Bora
 contract FukcingCommunity is Context {
 
   enum Status{
@@ -217,14 +215,13 @@ contract FukcingCommunity is Context {
   }
 
   /**
-   * Updates by DAO - Update Codes
-   *
-   * Contract Address Change -> Code: 1
-   * Proposal Type Change -> Code: 2
-   * setReward and setMerkleReward -> Code: 3
-   * highRewardLimit -> Code: 4
-   * extremeRewardLimit -> Code: 5
-   * 
+    Updates by DAO - Update Codes
+    
+    Contract Address Change -> Code: 1
+    Proposal Type Change -> Code: 2
+    setReward and setMerkleReward -> Code: 3
+    highRewardLimit -> Code: 4
+    extremeRewardLimit -> Code: 5
    */
   function proposeContractAddressUpdate(uint256 _contractIndex, address _newAddress) public {
     require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");

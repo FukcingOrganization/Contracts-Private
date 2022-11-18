@@ -90,9 +90,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
     DAO will decide how to spend its treasury with monetary proposals.
 */
 
-/**
-    @author Bora
- */
+/// @author Bora
 contract FukcingDAO is ERC20 {
     using Counters for Counters.Counter;   
 

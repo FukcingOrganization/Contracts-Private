@@ -7,19 +7,17 @@ import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 
 /**
-  * @notice
-  * -> You can create a fukcing clan with a fukcing clan licence! Licences can only minted
-  * by fukcing lords!
-  *
-  * -> Each token ID is represents the lords' ID that mint it. 
-  * For instance, licence with id 5 is the licence of lord ID 5.
-  *
-  * -> Executers can propose to update contract addresses, proposal types, and mint cost.
+  @notice
+  - You can create a fukcing clan with a fukcing clan licence! Licences can only minted
+  by fukcing lords!
+  
+  - Each token ID is represents the lords' ID that mint it. 
+  For instance, licence with id 5 is the licence of lord ID 5.
+  
+  - Executers can propose to update contract addresses, proposal types, and mint cost.
   */
 
-/**
-  * @author Bora
-  */
+/// @author Bora
 contract FukcingClanLicence is ERC1155, ERC1155Burnable {
 
   enum Status{
@@ -113,12 +111,11 @@ contract FukcingClanLicence is ERC1155, ERC1155Burnable {
   }
 
   /**
-   * Updates by DAO - Update Codes
-   *
-   * Contract Address Change -> Code: 1
-   * Proposal Type Change -> Code: 2
-   * mintCost -> Code: 3
-   * 
+    Updates by DAO - Update Codes
+    
+    Contract Address Change -> Code: 1
+    Proposal Type Change -> Code: 2
+    mintCost -> Code: 3    
    */
   function proposeContractAddressUpdate(uint256 _contractIndex, address _newAddress) public {
     require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");

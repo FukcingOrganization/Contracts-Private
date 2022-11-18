@@ -9,19 +9,22 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 
 /**
-  * @notice
-  * -> You can mint, select, and fukc a boss!
-  *
-  * -> Boss NFTs can't be transferred therefore can't be sold!
-  * -> The minter can only change metadata by setting token URI.
-  * -> Minters have to burn certaion amount of FUKC token to mint a boss.
-  *
-  * -> Executers can propose to update contract addresses, proposal types, and the mint cost.
-  */
+  TO-DO
+  -> Close new boss mint the last day of the elections
+ */
 
 /**
-  * @author Bora
+  @notice
+  - You can mint, select, and fukc a boss!
+  
+  - Boss NFTs can't be transferred therefore can't be sold!
+  - The minter can only change metadata by setting token URI.
+  - Minters have to burn certaion amount of FUKC token to mint a boss.
+  
+  - Executers can propose to update contract addresses, proposal types, and the mint cost.
   */
+
+/// @author Bora
 contract FukcingBoss is ERC721, ERC721URIStorage, ERC721Burnable {
   using Counters for Counters.Counter;
 
@@ -142,12 +145,11 @@ contract FukcingBoss is ERC721, ERC721URIStorage, ERC721Burnable {
   }
 
   /**
-   * Updates by DAO - Update Codes
-   *
-   * Contract Address Change -> Code: 1
-   * Proposal Type Change -> Code: 2
-   * Mist Cost -> Code: 3
-   * 
+    Updates by DAO - Update Codes
+   
+    Contract Address Change -> Code: 1
+    Proposal Type Change -> Code: 2
+    Mist Cost -> Code: 3
    */
   function proposeContractAddressUpdate(uint256 _contractIndex, address _newAddress) public {
     require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");

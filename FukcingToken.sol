@@ -17,6 +17,8 @@ import "@openzeppelin/contracts/utils/Counters.sol";
   * and there is 1 month left to reach the current max supply
   *
   * -> Mint rate can chage with same hard approval after 1 year: backers, clans, community, staking
+  *
+  * -> 51% of the executors can pause/unpause the FUKC token.
   */
 
 /**

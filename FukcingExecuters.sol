@@ -106,7 +106,7 @@ contract FukcingExecuters is Context, AccessControl {
    * Signal Tracker IDs
    *
    * Contract Address Update: 1
-   * Proposal Type Update: 2
+   * Proposal Type Update: 2      MISSING - ADD IT
    * Lord mint cost update: 3
    */
   function createContractAddressUpdateProposal(

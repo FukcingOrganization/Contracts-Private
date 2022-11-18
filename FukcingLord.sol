@@ -419,7 +419,7 @@ contract FukcingLord is ERC721, ERC721Burnable {
     Executors will the mint cost according to the token price. This process will end when the lords 
     reach the maximum supply.
    */
-  function updateMintCost(uint256 _newCost) {
+  function updateMintCost(uint256 _newCost) public {
     require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
     mintCost = _newCost;
   }
