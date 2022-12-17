@@ -208,7 +208,7 @@ contract FukcingClan is Context, ReentrancyGuard {
     clan.memberCounter.increment(); // Increament the counter to 1 from 0
   }
 
-  function joinToClan(uint256 _clanID) public {
+  function declareClan(uint256 _clanID) public {
     require(clans[_clanID].leader != address(0), "There is no such clan with that ID!");
     require(clans[_clanID].isDisbanded == false, "This clan is disbanded!");
     
@@ -274,9 +274,8 @@ contract FukcingClan is Context, ReentrancyGuard {
 
     uint256 currSeance = seanceCounter.current();
 
-    uint256 _seance = _seanceNumber;
-    require(_seance < currSeance, "You can't claim the current or future seances' seances. Check seance number!");
-
+    require(_seanceNumber < currSeance, "You can't claim the current or future seances' seances. Check seance number!");
+    
     require(seances[currSeance].isClanClaimed[_clanID] == false, "Your clan already claimed its reward for this seance!");
     seances[currSeance].isClanClaimed[_clanID] == true;  // If not claimed yet, mark it claimed.
 
@@ -286,7 +285,7 @@ contract FukcingClan is Context, ReentrancyGuard {
     updatePoint(_clanID, address(0));  
 
     // total clan reward * clan Point * 100 / total clan point
-    uint256 reward = seances[currSeance].clanRewards * (clan.point[_seance] * 100 / seances[currSeance].totalClanPoint);
+    uint256 reward = seances[currSeance].clanRewards * (clan.point[_seanceNumber] * 100 / seances[currSeance].totalClanPoint);
     seances[currSeance].claimedRewards += reward;  // Keep record of the claimed rewards
 
     // Get the address and the tax rate of the lord
@@ -398,7 +397,8 @@ contract FukcingClan is Context, ReentrancyGuard {
     require(clan.members[clan.memberIdOf[_msgSender()]].isMod, "You have no authority to moderate memberships for this clan!");
     require(clan.leader != _address, "You can't set the leader as a member!");
 
-    if (_isMember) { 
+    if (_isMember) {
+      require(_clanID == clanOf[_address], "The address you wish to set as member should declare its clan first!");
       member.isMember = true;
 
       uint256 currentID = clan.memberCounter.current();

@@ -52,14 +52,14 @@ contract FukcingSeance is Context, ReentrancyGuard {
     uint256 backerReward;
     uint256 totalNumberOfPlayer;
     bytes32 merkleRoot;
-    mapping(address => bool) isPlayerClaimed;
-    mapping(address => bool) isBackerClaimed;
   }
 
   struct Seance{
     uint256 endingTime;
     Level[13] levels;
     uint256 seanceRewards;
+    mapping(address => bool) isPlayerClaimed;
+    mapping(address => bool) isBackerClaimed;
   }
 
   enum Status{
@@ -216,43 +216,103 @@ contract FukcingSeance is Context, ReentrancyGuard {
     getBackerRewards(seances[seanceCounter.current()]);
   }
 
-  function claimPlayerReward(bytes32[] calldata _merkleProof, uint256 _seanceNumber, uint256 _levelNumber) public {
+  function claimPlayerReward(bytes32[] calldata _merkleProof, uint256 _seanceNumber) public {
     require(block.timestamp > seances[_seanceNumber].endingTime, "Wait for the end of the seance!");
     require(seances[_seanceNumber].endingTime != 0, "Invalied seance number!"); // If there is no end time
-    require(_levelNumber >= 0 && _levelNumber < 13, "Invalid level number!");
 
-    Level storage level = seances[_seanceNumber].levels[_levelNumber];
+    Seance storage seance = seances[_seanceNumber];
     address sender = _msgSender();
-
-    // Check if the player is in the list or not
-    bytes32 leaf = keccak256(abi.encodePacked(sender));
-    require(MerkleProof.verify(_merkleProof, level.merkleRoot, leaf), "Bro, you are not even in the player list!");
-
-    // Check if the player is already claimed
-    require(level.isPlayerClaimed[sender] == false, "Dude! You have already claimed your reward! Why too aggressive?");
-    level.isPlayerClaimed[sender] = true;
     
-    // Give the reward
-    uint256 fukcingReward = level.playerReward / level.totalNumberOfPlayer;
+    require(!seance.isPlayerClaimed[sender], "Dude! You have already claimed your reward! Why too aggressive?");
+    seance.isPlayerClaimed[sender] = true;  // Save as claimed
+
+    // Check all the levels and sum up the rewards if any
+    uint256 fukcingReward;
+
+    for (int i = 0; i < 13; i++){
+      Level storage level = seance.levels[i]; // Get the level
+
+      // Check the merkle tree to validate the sender has played this level
+      bytes32 leaf = keccak256(abi.encodePacked(sender));
+      if (MerkleProof.verify(_merkleProof, level.merkleRoot, leaf)){  // if played, collect the reward
+        fukcingReward += level.playerReward / level.totalNumberOfPlayer;
+      }
+    }
+
+    require(fukcingReward > 0, "You have no reward to claim bro, sorry!");
     require(IERC20(contracts[11]).transfer(sender, fukcingReward), "Something went wrong while you're trying to get your fukcing reward!");
   }
   
-  function claimBackerReward(uint256 _seanceNumber, uint256 _levelNumber) public {
+  function claimBackerReward(uint256 _seanceNumber) public {
     require(block.timestamp > seances[_seanceNumber].endingTime, "Wait for the end of the seance!");
     require(seances[_seanceNumber].endingTime != 0, "Invalied seance number!");
-    require(_levelNumber >= 0 && _levelNumber < 13, "Invalid level number!");
 
-    Level storage level = seances[_seanceNumber].levels[_levelNumber];
-    Election storage election = level.election;
+    Seance storage seance = seances[_seanceNumber];
+    address sender = _msgSender();
+    
+    require(!seance.isBackerClaimed[sender], "Dude! You have already claimed your reward! Why too aggressive?");
+    seance.isBackerClaimed[sender] = true;  // Save as claimed
+
+    // Check all the levels and sum up the rewards if any
+    uint256 fukcingReward;
+
+    for (int i = 0; i < 13; i++){
+      Level storage level = seance.levels[i];     // Get the level
+      Election storage election = level.election; // Get the election
+
+      // Collect the reward from this level's election
+      // Formula: rewardAmount = backerReward * backerfund(sender's on the winner Boss) / total fund (on the winner Boss)
+      fukcingReward += level.backerReward * 
+        election.backerFunds[election.winnerID][sender] / election.candidateFunds[election.winnerID]
+      ;
+    }
+
+    require(IERC20(contracts[11]).transfer(sender, fukcingReward), "Something went wrong while you're trying to get your fukcing reward!");
+  }
+
+  function getPlayerRewards(bytes32[] calldata _merkleProof, uint256 _seanceNumber) public view return (uint256[]) {
+    require(block.timestamp > seances[_seanceNumber].endingTime, "Wait for the end of the seance!");
+    require(seances[_seanceNumber].endingTime != 0, "Invalied seance number!"); // If there is no end time
+
+    uint256[13] rewards;
+
+    Seance storage seance = seances[_seanceNumber];
     address sender = _msgSender();
 
-    require(level.isBackerClaimed[sender] == false, "Wow wow wow! You already claimed your shit bro. Back off!");
-    level.isBackerClaimed[sender] == true;
+    for (int i = 0; i < 13; i++){
+      Level storage level = seance.levels[i]; // Get the level
 
-    // rewardAmount = backerReward * backerfund / total fund
-    uint256 fukcingReward = level.backerReward * 
-      election.backerFunds[election.winnerID][sender] / election.candidateFunds[election.winnerID];
-    require(IERC20(contracts[11]).transfer(sender, fukcingReward), "Something went wrong while you're trying to get your fukcing reward!");
+      // Check the merkle tree to validate the sender has played this level
+      bytes32 leaf = keccak256(abi.encodePacked(sender));
+      if (MerkleProof.verify(_merkleProof, level.merkleRoot, leaf)){  // if played, get the reward
+        rewards[i] = level.playerReward / level.totalNumberOfPlayer;
+      }
+    }
+
+    return rewards;
+  }
+
+  function getBackerRewards(uint256 _seanceNumber) public view return (uint256[]) {
+    require(block.timestamp > seances[_seanceNumber].endingTime, "Wait for the end of the seance!");
+    require(seances[_seanceNumber].endingTime != 0, "Invalied seance number!"); // If there is no end time
+
+    uint256[13] rewards;
+
+    Seance storage seance = seances[_seanceNumber];
+    address sender = _msgSender();
+
+    for (int i = 0; i < 13; i++){
+      Level storage level = seance.levels[i];     // Get the level
+      Election storage election = level.election; // Get the election
+
+      // Collect the reward from this level's election
+      // Formula: rewardAmount = backerReward * backerfund(sender's on the winner Boss) / total fund (on the winner Boss)
+      rewards[i] = level.backerReward * 
+        election.backerFunds[election.winnerID][sender] / election.candidateFunds[election.winnerID]
+      ;
+    }
+
+    return rewards;
   }
 
   function returnMerkleRoot(uint256 _seanceNumber, uint256 _levelNumber) public view returns (bytes32) {
