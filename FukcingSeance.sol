@@ -123,7 +123,7 @@ contract FukcingSeance is Context, ReentrancyGuard {
     getBackerRewards(seances[seanceCounter.current()]);     
   }
 
-  function bossFunding(uint256 _levelNumber, uint256 _bossID, uint256 _fundAmount) public nonReentrant() returns (bool) {
+  function fundBoss(uint256 _levelNumber, uint256 _bossID, uint256 _fundAmount) public nonReentrant() returns (bool) {
     require(_levelNumber >= 0 && _levelNumber < 13, "Invalid level number!");
 
     Seance storage seance = seances[seanceCounter.current()];
@@ -155,7 +155,7 @@ contract FukcingSeance is Context, ReentrancyGuard {
     return true;    
   }
 
-  function withdrawBossFunds(uint256 _levelNumber, uint256 _bossID, uint256 _withdrawAmount) public nonReentrant() returns (bool) {
+  function defundBoss(uint256 _levelNumber, uint256 _bossID, uint256 _withdrawAmount) public nonReentrant() returns (bool) {
     require(_levelNumber >= 0 && _levelNumber < 13, "Invalid level number!");
     require(IERC721(contracts[0]).ownerOf(_bossID) != address(0), "This fukcing boss doesn't even exist!");
     
@@ -229,7 +229,7 @@ contract FukcingSeance is Context, ReentrancyGuard {
     // Check all the levels and sum up the rewards if any
     uint256 fukcingReward;
 
-    for (int i = 0; i < 13; i++){
+    for (uint i = 0; i < 13; i++){
       Level storage level = seance.levels[i]; // Get the level
 
       // Check the merkle tree to validate the sender has played this level
@@ -256,7 +256,7 @@ contract FukcingSeance is Context, ReentrancyGuard {
     // Check all the levels and sum up the rewards if any
     uint256 fukcingReward;
 
-    for (int i = 0; i < 13; i++){
+    for (uint i = 0; i < 13; i++){
       Level storage level = seance.levels[i];     // Get the level
       Election storage election = level.election; // Get the election
 
@@ -270,16 +270,16 @@ contract FukcingSeance is Context, ReentrancyGuard {
     require(IERC20(contracts[11]).transfer(sender, fukcingReward), "Something went wrong while you're trying to get your fukcing reward!");
   }
 
-  function getPlayerRewards(bytes32[] calldata _merkleProof, uint256 _seanceNumber) public view return (uint256[]) {
+  function getPlayerRewards(bytes32[] calldata _merkleProof, uint256 _seanceNumber) public view returns (uint256[13] memory) {
     require(block.timestamp > seances[_seanceNumber].endingTime, "Wait for the end of the seance!");
     require(seances[_seanceNumber].endingTime != 0, "Invalied seance number!"); // If there is no end time
 
-    uint256[13] rewards;
+    uint256[13] memory rewards;
 
     Seance storage seance = seances[_seanceNumber];
     address sender = _msgSender();
 
-    for (int i = 0; i < 13; i++){
+    for (uint i = 0; i < 13; i++){
       Level storage level = seance.levels[i]; // Get the level
 
       // Check the merkle tree to validate the sender has played this level
@@ -292,16 +292,16 @@ contract FukcingSeance is Context, ReentrancyGuard {
     return rewards;
   }
 
-  function getBackerRewards(uint256 _seanceNumber) public view return (uint256[]) {
+  function getBackerRewards(uint256 _seanceNumber) public view returns (uint256[13] memory) {
     require(block.timestamp > seances[_seanceNumber].endingTime, "Wait for the end of the seance!");
     require(seances[_seanceNumber].endingTime != 0, "Invalied seance number!"); // If there is no end time
 
-    uint256[13] rewards;
+    uint256[13] memory rewards;
 
     Seance storage seance = seances[_seanceNumber];
     address sender = _msgSender();
 
-    for (int i = 0; i < 13; i++){
+    for (uint i = 0; i < 13; i++){
       Level storage level = seance.levels[i];     // Get the level
       Election storage election = level.election; // Get the election
 
