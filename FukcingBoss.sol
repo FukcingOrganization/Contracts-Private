@@ -15,17 +15,17 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 
 /**
   @notice
-  - You can mint, select, and fukc a boss!
+  - You can mint and select a boss!
   
   - Boss NFTs can't be transferred therefore can't be sold!
   - The minter can only change metadata by setting token URI.
-  - Minters have to burn certaion amount of FUKC token to mint a boss.
+  - Minters have to burn certaion amount of STICK token to mint a boss.
   
-  - Executers can propose to update contract addresses, proposal types, and the mint cost.
+  - Executors can propose to update contract addresses, proposal types, and the mint cost.
   */
 
 /// @author Bora
-contract FukcingBoss is ERC721, ERC721URIStorage, ERC721Burnable {
+contract StickBoss is ERC721, ERC721URIStorage, ERC721Burnable {
   using Counters for Counters.Counter;
 
   Counters.Counter private _tokenIdCounter;
@@ -78,13 +78,16 @@ contract FukcingBoss is ERC721, ERC721URIStorage, ERC721Burnable {
    */
   address[13] public contracts; 
 
-  mapping(uint256 => Proposal) public proposals;// Proposal ID => Proposal
-  mapping(uint256 => uint256) public numOfFukc; // token ID => How many times this boss get fukced
+  /// @notice Proposal ID => Proposal
+  mapping(uint256 => Proposal) public proposals;
+
+  /// @notice token ID => How many times this boss got rekt
+  mapping(uint256 => uint256) public numOfRekt;
 
   uint256 public totalSupply;
   uint256 public mintCost;
 
-  constructor() ERC721("FukcingBoss", "FBOSS") {
+  constructor() ERC721("StickBoss", "SBOSS") {
     mintCost = 66666 ether; // TEST -> Change it with final value
   }
     
@@ -138,10 +141,10 @@ contract FukcingBoss is ERC721, ERC721URIStorage, ERC721Burnable {
     _setTokenURI(tokenId, _tokenURI);
   }
 
-  function bossFukced(uint256 _tokenID) public {
-    require(_msgSender() == contracts[9], "Only the Fukcing Seance contract can write!");
+  function bossRekt(uint256 _tokenID) public {
+    require(_msgSender() == contracts[9], "Only the Round contract can write!");
 
-    numOfFukc[_tokenID]++;
+    numOfRekt[_tokenID]++;
   }
 
   /**
@@ -152,13 +155,13 @@ contract FukcingBoss is ERC721, ERC721URIStorage, ERC721Burnable {
     Mist Cost -> Code: 3
    */
   function proposeContractAddressUpdate(uint256 _contractIndex, address _newAddress) public {
-    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+    require(_msgSender() == contracts[5], "Only executors can call this function!");
     require(_newAddress != address(0) || _newAddress != contracts[_contractIndex], 
       "New address can not be the null or same address!"
     );
 
     string memory proposalDescription = string(abi.encodePacked(
-      "In Fukcing Boss contract, updating contract address of index ", Strings.toHexString(_contractIndex), " to ", 
+      "In Boss contract, updating contract address of index ", Strings.toHexString(_contractIndex), " to ", 
       Strings.toHexString(_newAddress), " from ", Strings.toHexString(contracts[_contractIndex]), "."
     )); 
 
@@ -203,12 +206,12 @@ contract FukcingBoss is ERC721, ERC721URIStorage, ERC721Burnable {
   }
 
   function proposeProposalTypesUpdate(uint256 _proposalIndex, uint256 _newType) public {
-    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+    require(_msgSender() == contracts[5], "Only executors can call this function!");
     require(_newType != proposalTypes[_proposalIndex], "Proposal Types are already the same moron, check your input!");
     require(_proposalIndex != 0, "0 index of proposalTypes is not in service. No need to update!");
 
     string memory proposalDescription = string(abi.encodePacked(
-      "In Fukcing Boss contract, updating proposal types of index ", Strings.toHexString(_proposalIndex), " to ", 
+      "In Boss contract, updating proposal types of index ", Strings.toHexString(_proposalIndex), " to ", 
       Strings.toHexString(_newType), " from ", Strings.toHexString(proposalTypes[_proposalIndex]), "."
     )); 
 
@@ -253,10 +256,10 @@ contract FukcingBoss is ERC721, ERC721URIStorage, ERC721Burnable {
   }
 
   function proposeMintCostUpdate(uint256 _newCost) public {
-    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+    require(_msgSender() == contracts[5], "Only executors can call this function!");
 
     string memory proposalDescription = string(abi.encodePacked(
-      "In Fukcing Boss contract, updating mint cost of Boss to ", Strings.toHexString(_newCost), 
+      "In Boss contract, updating mint cost of Boss to ", Strings.toHexString(_newCost), 
       " from ", Strings.toHexString(mintCost), "."
     )); 
 

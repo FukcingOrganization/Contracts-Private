@@ -8,20 +8,20 @@ import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 /**
   @notice
-  - Fukcing community contract mints its allocation from fukcing token contract. 
+  - Community contract mints its allocation from token contract. 
   
-  - Executers propose a reward distribution to fukcing DAO. Receivers can claim
+  - Executors propose a reward distribution to Stick DAO. Receivers can claim
   their rewards once its approved by the DAO.
   
   - The length of the reward distribution proposals differ according to amount
   of reward. It can be normal, high, or extreme amount of reward.
   
-  - Executers can propose to update contract addresses, proposal types, high reward
+  - Executors can propose to update contract addresses, proposal types, high reward
   limit, and extreme reward limit.
   */
 
 /// @author Bora
-contract FukcingCommunity is Context {
+contract StickCommunity is Context {
 
   enum Status{
       NotStarted, // Index: 0
@@ -104,7 +104,7 @@ contract FukcingCommunity is Context {
   }
 
   function mintToken() public {
-    require(_msgSender() == contracts[5], "You are not a fukcing executer!");
+    require(_msgSender() == contracts[5], "You are not a executor!");
     
     (bool txSuccess, bytes memory returnData) = contracts[11].call(abi.encodeWithSignature("communityMint()"));
     require(txSuccess, "Transaction has failed to mint tokens!");
@@ -120,7 +120,7 @@ contract FukcingCommunity is Context {
     if (reward.approved == false) {
       updateRewardStatus(_proposalID);
     }
-    require(reward.approved, "This reward is not approved by fukcing DAO. Sorry!");
+    require(reward.approved, "This reward is not approved by Stick DAO. Sorry!");
 
     // Find the reward of caller
     uint256 receiverReward;
@@ -143,13 +143,13 @@ contract FukcingCommunity is Context {
     MerkleReward storage mReward = merkleRewards[_proposalID];
     require(mReward.isClaimed[_msgSender()] == false, "Dude, you have already claimed your shit. So back off!");
     require(mReward.totalReward > 0, 
-      "Everyone claimed all rewards. If you think there is a problem, reach out the fukcing executers!"
+      "Everyone claimed all rewards. If you think there is a problem, reach out the Executors!"
     );
 
     if (mReward.approved == false) {
       updateRewardStatus(_proposalID);
     }
-    require(mReward.approved, "This merkle reward is not approved by fukcing DAO. Sorry!");
+    require(mReward.approved, "This merkle reward is not approved by Stick DAO. Sorry!");
 
     // Find the reward of caller
     uint256 receiverReward = getMerkleReward(_merkleProof, mReward);
@@ -224,13 +224,13 @@ contract FukcingCommunity is Context {
     extremeRewardLimit -> Code: 5
    */
   function proposeContractAddressUpdate(uint256 _contractIndex, address _newAddress) public {
-    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+    require(_msgSender() == contracts[5], "Only executors can call this function!");
     require(_newAddress != address(0) || _newAddress != contracts[_contractIndex], 
       "New address can not be the null or same address!"
     );
 
     string memory proposalDescription = string(abi.encodePacked(
-      "In Fukcing Community contract, updating contract address of index ", Strings.toHexString(_contractIndex), 
+      "In Community contract, updating contract address of index ", Strings.toHexString(_contractIndex), 
       " to ", Strings.toHexString(_newAddress), " from ", Strings.toHexString(contracts[_contractIndex]), "."
     )); 
 
@@ -275,12 +275,12 @@ contract FukcingCommunity is Context {
   }
 
   function proposeProposalTypesUpdate(uint256 _proposalIndex, uint256 _newType) public {
-    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+    require(_msgSender() == contracts[5], "Only executors can call this function!");
     require(_newType != proposalTypes[_proposalIndex], "Proposal Types are already the same moron, check your input!");
     require(_proposalIndex != 0, "0 index of proposalTypes is not in service. No need to update!");
 
     string memory proposalDescription = string(abi.encodePacked(
-      "In Fukcing Community contract, updating proposal types of index ", Strings.toHexString(_proposalIndex), 
+      "In Community contract, updating proposal types of index ", Strings.toHexString(_proposalIndex), 
       " to ", Strings.toHexString(_newType), " from ", Strings.toHexString(proposalTypes[_proposalIndex]), "."
     )); 
 
@@ -325,7 +325,7 @@ contract FukcingCommunity is Context {
   }
 
   function setReward(address[] memory _receivers, uint256[] memory _rewards) public {
-    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+    require(_msgSender() == contracts[5], "Only executors can call this function!");
 
     // Calculate the total reward
     uint256 totalReward;
@@ -366,7 +366,7 @@ contract FukcingCommunity is Context {
   }
 
   function setMerkleReward(bytes32[] memory _roots, uint256[] memory _rewards, uint256 _totalReward) public {
-    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+    require(_msgSender() == contracts[5], "Only executors can call this function!");
     require(_totalReward <= totalBalance - rewardBalance, "You have exceeded the avaliable balance to spend!");
 
     // Reserve the reward balance so we can't propose to spend more
@@ -401,10 +401,10 @@ contract FukcingCommunity is Context {
   }
 
   function proposeHighRewarLimitSet(uint256 _newLimit) public {
-    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+    require(_msgSender() == contracts[5], "Only executors can call this function!");
 
     string memory proposalDescription = string(abi.encodePacked(
-        "In Fukcing Community contract, increasing High Reward Limit to ", 
+        "In Community contract, increasing High Reward Limit to ", 
         Strings.toHexString(_newLimit), " from ", Strings.toHexString(highRewardLimit), "."
     )); 
 
@@ -448,10 +448,10 @@ contract FukcingCommunity is Context {
   }
   
   function proposeExtremeRewarLimitSet(uint256 _newLimit) public {
-    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+    require(_msgSender() == contracts[5], "Only executors can call this function!");
 
     string memory proposalDescription = string(abi.encodePacked(
-        "In Fukcing Community contract, increasing Extreme Reward Limit to ", 
+        "In Community contract, increasing Extreme Reward Limit to ", 
         Strings.toHexString(_newLimit), " from ", Strings.toHexString(extremeRewardLimit), "."
     )); 
 

@@ -65,7 +65,7 @@ Example Functions:
 
 Array index change:
     function proposeContractAddressUpdate(uint256 _contractIndex, address _newAddress) public {
-        require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+        require(_msgSender() == contracts[5], "Only executors can call this function!");
         require(_newAddress != address(0), "New address can not be the null address!");
 
         string memory proposalDescription = string(abi.encodePacked(
@@ -115,10 +115,10 @@ Array index change:
 
 Normal variable change:
     function proposeXXX(new value) public {
-        require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+        require(_msgSender() == contracts[5], "Only executors can call this function!");
 
         string memory proposalDescription = string(abi.encodePacked(
-            HERE -> "In Fukcing XXXXXX contract, updating YYYYY to ",
+            HERE -> "In XXXXXX contract, updating YYYYY to ",
             Strings.toHexString(_newMintCost), " from ", Strings.toHexString(mintCost), "."
         )); 
         // Create a new proposal - DAO (contracts[4]) - XXXXXXXXXXX Important Proposal (proposalTypes[XXXXXXXXXXXXXXXXXX])
@@ -177,7 +177,7 @@ Define an update code for each variable like; (update codes starts from 1 !!!)
   */
 
 function proposeContractAddressUpdate(uint256 _contractIndex, address _newAddress) public {
-    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+    require(_msgSender() == contracts[5], "Only executors can call this function!");
     require(_newAddress != address(0) || _newAddress != contracts[_contractIndex], 
         "New address can not be the null or same address!"
     );
@@ -228,7 +228,7 @@ function executeContractAddressUpdateProposal(uint256 _proposalID) public {
 }
 
 function proposeProposalTypesUpdate(uint256 _proposalIndex, uint256 _newType) public {
-    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+    require(_msgSender() == contracts[5], "Only executors can call this function!");
     require(_newType != proposalTypes[_proposalIndex], "Proposal Types are already the same moron, check your input!");
     require(_proposalIndex != 0, "0 index of proposalTypes is not in service. No need to update!");
 

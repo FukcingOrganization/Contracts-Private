@@ -9,15 +9,15 @@ import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol";
 
 /**
   * @notice
-  * -> Executers can propose to change mintCost and stop item to be minted by FDAO approval.
-  * -> Executers can update token URI without any DAO approval.
-  * -> Minters have to burn certaion amount of FUKC token to mint items.
+  * -> Executors can propose to change mintCost and stop item to be minted by FDAO approval.
+  * -> Executors can update token URI without any DAO approval.
+  * -> Minters have to burn certaion amount of STICK token to mint items.
   */
 
 /**
  * @author Bora
  */
-contract FukcingItems is ERC1155, ERC1155Burnable {
+contract StickItems is ERC1155, ERC1155Burnable {
     
   struct Item {
     string itemName;
@@ -87,12 +87,12 @@ contract FukcingItems is ERC1155, ERC1155Burnable {
   }
 
   function uri(uint256 tokenID) public view virtual override returns (string memory) {
-    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+    require(_msgSender() == contracts[5], "Only executors can call this function!");
     return items[tokenID].uri;      
   }
 
   function setTokenURI(uint256 tokenID, string memory tokenURI) public {
-    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+    require(_msgSender() == contracts[5], "Only executors can call this function!");
     items[tokenID].uri = tokenURI;
   }
 
@@ -101,7 +101,7 @@ contract FukcingItems is ERC1155, ERC1155Burnable {
   }
 
   function mint(address account, uint256 id, uint256 amount, bytes memory data) public {
-    require(items[id].isActive, "Fucking DAO has stopped this item to be minted!!"); 
+    require(items[id].isActive, "Stick DAO has stopped this item to be minted!!"); 
 
     // Burn tokens to mint
     (bool txSuccess, ) = contracts[11].call(abi.encodeWithSignature(
@@ -166,13 +166,13 @@ contract FukcingItems is ERC1155, ERC1155Burnable {
    * 
    */
   function proposeContractAddressUpdate(uint256 _contractIndex, address _newAddress) public {
-    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+    require(_msgSender() == contracts[5], "Only executors can call this function!");
     require(_newAddress != address(0) || _newAddress != contracts[_contractIndex], 
       "New address can not be the null or same address!"
     );
 
     string memory proposalDescription = string(abi.encodePacked(
-      "In Fukcing Items contract, updating contract address of index ", Strings.toHexString(_contractIndex), " to ", 
+      "In Items contract, updating contract address of index ", Strings.toHexString(_contractIndex), " to ", 
       Strings.toHexString(_newAddress), " from ", Strings.toHexString(contracts[_contractIndex]), "."
     )); 
 
@@ -217,12 +217,12 @@ contract FukcingItems is ERC1155, ERC1155Burnable {
   }
 
   function proposeProposalTypesUpdate(uint256 _proposalIndex, uint256 _newType) public {
-    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+    require(_msgSender() == contracts[5], "Only executors can call this function!");
     require(_newType != proposalTypes[_proposalIndex], "Proposal Types are already the same moron, check your input!");
     require(_proposalIndex != 0, "0 index of proposalTypes is not in service. No need to update!");
 
     string memory proposalDescription = string(abi.encodePacked(
-      "In Fukcing Items contract, updating proposal types of index ", Strings.toHexString(_proposalIndex), " to ", 
+      "In Items contract, updating proposal types of index ", Strings.toHexString(_proposalIndex), " to ", 
       Strings.toHexString(_newType), " from ", Strings.toHexString(proposalTypes[_proposalIndex]), "."
     )); 
 
@@ -267,10 +267,10 @@ contract FukcingItems is ERC1155, ERC1155Burnable {
   }
 
   function proposeMintCostUpdate(uint256 _itemID, uint256 _newCost) public {
-    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+    require(_msgSender() == contracts[5], "Only executors can call this function!");
 
     string memory proposalDescription = string(abi.encodePacked(
-      "In Fukcing Items contract, updating mint cost of item ID: ", Strings.toHexString(_itemID), " to ", 
+      "In Items contract, updating mint cost of item ID: ", Strings.toHexString(_itemID), " to ", 
       Strings.toHexString(_newCost), " from ", Strings.toHexString(items[_itemID].mintCost), "."
     )); 
 
@@ -315,19 +315,19 @@ contract FukcingItems is ERC1155, ERC1155Burnable {
   }
 
   function proposeItemActivationUpdate(uint256 _itemID, bool _activationStatus) public {
-    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+    require(_msgSender() == contracts[5], "Only executors can call this function!");
     require(items[_itemID].isActive != _activationStatus, "The activation status is already same!");
 
     string memory proposalDescription;
     if (_activationStatus){
       proposalDescription = string(abi.encodePacked(
-        "In Fukcing Items contract, updating activation status of item ID: ", 
+        "In Items contract, updating activation status of item ID: ", 
         Strings.toHexString(_itemID), " to ", " TRUE from FALSE."
       )); 
     }
     else {
       proposalDescription = string(abi.encodePacked(
-        "In Fukcing Items contract, updating activation status of item ID: ", 
+        "In Items contract, updating activation status of item ID: ", 
         Strings.toHexString(_itemID), " to ", " FALSE from TRUE."
       )); 
     }

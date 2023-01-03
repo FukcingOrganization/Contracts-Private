@@ -8,17 +8,17 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 
 /**
   @notice
-  - You can create a fukcing clan with a fukcing clan licence! Licences can only minted
-  by fukcing lords!
+  - You can create a Clan with a Clan licence! Licences can only minted
+  by lords!
   
   - Each token ID is represents the lords' ID that mint it. 
   For instance, licence with id 5 is the licence of lord ID 5.
   
-  - Executers can propose to update contract addresses, proposal types, and mint cost.
+  - Executors can propose to update contract addresses, proposal types, and mint cost.
   */
 
 /// @author Bora
-contract FukcingClanLicence is ERC1155, ERC1155Burnable {
+contract StickClanLicence is ERC1155, ERC1155Burnable {
 
   enum Status{
     NotStarted, // Index: 0
@@ -95,12 +95,12 @@ contract FukcingClanLicence is ERC1155, ERC1155Burnable {
   }
 
   function setCustomURI(uint256 _lordID, string memory _customURI) public {
-    require(_msgSender() == contracts[7], "Only the Fukcing Lords can call this fukcing function! Now, back off you prick!");
+    require(_msgSender() == contracts[7], "Only the Lords can call this function! Now, back off you prick!");
     customURI[_lordID] = _customURI;
   }
 
   function mintLicence(address _lordAddress, uint256 _lordID, uint256 _amount, bytes memory _data) public {
-    require(_msgSender() == contracts[7], "Only the Fukcing Lords can call this fukcing function! Now, back off you prick!");
+    require(_msgSender() == contracts[7], "Only the Lords can call this function! Now, back off you prick!");
     require(numOfActiveLicence[_lordID] + _amount <= 3, "Maximum number of active licence exceeds!");
 
     // Burn tokens to mint
@@ -118,13 +118,13 @@ contract FukcingClanLicence is ERC1155, ERC1155Burnable {
     mintCost -> Code: 3    
    */
   function proposeContractAddressUpdate(uint256 _contractIndex, address _newAddress) public {
-    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+    require(_msgSender() == contracts[5], "Only executors can call this function!");
     require(_newAddress != address(0) || _newAddress != contracts[_contractIndex], 
       "New address can not be the null or same address!"
     );
 
     string memory proposalDescription = string(abi.encodePacked(
-      "In Fukcing Clan Licence contract, updating contract address of index ", Strings.toHexString(_contractIndex), " to ", 
+      "In Clan Licence contract, updating contract address of index ", Strings.toHexString(_contractIndex), " to ", 
       Strings.toHexString(_newAddress), " from ", Strings.toHexString(contracts[_contractIndex]), "."
     )); 
 
@@ -169,12 +169,12 @@ contract FukcingClanLicence is ERC1155, ERC1155Burnable {
   }
 
   function proposeProposalTypesUpdate(uint256 _proposalIndex, uint256 _newType) public {
-    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+    require(_msgSender() == contracts[5], "Only executors can call this function!");
     require(_newType != proposalTypes[_proposalIndex], "Proposal Types are already the same moron, check your input!");
     require(_proposalIndex != 0, "0 index of proposalTypes is not in service. No need to update!");
 
     string memory proposalDescription = string(abi.encodePacked(
-      "In Fukcing Clan Licence contract, updating proposal types of index ", Strings.toHexString(_proposalIndex), " to ", 
+      "In Clan Licence contract, updating proposal types of index ", Strings.toHexString(_proposalIndex), " to ", 
       Strings.toHexString(_newType), " from ", Strings.toHexString(proposalTypes[_proposalIndex]), "."
     )); 
 
@@ -219,10 +219,10 @@ contract FukcingClanLicence is ERC1155, ERC1155Burnable {
   }
 
   function proposeMintCostUpdate(uint256 _newMintCost) public {
-    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+    require(_msgSender() == contracts[5], "Only executors can call this function!");
 
     string memory proposalDescription = string(abi.encodePacked(
-      "In Fukcing Clan Licence contract, updating licence mint cost to ",
+      "In Clan Licence contract, updating licence mint cost to ",
       Strings.toHexString(_newMintCost), " from ", Strings.toHexString(mintCost), "."
     )); 
 

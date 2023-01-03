@@ -23,10 +23,10 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
   *
   * -> Every player can claim just 1 reward for each level no matter how many times he/she played. 
   *
-  * -> Executers sets merkle roots for players to claim their rewards.
+  * -> Executors sets merkle roots for players to claim their rewards.
   *
-  * -> Backers of winner bosses can claim their reward without executers. 
-  * Backer rewards accounts 5% of FUKC total supply.
+  * -> Backers of winner bosses can claim their reward without executors. 
+  * Backer rewards accounts 5% of STICK total supply.
   *
   * -> Higher levels have higher backer reward which will result with higher funding and 
   * higher reward for players.
@@ -35,7 +35,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 /**
  * @author Bora
  */
-contract FukcingSeance is Context, ReentrancyGuard {
+contract StickRound is Context, ReentrancyGuard {
   using Counters for Counters.Counter;
 
   struct Election{
@@ -138,7 +138,7 @@ contract FukcingSeance is Context, ReentrancyGuard {
       "The funding round is closed for this seance. Maybe next time sweetie!"
     );
     // Check if the boss if it exists - If it has an owner, than it exists
-    require(IERC721(contracts[0]).ownerOf(_bossID) != address(0), "This fukcing boss doesn't even exist!");
+    require(IERC721(contracts[0]).ownerOf(_bossID) != address(0), "This Boss doesn't even exist!");
     // Get the funds!
     require(IERC20(contracts[11]).transferFrom(_msgSender(), address(this), _fundAmount), "Couldn't receive funds!");
 
@@ -157,7 +157,7 @@ contract FukcingSeance is Context, ReentrancyGuard {
 
   function defundBoss(uint256 _levelNumber, uint256 _bossID, uint256 _withdrawAmount) public nonReentrant() returns (bool) {
     require(_levelNumber >= 0 && _levelNumber < 13, "Invalid level number!");
-    require(IERC721(contracts[0]).ownerOf(_bossID) != address(0), "This fukcing boss doesn't even exist!");
+    require(IERC721(contracts[0]).ownerOf(_bossID) != address(0), "This Boss doesn't even exist!");
     
     Seance storage seance = seances[seanceCounter.current()];
 
@@ -166,7 +166,7 @@ contract FukcingSeance is Context, ReentrancyGuard {
     );
 
     Election storage election = seance.levels[_levelNumber].election;
-    require(election.isCandidate[_bossID] == true, "This fukcing boss is not even a candidate!");
+    require(election.isCandidate[_bossID] == true, "This Boss is not even a candidate!");
     require(election.backerFunds[_bossID][_msgSender()] >= _withdrawAmount, "You can't withdraw more than you deposited!");
 
     // If everything goes well, subtract funds
@@ -204,9 +204,9 @@ contract FukcingSeance is Context, ReentrancyGuard {
       (bool txSuccess0, ) = address(contracts[11]).call(abi.encodeWithSignature("burn(uint256)", burnAmount));
       require(txSuccess0, "Burn tx has failed!");  
 
-      // Record the fukc
-      (bool txSuccess1, ) = address(contracts[0]).call(abi.encodeWithSignature("bossFukced(uint256)", election.winnerID));
-      require(txSuccess1, "Fukc Record tx has failed!");
+      // Record the Rekt
+      (bool txSuccess1, ) = address(contracts[0]).call(abi.encodeWithSignature("bossRekt(uint256)", election.winnerID));
+      require(txSuccess1, "Rekt record tx has failed!");
     }
 
     // Now we have burnt the losers' funds and save the winner's balance. Time to start next Seance!
@@ -227,7 +227,7 @@ contract FukcingSeance is Context, ReentrancyGuard {
     seance.isPlayerClaimed[sender] = true;  // Save as claimed
 
     // Check all the levels and sum up the rewards if any
-    uint256 fukcingReward;
+    uint256 reward;
 
     for (uint i = 0; i < 13; i++){
       Level storage level = seance.levels[i]; // Get the level
@@ -235,12 +235,12 @@ contract FukcingSeance is Context, ReentrancyGuard {
       // Check the merkle tree to validate the sender has played this level
       bytes32 leaf = keccak256(abi.encodePacked(sender));
       if (MerkleProof.verify(_merkleProof, level.merkleRoot, leaf)){  // if played, collect the reward
-        fukcingReward += level.playerReward / level.totalNumberOfPlayer;
+        reward += level.playerReward / level.totalNumberOfPlayer;
       }
     }
 
-    require(fukcingReward > 0, "You have no reward to claim bro, sorry!");
-    require(IERC20(contracts[11]).transfer(sender, fukcingReward), "Something went wrong while you're trying to get your fukcing reward!");
+    require(reward > 0, "You have no reward to claim bro, sorry!");
+    require(IERC20(contracts[11]).transfer(sender, reward), "Something went wrong while you're trying to get your reward!");
   }
   
   function claimBackerReward(uint256 _seanceNumber) public {
@@ -254,7 +254,7 @@ contract FukcingSeance is Context, ReentrancyGuard {
     seance.isBackerClaimed[sender] = true;  // Save as claimed
 
     // Check all the levels and sum up the rewards if any
-    uint256 fukcingReward;
+    uint256 reward;
 
     for (uint i = 0; i < 13; i++){
       Level storage level = seance.levels[i];     // Get the level
@@ -262,12 +262,12 @@ contract FukcingSeance is Context, ReentrancyGuard {
 
       // Collect the reward from this level's election
       // Formula: rewardAmount = backerReward * backerfund(sender's on the winner Boss) / total fund (on the winner Boss)
-      fukcingReward += level.backerReward * 
+      reward += level.backerReward * 
         election.backerFunds[election.winnerID][sender] / election.candidateFunds[election.winnerID]
       ;
     }
 
-    require(IERC20(contracts[11]).transfer(sender, fukcingReward), "Something went wrong while you're trying to get your fukcing reward!");
+    require(IERC20(contracts[11]).transfer(sender, reward), "Something went wrong while you're trying to get your reward!");
   }
 
   function getPlayerRewards(bytes32[] calldata _merkleProof, uint256 _seanceNumber) public view returns (uint256[13] memory) {
@@ -320,9 +320,9 @@ contract FukcingSeance is Context, ReentrancyGuard {
   }
 
   function getBackerRewards(Seance storage _seance) internal {
-    // Get the backer rewards from fukcing token
+    // Get the backer rewards from token
     (bool txSuccess, bytes memory returnData) = contracts[11].call(abi.encodeWithSignature("backerMint()"));
-    require(txSuccess, "Transaction has failed to get backer rewards from Fukcing Token contract!");
+    require(txSuccess, "Transaction has failed to get backer rewards from Token contract!");
     (_seance.seanceRewards) = abi.decode(returnData, (uint256));
 
     // Distribute it according to level weights
@@ -332,7 +332,7 @@ contract FukcingSeance is Context, ReentrancyGuard {
   }
 
   function updateLevelRewardRates(uint256 _level, uint256 _newWeight) public {
-    require(_msgSender() == contracts[5], "Only the Fukcing Executors can update the level reward rates!!");
+    require(_msgSender() == contracts[5], "Only the Executors can update the level reward rates!!");
     require(_level >= 0 && _level < 13, "Dude! Check the level number! It can be 0 to 12!");
 
     // Update total weight
@@ -353,13 +353,13 @@ contract FukcingSeance is Context, ReentrancyGuard {
    * 
    */
   function proposeContractAddressUpdate(uint256 _contractIndex, address _newAddress) public {
-    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+    require(_msgSender() == contracts[5], "Only executors can call this function!");
     require(_newAddress != address(0) || _newAddress != contracts[_contractIndex], 
       "New address can not be the null or same address!"
     );
 
     string memory proposalDescription = string(abi.encodePacked(
-      "In Fukcing Seance contract, updating contract address of index ", Strings.toHexString(_contractIndex), " to ", 
+      "In Round contract, updating contract address of index ", Strings.toHexString(_contractIndex), " to ", 
       Strings.toHexString(_newAddress), " from ", Strings.toHexString(contracts[_contractIndex]), "."
     )); 
 
@@ -404,12 +404,12 @@ contract FukcingSeance is Context, ReentrancyGuard {
   }
 
   function proposeProposalTypesUpdate(uint256 _proposalIndex, uint256 _newType) public {
-    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+    require(_msgSender() == contracts[5], "Only executors can call this function!");
     require(_newType != proposalTypes[_proposalIndex], "Proposal Types are already the same moron, check your input!");
     require(_proposalIndex != 0, "0 index of proposalTypes is not in service. No need to update!");
 
     string memory proposalDescription = string(abi.encodePacked(
-      "In Fukcing Seance contract, updating proposal types of index ", Strings.toHexString(_proposalIndex), " to ", 
+      "In Round contract, updating proposal types of index ", Strings.toHexString(_proposalIndex), " to ", 
       Strings.toHexString(_newType), " from ", Strings.toHexString(proposalTypes[_proposalIndex]), "."
     )); 
 

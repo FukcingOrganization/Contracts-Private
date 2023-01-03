@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 
 /**
  * @notice
- * -> Renting contract using FUKC token as a medium of exchange.
+ * -> Renting contract using STICK token as a medium of exchange.
  * -> Lord owner can list and delist its NFT for a specific lenght and fee.
  * -> Everyone can rent a listed lord NFT except the owner of the lord.
  */
@@ -16,7 +16,7 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 /**
  * @author Bora
  */
-contract FukcingRent is Context {
+contract StickRent is Context {
 
   enum Status{
     NotStarted, // Index: 0
@@ -96,7 +96,7 @@ contract FukcingRent is Context {
   }
 
   function delist(uint256 _lordID) public {
-    // Get the owner from the fukcing lord contract (contracts[7])
+    // Get the owner from the lord contract (contracts[7])
     address owner = ERC721(contracts[7]).ownerOf(_lordID);
     require(_msgSender() == owner, "You can't delist a lord NFT that you don't have!");
 
@@ -119,7 +119,7 @@ contract FukcingRent is Context {
     // Rent the NFT
     bytes memory payload = abi.encodeWithSignature("setUser(uint256,address,uint256)", listing.lordID, _msgSender(), (block.timestamp + listing.length));
     (bool txSuccess, ) = contracts[7].call(payload);
-    require(txSuccess, "Transaction has fail to set rent from the Fukcing Lord contract!");
+    require(txSuccess, "Transaction has fail to set rent from the Lord contract!");
   }
 
   /**
@@ -130,13 +130,13 @@ contract FukcingRent is Context {
    * 
    */
   function proposeContractAddressUpdate(uint256 _contractIndex, address _newAddress) public {
-    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+    require(_msgSender() == contracts[5], "Only executors can call this function!");
     require(_newAddress != address(0) || _newAddress != contracts[_contractIndex], 
       "New address can not be the null or same address!"
     );
 
     string memory proposalDescription = string(abi.encodePacked(
-      "In Fukcing Rent contract, updating contract address of index ", Strings.toHexString(_contractIndex), " to ", 
+      "In Rent contract, updating contract address of index ", Strings.toHexString(_contractIndex), " to ", 
       Strings.toHexString(_newAddress), " from ", Strings.toHexString(contracts[_contractIndex]), "."
     )); 
 
@@ -181,12 +181,12 @@ contract FukcingRent is Context {
   }
 
   function proposeProposalTypesUpdate(uint256 _proposalIndex, uint256 _newType) public {
-    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+    require(_msgSender() == contracts[5], "Only executors can call this function!");
     require(_newType != proposalTypes[_proposalIndex], "Proposal Types are already the same moron, check your input!");
     require(_proposalIndex != 0, "0 index of proposalTypes is not in service. No need to update!");
 
     string memory proposalDescription = string(abi.encodePacked(
-      "In Fukcing Rent contract, updating proposal types of index ", Strings.toHexString(_proposalIndex), " to ", 
+      "In Rent contract, updating proposal types of index ", Strings.toHexString(_proposalIndex), " to ", 
       Strings.toHexString(_newType), " from ", Strings.toHexString(proposalTypes[_proposalIndex]), "."
     )); 
 

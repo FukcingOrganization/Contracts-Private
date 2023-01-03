@@ -14,13 +14,13 @@ import "@openzeppelin/contracts/utils/Strings.sol";
   - To create clan, you need a clan licence. When you create a clan, your clan licence burns.
   
   - By default, everyone is a member of every clan. An address is an actual member if and only if 
-  the member has at least 1 point in the clan. Therefore, clan leaders or executers should give at 
+  the member has at least 1 point in the clan. Therefore, clan leaders or executors should give at 
   least 1 point to all members to indicate them as members. Setting a member's point to 0 means 
   kicking it out of the clan. 
   
   - Only the leader can update clan name, description, motto, and logo.
   
-  - Clan leader can set any member as an executer to set members point and signal rebellion.
+  - Clan leader can set any member as an executor to set members point and signal rebellion.
   This will help clan leaders to reach large number of members.
   
   - When we enter a new seance timeline, first clan that claims the reward triggers the seance.
@@ -28,29 +28,29 @@ import "@openzeppelin/contracts/utils/Strings.sol";
   - Clan leaders sets the members point and all members gets their clan reward based on their
   member point compared to total member point.
   
-  - Executers and Fukcing DAO increases or decreases the point of clans. Executers doesn't need a
+  - Executors and Stick DAO increases or decreases the point of clans. Executors doesn't need a
   DAO approval to increase or decrease point of a clan. If DAO considers there has been a violation
-  of rights, DAO can start an proposal to take action. Executers and DAO have a maxiumum limit to change
-  point of a clan. DAO will have 3 days long proposal to make changes and Executers will have 6 days
+  of rights, DAO can start an proposal to take action. Executors and DAO have a maxiumum limit to change
+  point of a clan. DAO will have 3 days long proposal to make changes and Executors will have 6 days
   cool down to make changes.
   
   - Total clan rewards is limited by total supply of FDAO tokens. This incentivizes the DAO members
   who are most likely the clans members to approve new FDAO token mints to expand DAO's member base and
   increases decentralization of DAO.
   
-  - Executers can propose to update contract addresses, proposal types, cooldown time, and maximum 
+  - Executors can propose to update contract addresses, proposal types, cooldown time, and maximum 
   point to change at a time.
   */
 
 /// @author Bora
-contract FukcingClan is Context, ReentrancyGuard {
+contract StickClan is Context, ReentrancyGuard {
   using Counters for Counters.Counter;
 
   struct ClanMember {
     uint256 memberID;
     address memberAddress;
     bool isMember;
-    bool isExecuter;
+    bool isExecutor;
     bool isMod;
     uint256 currentPoint;
     mapping(uint256 => uint256) point;   // Seance Number => the last point recorded
@@ -159,7 +159,7 @@ contract FukcingClan is Context, ReentrancyGuard {
 
   uint256 public currentTotalClanPoint;  
   uint256 public maxPointToChange;        // Maximum point that can be given in a propsal
-  uint256 public cooldownTime;            // Cool down time to give clan point by executers
+  uint256 public cooldownTime;            // Cool down time to give clan point by executors
   uint256 public firstSeanceEnd;          // End of the first seance, hence the first reward time
 
   constructor(){
@@ -185,7 +185,7 @@ contract FukcingClan is Context, ReentrancyGuard {
     // Register the clan to the lord
     bytes memory payload = abi.encodeWithSignature("clanRegistration(uint256,uint256)", _lordID, clanID);
     (bool txSuccess, ) = address(contracts[7]).call(payload);
-    require(txSuccess, "Transaction has fail to register clan to the Fukcing Lord contract!");
+    require(txSuccess, "Transaction has fail to register clan to the Lord contract!");
 
     // Create the clan
     Clan storage clan = clans[clanID];
@@ -201,7 +201,7 @@ contract FukcingClan is Context, ReentrancyGuard {
 
     // Sign the leader as a member of the clan as well and give full authority
     clan.members[0].isMember = true;
-    clan.members[0].isExecuter = true;
+    clan.members[0].isExecutor = true;
     clan.members[0].isMod = true;
     clan.members[0].memberAddress = _msgSender();
 
@@ -218,7 +218,7 @@ contract FukcingClan is Context, ReentrancyGuard {
 
     // Erase data from the current clan
     currClan.members[memberID].isMember = false;
-    currClan.members[memberID].isExecuter = false;
+    currClan.members[memberID].isExecutor = false;
     currClan.members[memberID].isMod = false;
 
     // Keep record of the new clan ID of the address
@@ -227,16 +227,16 @@ contract FukcingClan is Context, ReentrancyGuard {
   }
 
   /**
-    @dev Only the fukcing executers can give clan point. 
-    There is a cooldown time to avoid executers change clan point as they wish.
-    Executers can give clan point on for the current seance.
+    @dev Only the Executors can give clan point. 
+    There is a cooldown time to avoid executors change clan point as they wish.
+    Executors can give clan point on for the current seance.
   */
   function giveClanPoint(uint256 _clanID, uint256 _point, bool _isDecreasing) public {
-    require(_msgSender() == contracts[5], "Only Fukcing Executers can call this fukcing function!"); 
+    require(_msgSender() == contracts[5], "Only Executors can call this function!"); 
     require(_point <= maxPointToChange, "Maximum amount of point exceeded!");
     require(clans[_clanID].isDisbanded == false, "This clan is disbanded!");
     
-    // Wait if the cooldown time is not passed. Avoids executers to change point as they wish!
+    // Wait if the cooldown time is not passed. Avoids executors to change point as they wish!
     require(block.timestamp > clanCooldownTime[_clanID], "Wait for the cooldown time!");
     clanCooldownTime[_clanID] = block.timestamp + cooldownTime; // set a new cooldown time
 
@@ -345,11 +345,11 @@ contract FukcingClan is Context, ReentrancyGuard {
   function updateSeance() public {
     uint256 currSeance = seanceCounter.current();
 
-    // If time is up, get rewards from FukcingToken contract first
+    // If time is up, get rewards from StickToken contract first
     if (block.timestamp > (currSeance * 1 days) + firstSeanceEnd){ // TEST -> make it 7 days
-      // Get the clans rewards from fukcing token
+      // Get the clans rewards from token
       (bool txSuccess0, bytes memory returnData0) = contracts[11].call(abi.encodeWithSignature("clanMint()"));
-      require(txSuccess0, "Transaction has failed to get backer rewards from Fukcing Token contract!");
+      require(txSuccess0, "Transaction has failed to get backer rewards from Token contract!");
 
       // Save the reward to the seance
       (seances[currSeance].clanRewards) = abi.decode(returnData0, (uint256));
@@ -419,15 +419,15 @@ contract FukcingClan is Context, ReentrancyGuard {
     }
   }
 
-  function setClanExecuter(uint256 _clanID, address _address, bool _isExecuter) public  {
+  function setClanExecutor(uint256 _clanID, address _address, bool _isExecutor) public  {
     Clan storage clan = clans[_clanID];
     ClanMember storage member = clans[_clanID].members[clan.memberIdOf[_address]];
 
     require(clan.isDisbanded == false, "This clan is disbanded!");
-    require(_msgSender() == clan.leader, "You have no authority to give Executer Role for this clan!");
+    require(_msgSender() == clan.leader, "You have no authority to give Executor Role for this clan!");
 
-    if (_isExecuter) { member.isExecuter = true; }
-    else { member.isExecuter = false; }
+    if (_isExecutor) { member.isExecutor = true; }
+    else { member.isExecutor = false; }
   }
 
   function setClanMod(uint256 _clanID, address _address, bool _isMod) public  {
@@ -435,7 +435,7 @@ contract FukcingClan is Context, ReentrancyGuard {
     ClanMember storage member = clans[_clanID].members[clan.memberIdOf[_address]];
 
     require(clan.isDisbanded == false, "This clan is disbanded!");
-    require(_msgSender() == clan.leader, "You have no authority to give Executer Role for this clan!");
+    require(_msgSender() == clan.leader, "You have no authority to give Executor Role for this clan!");
 
     if (_isMod) { member.isMod = true; }
     else { member.isMod = false; }
@@ -449,7 +449,7 @@ contract FukcingClan is Context, ReentrancyGuard {
     uint256 currSeance = seanceCounter.current();
 
     require(clan.isDisbanded == false, "This clan is disbanded!");
-    require(clan.members[clan.memberIdOf[_msgSender()]].isExecuter, "You have no authority to give point for this clan!");
+    require(clan.members[clan.memberIdOf[_msgSender()]].isExecutor, "You have no authority to give point for this clan!");
     require(clan.members[clan.memberIdOf[_memberAddress]].isMember, "The address is not a member!");
 
     // Update clan point before interact with them.
@@ -474,7 +474,7 @@ contract FukcingClan is Context, ReentrancyGuard {
     Clan storage clan = clans[_clanID];
 
     require(clan.isDisbanded == false, "This clan is disbanded!");    
-    require(clan.members[clan.memberIdOf[_msgSender()]].isExecuter, "You have no authority to signal a rebellion for this clan!");
+    require(clan.members[clan.memberIdOf[_msgSender()]].isExecutor, "You have no authority to signal a rebellion for this clan!");
 
     // Signal a rebellion,
     (bool txSuccess, ) = contracts[7].call(abi.encodeWithSignature(
@@ -524,7 +524,7 @@ contract FukcingClan is Context, ReentrancyGuard {
   // Returns true if the member is an executor in its clan
   function isMemberExecutor(address _memberAddress) public view returns (bool) {
     Clan storage clan = clans[clanOf[_memberAddress]];
-    return clan.members[clan.memberIdOf[_memberAddress]].isExecuter;
+    return clan.members[clan.memberIdOf[_memberAddress]].isExecutor;
   }
 
   // Returns true if the member is an executor in its clan
@@ -586,13 +586,13 @@ contract FukcingClan is Context, ReentrancyGuard {
     clan Point Adjustment -> Code: 5 
    */
   function proposeContractAddressUpdate(uint256 _contractIndex, address _newAddress) public {
-    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+    require(_msgSender() == contracts[5], "Only executors can call this function!");
     require(_newAddress != address(0) || _newAddress != contracts[_contractIndex], 
       "New address can not be null or the same address!"
     );
 
     string memory proposalDescription = string(abi.encodePacked(
-      "In Fukcing Clan contract, updating contract address of index ", Strings.toHexString(_contractIndex), " to ", 
+      "In Clan contract, updating contract address of index ", Strings.toHexString(_contractIndex), " to ", 
       Strings.toHexString(_newAddress), " from ", Strings.toHexString(contracts[_contractIndex]), "."
     )); 
 
@@ -637,12 +637,12 @@ contract FukcingClan is Context, ReentrancyGuard {
   }
 
   function proposeProposalTypesUpdate(uint256 _proposalIndex, uint256 _newType) public {
-    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+    require(_msgSender() == contracts[5], "Only executors can call this function!");
     require(_newType != proposalTypes[_proposalIndex], "Proposal Types are already the same moron, check your input!");
     require(_proposalIndex != 0, "0 index of proposalTypes is not in service. No need to update!");
 
     string memory proposalDescription = string(abi.encodePacked(
-      "In Fukcing Clan contract, updating proposal types of index ", Strings.toHexString(_proposalIndex), " to ", 
+      "In Clan contract, updating proposal types of index ", Strings.toHexString(_proposalIndex), " to ", 
       Strings.toHexString(_newType), " from ", Strings.toHexString(proposalTypes[_proposalIndex]), "."
     )); 
 
@@ -687,10 +687,10 @@ contract FukcingClan is Context, ReentrancyGuard {
   }
 
   function proposeMaxPointToChangeUpdate(uint256 _newMaxPoint) public {
-    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+    require(_msgSender() == contracts[5], "Only executors can call this function!");
 
     string memory proposalDescription = string(abi.encodePacked(
-      "In Fukcing Clan contract, updating maximum clan point to change at a time to ",
+      "In Clan contract, updating maximum clan point to change at a time to ",
       Strings.toHexString(_newMaxPoint), " from ", Strings.toHexString(maxPointToChange), "."
     )); 
 
@@ -734,10 +734,10 @@ contract FukcingClan is Context, ReentrancyGuard {
   }
 
   function proposeCooldownTimeUpdate(uint256 _newCooldownTime) public {
-    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+    require(_msgSender() == contracts[5], "Only executors can call this function!");
 
     string memory proposalDescription = string(abi.encodePacked(
-      "In Fukcing Clan contract, updating cooldown time (Unix Time) to ",
+      "In Clan contract, updating cooldown time (Unix Time) to ",
       Strings.toHexString(_newCooldownTime), " from ", Strings.toHexString(cooldownTime), "."
     )); 
 
@@ -804,13 +804,13 @@ contract FukcingClan is Context, ReentrancyGuard {
     string memory proposalDescription;
     if (!_isDecreasing){
       proposalDescription = string(abi.encodePacked(
-        "In Fukcing Clan contract, adding ", Strings.toHexString(_pointToChange), 
+        "In Clan contract, adding ", Strings.toHexString(_pointToChange), 
         " point to the clan ID: ", Strings.toHexString(_clanID), "." 
       )); 
     }
     else {
       proposalDescription = string(abi.encodePacked(
-        "In Fukcing Clan contract, subtracting ", Strings.toHexString(_pointToChange), 
+        "In Clan contract, subtracting ", Strings.toHexString(_pointToChange), 
         " point from the clan ID: ", Strings.toHexString(_clanID), "." 
       )); 
     }
@@ -835,7 +835,7 @@ contract FukcingClan is Context, ReentrancyGuard {
   }
 
   /**
-    @dev Only the fukcing DAO can clan point change AFTER the current seance UP TO 2 seance later. 
+    @dev Only the Stick DAO can clan point change AFTER the current seance UP TO 2 seance later. 
     DAO will need 2-3 days to get approved clan point change execution. Therefore, there are limited times to do so.
   */
   function executeClanPointAdjustment(uint256 _proposalID) public {

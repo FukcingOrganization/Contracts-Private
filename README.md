@@ -1,2 +1,2 @@
 # Contracts
-Fukcing Contracts
+Contracts

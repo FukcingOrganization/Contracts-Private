@@ -11,14 +11,14 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 
 /**
   * @notice:
-  * -> FUKC token has dynamic minting mechanism. Every allocation part has its mint per second to mint in any time.
+  * -> STICK token has dynamic minting mechanism. Every allocation part has its mint per second to mint in any time.
   *
   * -> maxSupply can change by DAO 13 days long proposal with %90 approval rate after 2 years from
   * and there is 1 month left to reach the current max supply
   *
   * -> Mint rate can chage with same hard approval after 1 year: backers, clans, community, staking
   *
-  * -> 51% of the executors can pause/unpause the FUKC token.
+  * -> 51% of the executors can pause/unpause the STICK token.
   */
 
 /**
@@ -40,7 +40,7 @@ import "@openzeppelin/contracts/utils/Counters.sol";
  * @author Bora
  */
 
-contract FukcingToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
+contract StickToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
 
     enum Status{
         NotStarted, // Index: 0
@@ -139,7 +139,7 @@ contract FukcingToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
         bytes32[13] memory _testnetRoots,
         uint256[13] memory _testnetMintPerSecond
     ) 
-        ERC20("FukcingToken", "FUKC") 
+        ERC20("StickToken", "STICK") 
     {
         deploymentTime = block.timestamp;   // Test -> Add the exact date here as comment for people to see
         oneYearLater = deploymentTime + 31556926;   // Add 1 year
@@ -176,7 +176,7 @@ contract FukcingToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
     // Vesting Mechanism - Dynamic Mint 
 
     function backerMint() public returns (uint256){
-        require(_msgSender() == contracts[9], "Only the Fukcing Seance contract can call this fukcing function!");
+        require(_msgSender() == contracts[9], "Only the Round contract can call this function!");
         require(totalSupply() <= maxSupply, "Max supply has been reached!");
 
         // Mint starts 7 days before the token deployment to reward backers and players for the initial seance
@@ -191,7 +191,7 @@ contract FukcingToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
     }
 
     function clanMint() public returns (uint256){
-        require(_msgSender() == contracts[1], "Only the Fukcing Clan contract can call this fukcing function!");
+        require(_msgSender() == contracts[1], "Only the Clan contract can call this function!");
         require(totalSupply() <= maxSupply, "Max supply has been reached!");
 
         uint256 totalReward = (block.timestamp - deploymentTime) * mintPerSecond[1];
@@ -209,7 +209,7 @@ contract FukcingToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
     }
 
     function communityMint() public returns (uint256){
-        require(_msgSender() == contracts[3], "Only the Fukcing Community can call this fukcing function!");
+        require(_msgSender() == contracts[3], "Only the Community can call this function!");
         require(totalSupply() <= maxSupply, "Max supply has been reached!");
         
         // Community mint date starts ~142 days ago to have 13% TGE which is 921k tokens.
@@ -224,7 +224,7 @@ contract FukcingToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
     }
 
     function stakingMint() public returns (uint256){        
-        require(_msgSender() == contracts[5], "Only the Fukcing Executors can call this fukcing function!");
+        require(_msgSender() == contracts[5], "Only the Executors can call this function!");
         require(totalSupply() <= maxSupply, "Max supply has been reached!");
         
         uint256 totalReward = (block.timestamp - deploymentTime) * mintPerSecond[3];
@@ -238,7 +238,7 @@ contract FukcingToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
     }
 
     function daoMint() public returns (uint256){        
-        require(_msgSender() == contracts[5], "Only the Fukcing Executors can call this fukcing function!");
+        require(_msgSender() == contracts[5], "Only the Executors can call this function!");
         require(totalSupply() <= maxSupply, "Max supply has been reached!");
         
         uint256 totalReward = (block.timestamp - deploymentTime) * mintPerSecond[4];
@@ -267,7 +267,7 @@ contract FukcingToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
     }
 
     function developmentMint() public returns (uint256){        
-        require(_msgSender() == contracts[5], "Only the Fukcing Executors can call this fukcing function!");
+        require(_msgSender() == contracts[5], "Only the Executors can call this function!");
         require(block.timestamp <= oneYearLater, "Development vesting period ended!");
         
         uint256 totalReward = (block.timestamp - deploymentTime) * mintPerSecond[5];
@@ -324,13 +324,13 @@ contract FukcingToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
      */
 
     function proposeContractAddressUpdate(uint256 _contractIndex, address _newAddress) public {
-        require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+        require(_msgSender() == contracts[5], "Only executors can call this function!");
         require(_newAddress != address(0) || _newAddress != contracts[_contractIndex], 
             "New address can not be the null or same address!"
         );
 
         string memory proposalDescription = string(abi.encodePacked(
-            "In FukcingToken contract, updating contract address of index ", Strings.toHexString(_contractIndex), " to ", 
+            "In StickToken contract, updating contract address of index ", Strings.toHexString(_contractIndex), " to ", 
             Strings.toHexString(_newAddress), " from ", Strings.toHexString(contracts[_contractIndex]), "."
         )); 
  
@@ -375,12 +375,12 @@ contract FukcingToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
     }
 
     function proposeProposalTypesUpdate(uint256 _proposalIndex, uint256 _newType) public {
-        require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+        require(_msgSender() == contracts[5], "Only executors can call this function!");
         require(_newType != proposalTypes[_proposalIndex], "Proposal Types are already the same moron, check your input!");
         require(_proposalIndex != 0, "0 index of proposalTypes is not in service. No need to update!");
 
         string memory proposalDescription = string(abi.encodePacked(
-            "In Fukcing Token contract, updating proposal types of index ", Strings.toHexString(_proposalIndex), 
+            "In Token contract, updating proposal types of index ", Strings.toHexString(_proposalIndex), 
             " to ", Strings.toHexString(_newType), " from ", Strings.toHexString(proposalTypes[_proposalIndex]), "."
         ));
 
@@ -425,7 +425,7 @@ contract FukcingToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
     }
 
     function proposeMintPerSecondUpdate(uint256 _mintIndex, uint256 _newMintPerSecond) public {
-        require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+        require(_msgSender() == contracts[5], "Only executors can call this function!");
         require(block.timestamp > oneYearLater, "You can't change tokenomics till end of the first year!");
 
         require(_newMintPerSecond != mintPerSecond[_mintIndex], "Mint rates are already the same moron, check your input!");
@@ -485,7 +485,7 @@ contract FukcingToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
     }
 
     function proposeToIncreaseMaxSupply(uint256 _newMaxSupply) public {
-        require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+        require(_msgSender() == contracts[5], "Only executors can call this function!");
         require(block.timestamp > twoYearsLater, "You can't increase the max supply till end of the second year!");
         require(_newMaxSupply > maxSupply, "New max supply can't be equal or lower than the current one");
 

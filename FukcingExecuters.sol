@@ -12,15 +12,15 @@ import "@openzeppelin/contracts/utils/Counters.sol";
  
 /**
  * @notice
- * -> Executers executes update proposals to maintain the sustainablity and balance in WeFukc.
- * -> At least half of the executers should signal to propose a new proposal within the signal time
- * -> FDAO can hire or fire executers.
+ * -> Executors executes update proposals to maintain the sustainablity and balance in Stick Fight.
+ * -> At least half of the executors should signal to propose a new proposal within the signal time
+ * -> FDAO can hire or fire executors.
  */
 
 /**
  * @author Bora
  */
-contract FukcingExecuters is Context, AccessControl {
+contract StickExecutors is Context, AccessControl {
   using Counters for Counters.Counter;  
 
   enum Status{
@@ -59,7 +59,7 @@ contract FukcingExecuters is Context, AccessControl {
   mapping(uint256 => Signal) public signals;      // function ID => Signal
   mapping(address => bool) public isExecutor;     // The executors
 
-  bytes32 public constant EXECUTER_ROLE = keccak256("EXECUTER_ROLE");
+  bytes32 public constant EXECUTOR_ROLE = keccak256("EXECUTOR_ROLE");
 
   /** 
     * Index 0: Boss Contract
@@ -88,16 +88,16 @@ contract FukcingExecuters is Context, AccessControl {
    */
   uint256[4] public proposalTypes;
 
-  uint256 public numOfExecuters;
+  uint256 public numOfExecutors;
   uint256[] public signalTrackerID;
   uint256 public signalTime;
 
   constructor() {
-    // Grant the deployer as an executer
-    _grantRole(EXECUTER_ROLE, _msgSender());
-    numOfExecuters++;  
+    // Grant the deployer as an executor
+    _grantRole(EXECUTOR_ROLE, _msgSender());
+    numOfExecutors++;  
 
-    // At least half of the executer should signal within (initially) 1 day to execute a new proposal 
+    // At least half of the executor should signal within (initially) 1 day to execute a new proposal 
     signalTime = 1 days;        
     signalCounter.increment();  // Start the counter from 1
   }
@@ -113,7 +113,7 @@ contract FukcingExecuters is Context, AccessControl {
     uint256 _contractIndex,  // Destination Contract address
     uint256 _subjectIndex,   // The address that we want to update in the destination contract. Same index as contracts
     address _newAddress     // New address
-  ) public onlyRole(EXECUTER_ROLE) {
+  ) public onlyRole(EXECUTOR_ROLE) {
     // Get the current signal ID for this proposal function
     uint256 sID = signalTrackerID[1];
 
@@ -132,7 +132,7 @@ contract FukcingExecuters is Context, AccessControl {
       newSignal.propAddrees = _newAddress;
 
       newSignal.numOfSignals++;
-      newSignal.isSignaled[_msgSender()] = true;  // Save the executer address as signaled
+      newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
       return; // finish the function
     }   
 
@@ -144,8 +144,8 @@ contract FukcingExecuters is Context, AccessControl {
     signal.isSignaled[_msgSender()] = true;
     signal.numOfSignals++;
 
-    // Execute proposal if the half of the executers signaled
-    if (signal.numOfSignals >= (numOfExecuters / 2)){
+    // Execute proposal if the half of the executors signaled
+    if (signal.numOfSignals >= (numOfExecutors / 2)){
       (bool txSuccess, ) = contracts[signal.contractIndex].call(abi.encodeWithSignature(
         "proposeContractAddressUpdate(uint256,address)", signal.subjectIndex, signal.propAddrees
       ));
@@ -154,7 +154,7 @@ contract FukcingExecuters is Context, AccessControl {
     }       
   }
   
-  function updateLordMintCost(uint256 _newCost) public onlyRole(EXECUTER_ROLE) {
+  function updateLordMintCost(uint256 _newCost) public onlyRole(EXECUTOR_ROLE) {
     // Get the current signal ID for this proposal function
     uint256 sID = signalTrackerID[3];
 
@@ -169,7 +169,7 @@ contract FukcingExecuters is Context, AccessControl {
       newSignal.propUint = _newCost;
 
       newSignal.numOfSignals++;
-      newSignal.isSignaled[_msgSender()] = true;  // Save the executer address as signaled
+      newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
       return; // finish the function
     }   
 
@@ -181,8 +181,8 @@ contract FukcingExecuters is Context, AccessControl {
     signal.isSignaled[_msgSender()] = true;
     signal.numOfSignals++;
 
-    // Execute proposal if the half of the executers signaled
-    if (signal.numOfSignals >= (numOfExecuters / 2)){
+    // Execute proposal if the half of the executors signaled
+    if (signal.numOfSignals >= (numOfExecutors / 2)){
       (bool txSuccess, ) = contracts[7].call(abi.encodeWithSignature("updateMintCost(uint256)", signal.propUint));
       require(txSuccess, "Transaction failed to execute update function!");
       signal.expires = 0; // To avoid further executions
@@ -194,16 +194,16 @@ contract FukcingExecuters is Context, AccessControl {
    * Updates by DAO - Update Codes
    * Contract Address Change -> Code: 1
    * Proposal Type Change -> Code: 2
-   * Executer Propsosal -> Code: 3
+   * Executor Propsosal -> Code: 3
    * 
    */
-  function proposeContractAddressUpdate(uint256 _contractIndex, address _newAddress) public onlyRole(EXECUTER_ROLE) {
+  function proposeContractAddressUpdate(uint256 _contractIndex, address _newAddress) public onlyRole(EXECUTOR_ROLE) {
     require(_newAddress != address(0) || _newAddress != contracts[_contractIndex], 
       "New address can not be the null or same address!"
     );
 
     string memory proposalDescription = string(abi.encodePacked(
-      "In Fukcing Executers, updating contract address of index ", Strings.toHexString(_contractIndex), " to ", 
+      "In Executors, updating contract address of index ", Strings.toHexString(_contractIndex), " to ", 
       Strings.toHexString(_newAddress), " from ", Strings.toHexString(contracts[_contractIndex]), "."
     )); 
 
@@ -247,12 +247,12 @@ contract FukcingExecuters is Context, AccessControl {
     proposal.isExecuted = true;
   }
 
-  function proposeProposalTypesUpdate(uint256 _proposalIndex, uint256 _newType) public onlyRole(EXECUTER_ROLE) {
+  function proposeProposalTypesUpdate(uint256 _proposalIndex, uint256 _newType) public onlyRole(EXECUTOR_ROLE) {
     require(_newType != proposalTypes[_proposalIndex], "Proposal Types are already the same moron, check your input!");
     require(_proposalIndex != 0, "0 index of proposalTypes is not in service. No need to update!");
   
     string memory proposalDescription = string(abi.encodePacked(
-      "In Fukcing Executers contract, updating proposal types of index ", Strings.toHexString(_proposalIndex), " to ", 
+      "In Executors contract, updating proposal types of index ", Strings.toHexString(_proposalIndex), " to ", 
       Strings.toHexString(_newType), " from ", Strings.toHexString(proposalTypes[_proposalIndex]), "."
     )); 
   
@@ -296,9 +296,9 @@ contract FukcingExecuters is Context, AccessControl {
     proposal.isExecuted = true;
   }
   
-  function proposeExecuterRole(address _address, bool _setAsExecuter) public {
+  function proposeExecutorRole(address _address, bool _setAsExecutor) public {
     require(_address != address(0), "The executor address can not be the null address!");
-    require(hasRole(EXECUTER_ROLE, _address) != _setAsExecuter, "The role of the address is already same!");
+    require(hasRole(EXECUTOR_ROLE, _address) != _setAsExecutor, "The role of the address is already same!");
 
     /// *************** Check Caller's Eligibility to Propose *************** ///
 
@@ -324,14 +324,14 @@ contract FukcingExecuters is Context, AccessControl {
 
             
     string memory proposalDescription;
-    if (_setAsExecuter){
+    if (_setAsExecutor){
       proposalDescription = string(abi.encodePacked(
-        "Assigning ", Strings.toHexString(_address), " address as a new executer!"
+        "Assigning ", Strings.toHexString(_address), " address as a new executor!"
       ));
     }
     else {
       proposalDescription = string(abi.encodePacked(
-        "Resigning ", Strings.toHexString(_address), " address from its executer role!"
+        "Resigning ", Strings.toHexString(_address), " address from its executor role!"
       ));
     } 
 
@@ -347,7 +347,7 @@ contract FukcingExecuters is Context, AccessControl {
     // Save data to the proposal
     proposals[propID].updateCode = 3;
     proposals[propID].newAddress = _address;
-    proposals[propID].newBool = _setAsExecuter;
+    proposals[propID].newBool = _setAsExecutor;
   }
 
   function executeRoleProposal(uint256 _proposalID) public {
@@ -371,12 +371,12 @@ contract FukcingExecuters is Context, AccessControl {
     // if the proposal is approved, apply the update the state
     if (proposal.status == Status.Approved){
       if (proposal.newBool == true){ 
-        _grantRole(EXECUTER_ROLE, proposal.newAddress);
-        numOfExecuters++;
+        _grantRole(EXECUTOR_ROLE, proposal.newAddress);
+        numOfExecutors++;
       }
       else {
-        _revokeRole(EXECUTER_ROLE, proposal.newAddress);
-        numOfExecuters--;
+        _revokeRole(EXECUTOR_ROLE, proposal.newAddress);
+        numOfExecutors--;
       }
     }
 

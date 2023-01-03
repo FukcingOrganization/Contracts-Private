@@ -12,7 +12,7 @@ import "./IERC4907.sol";
 
 /**
  * @notice
- * -> Executers can propose to change mint cost by FDAO approval.
+ * -> Executors can propose to change mint cost by FDAO approval.
   *
  * -> A Lord can mint maximum of 3 clan licences. Once a licences used by a clan leader to create
  * clan, the licence burns and lord can mint a new licence.
@@ -29,14 +29,14 @@ import "./IERC4907.sol";
  * 13% of the total funds in a war burns as war casualties. Remaining funds goes to the winner side.
  * Everyone can support the lord or rebels! Supporters of winner side shares the losers' funds after war!
   *
- * -> Fukcing Lord NFTs are rentable. Lords can rent them out by setting renter address and expire date.
+ * -> Lord NFTs are rentable. Lords can rent them out by setting renter address and expire date.
  * An owner can't rent out the NFT until the current expire date passes.
   *
  * -> The Lord Tax goes to the renter. If there no renter, tax goes to the owner.
  * The renter can't mint clan licences but can vote for DAO proposals and collects taxes.
   *
  * -> Owner can rent out the Lord without any fee from the contract or another interfaces. Lords who want
- * to get rent fees in FUKC tokens can use FukcingRent contract to rent them out.
+ * to get rent fees in STICK tokens can use StickRent contract to rent them out.
  *
  * -> Upper limit of mint cost is 666$.
  */
@@ -44,7 +44,7 @@ import "./IERC4907.sol";
 /**
  * @author Bora
  */
-contract FukcingLord is ERC721, ERC721Burnable {  
+contract StickLord is ERC721, ERC721Burnable {  
   using Counters for Counters.Counter;
 
   Counters.Counter private _tokenIdCounter;
@@ -150,7 +150,7 @@ contract FukcingLord is ERC721, ERC721Burnable {
   uint256 public victoryRate;     // Adjustable by DAO  | The rate (%) of the funds that is required to declare victory against the lord 
   uint256 public warCasualtyRate; // Adjustable by DAO  | The rate (%) that will burn as a result of the war
 
-  constructor(string memory _baseURI) ERC721("FukcingLord", "FLORD") {
+  constructor(string memory _baseURI) ERC721("StickLord", "SLORD") {
     _tokenIdCounter.increment();  // token IDs starts from 1 and goes to 666
     rebellionCounter.increment(); // Leave first (0) rebellion empty for all lords to start a new one
     maxSupply = 666;
@@ -178,7 +178,7 @@ contract FukcingLord is ERC721, ERC721Burnable {
   function safeMint(address to) public {
     uint256 tokenId = _tokenIdCounter.current();
 
-    require(tokenId < maxSupply, "Sorry mate, there can ever be only 666 Fukcing Lords, and they are all out!");
+    require(tokenId < maxSupply, "Sorry mate, there can ever be only 666 Lords, and they are all out!");
     ERC20Burnable(contracts[11]).burnFrom(_msgSender(), mintCost);
     
     _tokenIdCounter.increment();
@@ -199,7 +199,7 @@ contract FukcingLord is ERC721, ERC721Burnable {
     
     bytes memory payload = abi.encodeWithSignature("mintLicence(address,uint256,uint256,bytes)", _msgSender(), _lordID, _amount, _data);
     (bool txSuccess, ) = address(contracts[2]).call(payload);
-    require(txSuccess, "Transaction has fail to mint new licence from the Fukcing Licence contract!");
+    require(txSuccess, "Transaction has fail to mint new licence from the Licence contract!");
   }
 
   function setCustomLicenceURI(uint256 _lordID, string memory _newURI) public {
@@ -207,18 +207,18 @@ contract FukcingLord is ERC721, ERC721Burnable {
 
     bytes memory payload = abi.encodeWithSignature("setCustomURI(uint256,string)", _lordID, _newURI);
     (bool txSuccess, ) = address(contracts[2]).call(payload);
-    require(txSuccess, "Transaction has fail to set a new URI for the Fukcing Licence!");
+    require(txSuccess, "Transaction has fail to set a new URI for the Licence!");
   }
 
   function clanRegistration(uint256 _lordID, uint256 _clanID) public {
-    require(_msgSender() == contracts[1], "Only the Fukcing Clan contract can call this fukcing function! Now, back off you domass!");
+    require(_msgSender() == contracts[1], "Only the Clan contract can call this function! Now, back off you domass!");
 
     clansOf[_lordID].push(_clanID);     // Keep the record of the clan ID
     numberOfActiveLicences[_lordID]--;  // Reduce the number of active licences since one of them burnt via clan creation
   }
 
   function DAOvote(uint256 _proposalID, bool _isApproving, uint256 _lordID) public {
-    require(userOf(_lordID) == _msgSender(), "Who are you fooling? You have no right to vote for this Fukcing Lord!");
+    require(userOf(_lordID) == _msgSender(), "Who are you fooling? You have no right to vote for this Lord!");
 
     bytes memory payload = abi.encodeWithSignature(
       "lordVote(uint256,bool,uint256,uint256)", _proposalID, _isApproving, _lordID, totalSupply
@@ -414,13 +414,13 @@ contract FukcingLord is ERC721, ERC721Burnable {
   }
 
   /**
-    @notice Fukcing Executors can update mint cost without DAO approval. This is due to the expected 
+    @notice Executors can update mint cost without DAO approval. This is due to the expected 
     extreme volatility at the beginning of the game. The upper limit of the mint cost will be 666$. 
     Executors will the mint cost according to the token price. This process will end when the lords 
     reach the maximum supply.
    */
   function updateMintCost(uint256 _newCost) public {
-    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+    require(_msgSender() == contracts[5], "Only executors can call this function!");
     mintCost = _newCost;
   }
 
@@ -438,13 +438,13 @@ contract FukcingLord is ERC721, ERC721Burnable {
    * 
    */
   function proposeContractAddressUpdate(uint256 _contractIndex, address _newAddress) public {
-    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+    require(_msgSender() == contracts[5], "Only executors can call this function!");
     require(_newAddress != address(0) || _newAddress != contracts[_contractIndex], 
       "New address can not be the null or same address!"
     );
 
     string memory proposalDescription = string(abi.encodePacked(
-      "In Fukcing Lord contract, updating contract address of index ", Strings.toHexString(_contractIndex), " to ", 
+      "In Lord contract, updating contract address of index ", Strings.toHexString(_contractIndex), " to ", 
       Strings.toHexString(_newAddress), " from ", Strings.toHexString(contracts[_contractIndex]), "."
     )); 
 
@@ -489,12 +489,12 @@ contract FukcingLord is ERC721, ERC721Burnable {
   }
 
   function proposeProposalTypesUpdate(uint256 _proposalIndex, uint256 _newType) public {
-    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+    require(_msgSender() == contracts[5], "Only executors can call this function!");
     require(_newType != proposalTypes[_proposalIndex], "Proposal Types are already the same moron, check your input!");
     require(_proposalIndex != 0, "0 index of proposalTypes is not in service. No need to update!");
 
     string memory proposalDescription = string(abi.encodePacked(
-      "In Fukcing Lord contract, updating proposal types of index ", Strings.toHexString(_proposalIndex), " to ", 
+      "In Lord contract, updating proposal types of index ", Strings.toHexString(_proposalIndex), " to ", 
       Strings.toHexString(_newType), " from ", Strings.toHexString(proposalTypes[_proposalIndex]), "."
     )); 
 
@@ -539,10 +539,10 @@ contract FukcingLord is ERC721, ERC721Burnable {
   }
 
   function proposeBaseTaxRateUpdate(uint256 _newBaseTaxRate) public {
-    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+    require(_msgSender() == contracts[5], "Only executors can call this function!");
 
     string memory proposalDescription = string(abi.encodePacked(
-      "In Fukcing Lord contract, updating Base Tax Rate to ", 
+      "In Lord contract, updating Base Tax Rate to ", 
       Strings.toHexString(_newBaseTaxRate), " from ", Strings.toHexString(baseTaxRate), "."
     )); 
 
@@ -586,10 +586,10 @@ contract FukcingLord is ERC721, ERC721Burnable {
   }
 
   function proposeTaxChangeRateUpdate(uint256 _newTaxChangeRate) public {
-    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+    require(_msgSender() == contracts[5], "Only executors can call this function!");
 
     string memory proposalDescription = string(abi.encodePacked(
-      "In Fukcing Lord contract, updating Tax Rate Change to ", 
+      "In Lord contract, updating Tax Rate Change to ", 
       Strings.toHexString(_newTaxChangeRate), " from ", Strings.toHexString(taxChangeRate), "."
     )); 
 
@@ -633,10 +633,10 @@ contract FukcingLord is ERC721, ERC721Burnable {
   }
 
   function proposeRebellionLenghtUpdate(uint256 _newRebellionLenght) public {
-    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+    require(_msgSender() == contracts[5], "Only executors can call this function!");
 
     string memory proposalDescription = string(abi.encodePacked(
-      "In Fukcing Lord contract, updating Rebellion Lenght to ", 
+      "In Lord contract, updating Rebellion Lenght to ", 
       Strings.toHexString(_newRebellionLenght), " from ", Strings.toHexString(rebellionLenght), "."
     )); 
 
@@ -680,10 +680,10 @@ contract FukcingLord is ERC721, ERC721Burnable {
   }
 
   function proposeSignalLenghtUpdate(uint256 _newSignalLenght) public {
-    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+    require(_msgSender() == contracts[5], "Only executors can call this function!");
 
     string memory proposalDescription = string(abi.encodePacked(
-      "In Fukcing Lord contract, updating Signal Lenght to ", 
+      "In Lord contract, updating Signal Lenght to ", 
       Strings.toHexString(_newSignalLenght), " from ", Strings.toHexString(signalLenght), "."
     )); 
 
@@ -727,10 +727,10 @@ contract FukcingLord is ERC721, ERC721Burnable {
   }
 
   function proposeVictoryRateUpdate(uint256 _newVictoryRate) public {
-    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+    require(_msgSender() == contracts[5], "Only executors can call this function!");
 
     string memory proposalDescription = string(abi.encodePacked(
-      "In Fukcing Lord contract, updating Victory Rate to ", 
+      "In Lord contract, updating Victory Rate to ", 
       Strings.toHexString(_newVictoryRate), " from ", Strings.toHexString(victoryRate), "."
     )); 
 
@@ -774,10 +774,10 @@ contract FukcingLord is ERC721, ERC721Burnable {
   }
 
   function proposeWarCasualtyRateUpdate(uint256 _newWarCasualtyRate) public {
-    require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+    require(_msgSender() == contracts[5], "Only executors can call this function!");
 
     string memory proposalDescription = string(abi.encodePacked(
-      "In Fukcing Lord contract, updating War Casualty Rate to ", 
+      "In Lord contract, updating War Casualty Rate to ", 
       Strings.toHexString(_newWarCasualtyRate), " from ", Strings.toHexString(warCasualtyRate), "."
     )); 
 

@@ -12,7 +12,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
   * -> FDAO tokens are non-transferable! Therefore, you can't buy the governance,
   * you can't transfer the governance! You should earn it.
   *
-  * -> Executers of WeFukc proposes new updated and FDAO decide wheter apply or deny
+  * -> Executors of Stick Fight proposes new updated and FDAO decide wheter apply or deny
   * the update. These updates are fully on-chain and not optional for the team to apply.
   *
   * -> Addresses with a minimum balance to propose can propose new custom proposals to
@@ -20,10 +20,10 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
   *
   * -> FDAO issues the new FDAO tokens for distribution to designated accounts.
   *
-  * -> The DAO has 5% allocation of FUKC tokens. The DAO will vote for spending of these tokens
+  * -> The DAO has 5% allocation of STICK tokens. The DAO will vote for spending of these tokens
   * alongside with other ERC20 tokens and native coins that might be donated to the DAO.
   *
-  * -> Fukcing Lords represents 50% of the DAO. The lord contract holds 50% of FDAO tokens.
+  * -> Lords represents 50% of the DAO. The lord contract holds 50% of FDAO tokens.
   */
 
 /*
@@ -67,17 +67,17 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 */
 
 /*
-    We are the FukcingDAO. We make our changes as possible as on-chain and fair!
+    We are the StickDAO. We make our changes as possible as on-chain and fair!
 
-    The Fukcing DAO tokens are not transferable!
+    The Stick DAO tokens are not transferable!
     Therefore you can't buy them, you have to earn them!
     FDAO token is based on ERC-20 standard and manipulated to be non-transferable.
 
     What does DAO do?
     - Issues new FDAO tokens.
-    - Approves all economic changes in WeFukc.
+    - Approves all economic changes in Stick Fight.
     - Provides a on-chain voting mechanism for both off-chain and on-chain changes.
-    - The Fucking Lords represent 50% of the DAO.
+    - The Lords represent 50% of the DAO.
 
     Jump to line X to see the codes of the DAO.
     The other codes are updated openzepplin contracts to be a non-transferable token.
@@ -85,13 +85,13 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
     Only 1 monetary proposal can be active at a time! Therefore, you need to wait for
     the current one to finalize to propose a new monetary proposal. There are 3 different
-    monetary proposals: FDAO token mint, FUKC token spending, Native Coin Spending.
+    monetary proposals: FDAO token mint, STICK token spending, Native Coin Spending.
 
     DAO will decide how to spend its treasury with monetary proposals.
 */
 
 /// @author Bora
-contract FukcingDAO is ERC20 {
+contract StickDAO is ERC20 {
     using Counters for Counters.Counter;   
 
     enum Status{
@@ -197,7 +197,7 @@ contract FukcingDAO is ERC20 {
 
     uint256 public minBalanceToPropose;     // Amount of tokens without decimals
 
-    constructor() ERC20("FukcingDAO", "FDAO") {
+    constructor() ERC20("StickDAO", "FDAO") {
         /*
          * The contract creator starts with the smallest balance (0.0000000000000000001 token) to approve the first mint. 
          * First proposal will be mint of 666 tokens to be distributed amoung the community (50%) and the team (50%).
@@ -254,17 +254,17 @@ contract FukcingDAO is ERC20 {
      * To finalize a proposal, check the proposal result with isProposalPassed or proposalResult functions.
      */
     function newProposal(string memory _description, uint256 _proposalType) public returns(uint256) {
-        // Detect if the caller is a fukcing contract
-        bool isFukcingContract;
+        // Detect if the caller is a contract
+        bool isStickContract;
         for (uint i = 0; i < contracts.length; i++) { 
             if (_msgSender() == contracts[i]){ 
-                isFukcingContract = true; 
+                isStickContract = true; 
                 break; 
             }
         }
 
-        // Only the fukcing contracts and the ones who has enough balance to propose can propose
-        require(isFukcingContract || balanceOf(_msgSender()) >= minBalanceToPropose, 
+        // Only the contracts and the ones who has enough balance to propose can propose
+        require(isStickContract || balanceOf(_msgSender()) >= minBalanceToPropose, 
             "You don't have enough voting power to propose, sorry dude!"
         );
         require(_proposalType >= 0 && _proposalType < proposalTypes.length, "Invalid proposal type you fool!");
@@ -310,7 +310,7 @@ contract FukcingDAO is ERC20 {
     }
 
     /*
-     *  @dev Only the Fukcing Lord Contract can call this function to vote.
+     *  @dev Only the Lord Contract can call this function to vote.
      */
     function lordVote(uint256 _proposalID, bool _isApproving, uint256 _lordID, uint256 _lordTotalSupply) 
     public returns (string memory) {
@@ -345,12 +345,12 @@ contract FukcingDAO is ERC20 {
     // >< >< >< >< >< >< >< >< >< ><                                                              >< >< >< >< >< >< >< >< //
 
     /**
-        @dev Clan members mint as much FDAO tokens as they received in FUKC token reward by Clan Rewards. 
+        @dev Clan members mint as much FDAO tokens as they received in STICK token reward by Clan Rewards. 
         Therefore, only clan contract can call this functions and only clan members can mint new tokens.
         Total supply of FDAO tokens will be equal to total claimed clan rewards.
     */
     function mintTokens(address _minter, uint256 _amount) public {
-        require(_msgSender() == contracts[1], "Only the Fukcing Clan contract can call this fukcing function!");
+        require(_msgSender() == contracts[1], "Only the Clan contract can call this function!");
 
         // Mint for the minter (The address that claims its clan reward).
         _mint(_minter, _amount);
@@ -368,7 +368,7 @@ contract FukcingDAO is ERC20 {
         uint256 _totalSpending
     ) 
     public {
-        require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+        require(_msgSender() == contracts[5], "Only executors can call this function!");
 
         // First of all, create a new monetary proposal and check the current slot is empty for a new one.
         SpendingProposal storage proposal = spendingProposals[spendingProposalCounter.current()];
@@ -423,7 +423,7 @@ contract FukcingDAO is ERC20 {
     // DAO Native Coin Spendings
     function proposeNewCoinSpending(bytes32[] memory _merkleRoots, uint256[] memory _allowances, uint256 _totalSpending) 
     public {
-        require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+        require(_msgSender() == contracts[5], "Only executors can call this function!");
         require(address(this).balance >= _totalSpending, "DAO has not enough balance to spend! Sad, isn't it?");
 
         // Create a new monetary proposal and check the current slot is empty for a new one.
@@ -473,13 +473,13 @@ contract FukcingDAO is ERC20 {
      */
 
     function proposeContractAddressUpdate(uint256 _contractIndex, address _newAddress) public {
-        require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+        require(_msgSender() == contracts[5], "Only executors can call this function!");
         require(_newAddress != address(0) || _newAddress != contracts[_contractIndex], 
             "New address can not be the null or same address!"
         );
 
         string memory proposalDescription = string(abi.encodePacked(
-        "In Fukcing DAO contract, updating contract address of index ", Strings.toHexString(_contractIndex), " to ", 
+        "In Stick DAO contract, updating contract address of index ", Strings.toHexString(_contractIndex), " to ", 
             Strings.toHexString(_newAddress), " from ", Strings.toHexString(contracts[_contractIndex]), "."
         )); 
 
@@ -511,12 +511,12 @@ contract FukcingDAO is ERC20 {
     }
 
     function updateProposalTypeIndex(uint256 _proposalIndex, uint256 _newType) public {
-        require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+        require(_msgSender() == contracts[5], "Only executors can call this function!");
         require(_newType != proposalTypeIndexes[_proposalIndex], "Proposal Types are already the same moron, check your input!");
         require(_proposalIndex != 0, "0 index of proposalTypes is not in service. No need to update!");
 
         string memory proposalDescription = string(abi.encodePacked(
-        "In Fukcing DAO contract, Updating proposal type indexes of index ", Strings.toHexString(_proposalIndex), " to ", 
+        "In Stick DAO contract, Updating proposal type indexes of index ", Strings.toHexString(_proposalIndex), " to ", 
             Strings.toHexString(_newType), " from ", Strings.toHexString(proposalTypeIndexes[_proposalIndex]), "."
         )); 
 
@@ -548,10 +548,10 @@ contract FukcingDAO is ERC20 {
     }    
 
     function proposeMinBalanceToPropUpdate(uint256 _newAmount) public {
-        require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+        require(_msgSender() == contracts[5], "Only executors can call this function!");
 
         string memory proposalDescription = string(abi.encodePacked(
-            "In Fukcing DAO contract, updating Minimum Balance To Propose to ", 
+            "In Stick DAO contract, updating Minimum Balance To Propose to ", 
             Strings.toHexString(_newAmount), " from ", Strings.toHexString(minBalanceToPropose), "."
         )); 
 
@@ -590,7 +590,7 @@ contract FukcingDAO is ERC20 {
         uint256 _requiredTokenAmount, 
         uint256 _requiredParticipantAmount
     ) public {
-        require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+        require(_msgSender() == contracts[5], "Only executors can call this function!");
 
         string memory proposalDescription = string(abi.encodePacked(
             "Adding a new proposal type with following parameters: ", 
@@ -642,7 +642,7 @@ contract FukcingDAO is ERC20 {
         uint256 _newRequiredTokenAmount, 
         uint256 _newRequiredParticipantAmount
     ) public {
-        require(_msgSender() == contracts[5], "Only executors can call this fukcing function!");
+        require(_msgSender() == contracts[5], "Only executors can call this function!");
 
         // Splited the decription to 2 parts, because it was too deep as a whole.
         string memory part1 = string(abi.encodePacked(
