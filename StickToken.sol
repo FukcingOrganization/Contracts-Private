@@ -23,7 +23,7 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 
 /**
   * -> Vesting Mechanism                                                        //   Ether per sec         Wei per sec         Year
-  * Backers     -> Seance gets automatically        // 7days (0.6%) TGE         // 0.224538876188384    224538876188384000      3 
+  * Backers     -> Round gets automatically        // 7days (0.6%) TGE         // 0.224538876188384    224538876188384000      3 
   * Clans       -> Clan contract gets automatically                             // 0.224538876188384    224538876188384000      3 
   * Community   -> Executors pulls to the contract  // 13% TGE                  // 0.0748462920627947   74846292062794700       3 
   * Staking     -> Executors pulls to the contract  // New Contract (later)     // 0.0748462920627947   74846292062794700       3 
@@ -70,14 +70,14 @@ contract StickToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
      *  
      * Index 0: Boss Contract             
      * Index 1: Clan Contract              
-     * Index 2: ClanLicence Contract        
+     * Index 2: ClanLicense Contract        
      * Index 3: Community Contract         
      * Index 4: DAO Contract               
      * Index 5: Executor Contract            
      * Index 6: Items Contract            
      * Index 7: Lord Contract               
      * Index 8: Rent Contract               
-     * Index 9: Seance Contract             
+     * Index 9: Round Contract             
      * Index 10: Staking Contract           
      * Index 11: Token Contract          
      * Index 12: Developer Contract/address  
@@ -179,7 +179,7 @@ contract StickToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
         require(_msgSender() == contracts[9], "Only the Round contract can call this function!");
         require(totalSupply() <= maxSupply, "Max supply has been reached!");
 
-        // Mint starts 7 days before the token deployment to reward backers and players for the initial seance
+        // Mint starts 7 days before the token deployment to reward backers and players for the initial round
         uint256 totalReward = (block.timestamp - (deploymentTime - 7 days)) * mintPerSecond[0]; // TEST -> make it 7 days
         uint256 currentReward = totalReward - totalMints[0];
 

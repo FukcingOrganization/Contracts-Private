@@ -11,7 +11,7 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 
 /**
   @notice
-  - To create clan, you need a clan licence. When you create a clan, your clan licence burns.
+  - To create clan, you need a clan license. When you create a clan, your clan license burns.
   
   - By default, everyone is a member of every clan. An address is an actual member if and only if 
   the member has at least 1 point in the clan. Therefore, clan leaders or executors should give at 
@@ -23,7 +23,7 @@ import "@openzeppelin/contracts/utils/Strings.sol";
   - Clan leader can set any member as an executor to set members point and signal rebellion.
   This will help clan leaders to reach large number of members.
   
-  - When we enter a new seance timeline, first clan that claims the reward triggers the seance.
+  - When we enter a new round timeline, first clan that claims the reward triggers the round.
   
   - Clan leaders sets the members point and all members gets their clan reward based on their
   member point compared to total member point.
@@ -53,7 +53,7 @@ contract StickClan is Context, ReentrancyGuard {
     bool isExecutor;
     bool isMod;
     uint256 currentPoint;
-    mapping(uint256 => uint256) point;   // Seance Number => the last point recorded
+    mapping(uint256 => uint256) point;   // Round Number => the last point recorded
   }
 
   struct Clan {
@@ -71,19 +71,19 @@ contract StickClan is Context, ReentrancyGuard {
     uint256 proposal_ID;
     uint256 currentPoint;
     uint256 currentTotalMemberPoint;
-    uint256 firstSeance;
+    uint256 firstRound;
     uint256 balance;        
     mapping(uint256 => ClanMember) members;
     mapping(address => uint256) memberIdOf;
     Counters.Counter memberCounter;
     uint256 lastMemberID;
 
-    // Seance Number => value
+    // Round Number => value
     mapping(uint256 => uint256) point;   // Keep clan point for clan to claim
     mapping(uint256 => uint256) rewards;  // Keep reward for members to claim
     mapping(uint256 => uint256) totalMemberPoint; // Total member pts at the time
-    mapping(uint256 => mapping(address => bool)) isMemberClaimed; // Seance Number => Address => isclaimed?
-    mapping(uint256 => uint256) claimedRewards;     // Total claimed rewards by members in a seance
+    mapping(uint256 => mapping(address => bool)) isMemberClaimed; // Round Number => Address => isclaimed?
+    mapping(uint256 => uint256) claimedRewards;     // Total claimed rewards by members in a round
 
     // Admin settings of the Clan set by the leader
     bool canExecutorsSignalRebellion;
@@ -111,7 +111,7 @@ contract StickClan is Context, ReentrancyGuard {
     bool newBool;
   }
 
-  struct Seance {
+  struct Round {
     uint256 totalClanPoint;                // Total clan pts at the time
     uint256 clanRewards;                    // Total clan reward at the time
     uint256 claimedRewards;                 // Total claimd reward at the time
@@ -119,7 +119,7 @@ contract StickClan is Context, ReentrancyGuard {
   }
   
   Counters.Counter public clanCounter;
-  Counters.Counter public seanceCounter;
+  Counters.Counter public roundCounter;
 
   /**
    * proposalTypes's Indexes with corresponding meaning
@@ -136,14 +136,14 @@ contract StickClan is Context, ReentrancyGuard {
    *  
    * Index 0: Boss Contract             
    * Index 1: Clan Contract              
-   * Index 2: ClanLicence Contract        
+   * Index 2: ClanLicense Contract        
    * Index 3: Community Contract         
    * Index 4: DAO Contract               
    * Index 5: Executor Contract            
    * Index 6: Items Contract            
    * Index 7: Lord Contract               
    * Index 8: Rent Contract               
-   * Index 9: Seance Contract             
+   * Index 9: Round Contract             
    * Index 10: Staking Contract           
    * Index 11: Token Contract          
    * Index 12: Developer Contract/address  
@@ -151,7 +151,7 @@ contract StickClan is Context, ReentrancyGuard {
   address[13] public contracts; 
 
   mapping(uint256 => Proposal) public proposals;  // Proposal ID => Proposal
-  mapping(uint256 => Seance) public seances;      // Proposal Number => Seance
+  mapping(uint256 => Round) public rounds;      // Proposal Number => Round
   mapping(uint256 => Clan) public clans;          // Clan ID => Clan info
   mapping(address => uint256) public clanOf;      // ID of the clan of an address
   mapping(uint256 => uint256) public clanCooldownTime;  // Cooldown time for each clan | Clan ID => Cooldown time
@@ -160,7 +160,7 @@ contract StickClan is Context, ReentrancyGuard {
   uint256 public currentTotalClanPoint;  
   uint256 public maxPointToChange;        // Maximum point that can be given in a propsal
   uint256 public cooldownTime;            // Cool down time to give clan point by executors
-  uint256 public firstSeanceEnd;          // End of the first seance, hence the first reward time
+  uint256 public firstRoundEnd;          // End of the first round, hence the first reward time
 
   constructor(){
     clanCounter.increment();  // clan ID's should start from 1
@@ -176,7 +176,7 @@ contract StickClan is Context, ReentrancyGuard {
     string memory _clanLogoURI
   ) 
   public nonReentrant() {
-    // Burn licence to create a clan | lord ID = licence ID
+    // Burn license to create a clan | lord ID = license ID
     // If caller can burn it, then the clan will be attached to the lord with same ID
     ERC1155Burnable(contracts[1]).burn(_msgSender() ,_lordID , 1);
 
@@ -229,7 +229,7 @@ contract StickClan is Context, ReentrancyGuard {
   /**
     @dev Only the Executors can give clan point. 
     There is a cooldown time to avoid executors change clan point as they wish.
-    Executors can give clan point on for the current seance.
+    Executors can give clan point on for the current round.
   */
   function giveClanPoint(uint256 _clanID, uint256 _point, bool _isDecreasing) public {
     require(_msgSender() == contracts[5], "Only Executors can call this function!"); 
@@ -240,44 +240,44 @@ contract StickClan is Context, ReentrancyGuard {
     require(block.timestamp > clanCooldownTime[_clanID], "Wait for the cooldown time!");
     clanCooldownTime[_clanID] = block.timestamp + cooldownTime; // set a new cooldown time
 
-    // If the are in the new seance
-    updateSeance();
+    // If the are in the new round
+    updateRound();
 
-    uint256 currSeance = seanceCounter.current();
+    uint256 currRound = roundCounter.current();
     Clan storage clan = clans[_clanID];
 
     // Update clan point before interact with them. Not member (0)
     updatePoint(_clanID, address(0));
     
     if (_isDecreasing){
-      clan.point[currSeance] -= _point;
+      clan.point[currRound] -= _point;
       clan.currentPoint -= _point;
-      seances[currSeance].totalClanPoint -= _point;
+      rounds[currRound].totalClanPoint -= _point;
       currentTotalClanPoint -= _point;
     }
     else {
-      clan.point[currSeance] += _point;
+      clan.point[currRound] += _point;
       clan.currentPoint += _point;
-      seances[currSeance].totalClanPoint += _point;
+      rounds[currRound].totalClanPoint += _point;
       currentTotalClanPoint += _point;
     }
 
-    // If this was the first time of this clan, record the first seance
-    if (clan.firstSeance == 0) { clan.firstSeance = currSeance; }
+    // If this was the first time of this clan, record the first round
+    if (clan.firstRound == 0) { clan.firstRound = currRound; }
   }
 
-  function clanRewardClaim(uint256 _clanID, uint256 _seanceNumber) public {    
+  function clanRewardClaim(uint256 _clanID, uint256 _roundNumber) public {    
     require(clans[_clanID].leader != address(0), "There is no such clan with that ID!");
 
-    // If the are in the new seance
-    updateSeance();
+    // If the are in the new round
+    updateRound();
 
-    uint256 currSeance = seanceCounter.current();
+    uint256 currRound = roundCounter.current();
 
-    require(_seanceNumber < currSeance, "You can't claim the current or future seances' seances. Check seance number!");
+    require(_roundNumber < currRound, "You can't claim the current or future rounds' rounds. Check round number!");
     
-    require(seances[currSeance].isClanClaimed[_clanID] == false, "Your clan already claimed its reward for this seance!");
-    seances[currSeance].isClanClaimed[_clanID] == true;  // If not claimed yet, mark it claimed.
+    require(rounds[currRound].isClanClaimed[_clanID] == false, "Your clan already claimed its reward for this round!");
+    rounds[currRound].isClanClaimed[_clanID] == true;  // If not claimed yet, mark it claimed.
 
     Clan storage clan = clans[_clanID];
 
@@ -285,8 +285,8 @@ contract StickClan is Context, ReentrancyGuard {
     updatePoint(_clanID, address(0));  
 
     // total clan reward * clan Point * 100 / total clan point
-    uint256 reward = seances[currSeance].clanRewards * (clan.point[_seanceNumber] * 100 / seances[currSeance].totalClanPoint);
-    seances[currSeance].claimedRewards += reward;  // Keep record of the claimed rewards
+    uint256 reward = rounds[currRound].clanRewards * (clan.point[_roundNumber] * 100 / rounds[currRound].totalClanPoint);
+    rounds[currRound].claimedRewards += reward;  // Keep record of the claimed rewards
 
     // Get the address and the tax rate of the lord
     (bool txSuccess1, bytes memory returnData1) = address(contracts[7]).call(abi.encodeWithSignature("lordTaxInfo(uint256)", clan.lordID));
@@ -302,89 +302,89 @@ contract StickClan is Context, ReentrancyGuard {
       IERC20(contracts[11]).transfer(lordAddress, lordTax);
 
     // Then keep the remaining for the clan
-    clan.rewards[currSeance] = reward;
+    clan.rewards[currRound] = reward;
     clan.balance += reward;
   }
 
-  function memberRewardClaim(uint256 _clanID, uint256 _seanceNumber) public {
-    // If the are in the new seance
-    updateSeance();
+  function memberRewardClaim(uint256 _clanID, uint256 _roundNumber) public {
+    // If the are in the new round
+    updateRound();
 
     Clan storage clan = clans[_clanID];
-    uint256 _seance = _seanceNumber;
-    uint256 currSeance = seanceCounter.current();
+    uint256 _round = _roundNumber;
+    uint256 currRound = roundCounter.current();
     address sender = _msgSender();
     uint256 memberID = clan.memberIdOf[sender];
     
     require(clan.members[memberID].isMember, "You are not a member of this clan!");
-    require(3 <= currSeance, "Wait for the first 3 seance to finish to have finalized reward!");
-    require(_seance <= currSeance - 3, "You can't claim the reward until it finalizes. Rewards are getting finalized after 3 seances!");
-    require(clan.isMemberClaimed[_seance][sender] == false, "You already claimed your reward for this seance!");
-    clan.isMemberClaimed[_seance][sender] == true;  // If not claimed yet, mark it claimed.
+    require(3 <= currRound, "Wait for the first 3 round to finish to have finalized reward!");
+    require(_round <= currRound - 3, "You can't claim the reward until it finalizes. Rewards are getting finalized after 3 rounds!");
+    require(clan.isMemberClaimed[_round][sender] == false, "You already claimed your reward for this round!");
+    clan.isMemberClaimed[_round][sender] == true;  // If not claimed yet, mark it claimed.
 
     // Update clan point before interact with them.
     updatePoint(_clanID, sender);  
 
     // if clan reward is not claimed by clan executors or the leader, claim it.
-    if (clan.rewards[_seance] == 0) { clanRewardClaim(_clanID, _seance); }      
+    if (clan.rewards[_round] == 0) { clanRewardClaim(_clanID, _round); }      
 
     // calculate the reward and send it to the member!
     uint256 reward = // total reward of the clan * member Point * 100 / total member point of the clan
-      clan.rewards[_seance] * (clan.members[memberID].point[_seance] * 100 / clan.totalMemberPoint[_seance]);
+      clan.rewards[_round] * (clan.members[memberID].point[_round] * 100 / clan.totalMemberPoint[_round]);
 
     IERC20(contracts[11]).transfer(sender, reward);
     clan.balance -= reward; // Update the balance of the clan
-    clan.claimedRewards[_seance] += reward; // Update the claimed rewards
+    clan.claimedRewards[_round] += reward; // Update the claimed rewards
 
     // Mint FDAO tokens as much as the clan member reward
     (bool txSuccess,) = contracts[4].call(abi.encodeWithSignature("mintTokens(address,uint256)", sender, reward));
     require(txSuccess, "Transaction failed to mint new FDAO tokens!");
   }
 
-  /// @dev Starts the new seance if the time is up
-  function updateSeance() public {
-    uint256 currSeance = seanceCounter.current();
+  /// @dev Starts the new round if the time is up
+  function updateRound() public {
+    uint256 currRound = roundCounter.current();
 
     // If time is up, get rewards from StickToken contract first
-    if (block.timestamp > (currSeance * 1 days) + firstSeanceEnd){ // TEST -> make it 7 days
+    if (block.timestamp > (currRound * 1 days) + firstRoundEnd){ // TEST -> make it 7 days
       // Get the clans rewards from token
       (bool txSuccess0, bytes memory returnData0) = contracts[11].call(abi.encodeWithSignature("clanMint()"));
       require(txSuccess0, "Transaction has failed to get backer rewards from Token contract!");
 
-      // Save the reward to the seance
-      (seances[currSeance].clanRewards) = abi.decode(returnData0, (uint256));
+      // Save the reward to the round
+      (rounds[currRound].clanRewards) = abi.decode(returnData0, (uint256));
 
-      // Keep the total clan point to pass on to the next seance
-      uint256 currentTotalClanPoint = seances[currSeance].totalClanPoint;
+      // Keep the total clan point to pass on to the next round
+      uint256 currentTotalClanPoint = rounds[currRound].totalClanPoint;
 
-      // Pass on to the next seance
-      seanceCounter.increment();
+      // Pass on to the next round
+      roundCounter.increment();
 
-      // Pass on the current total clan point to the next seance
-      seances[seanceCounter.current()].totalClanPoint = currentTotalClanPoint;
+      // Pass on the current total clan point to the next round
+      rounds[roundCounter.current()].totalClanPoint = currentTotalClanPoint;
     }
   }
 
   function updatePoint(uint256 _clanID, address _member) internal {  
-    uint256 currSeance = seanceCounter.current();
+    uint256 currRound = roundCounter.current();
     Clan storage clan = clans[_clanID];
     
     // Update clan point
-    uint256 index = currSeance;
-    while (clan.point[index] == 0 && index > clan.firstSeance) { index--; }
-    clan.point[currSeance] = clan.point[index];
+    uint256 index = currRound;
+    while (clan.point[index] == 0 && index > clan.firstRound) { index--; }
+    clan.point[currRound] = clan.point[index];
 
     // Update total member point of the clan
-    index = currSeance;
-    while (clan.totalMemberPoint[index] == 0 && index > clan.firstSeance) { index--; }
-    clan.totalMemberPoint[currSeance] = clan.totalMemberPoint[index];
+    index = currRound;
+    while (clan.totalMemberPoint[index] == 0 && index > clan.firstRound) { index--; }
+    clan.totalMemberPoint[currRound] = clan.totalMemberPoint[index];
     
     // Member point of the clan
     if (_member == address(0)) { return; }  // If the member address is null, then skip it
     uint256 memberID = clan.memberIdOf[_member];
-    index = currSeance;
-    while (clan.members[memberID].point[index] == 0 && index > clan.firstSeance) { index--; }
-    clan.members[memberID].point[currSeance] = clan.members[memberID].point[index];
+    index = currRound;
+    while (clan.members[memberID].point[index] == 0 && index > clan.firstRound) { index--; }
+    clan.members[memberID].point[currRound] = clan.members[memberID].point[index];
   }
 
   // Governance Functions
@@ -445,8 +445,8 @@ contract StickClan is Context, ReentrancyGuard {
     Clan storage clan = clans[_clanID];
     ClanMember storage member = clans[_clanID].members[clan.memberIdOf[_memberAddress]];
     
-    updateSeance();
-    uint256 currSeance = seanceCounter.current();
+    updateRound();
+    uint256 currRound = roundCounter.current();
 
     require(clan.isDisbanded == false, "This clan is disbanded!");
     require(clan.members[clan.memberIdOf[_msgSender()]].isExecutor, "You have no authority to give point for this clan!");
@@ -457,15 +457,15 @@ contract StickClan is Context, ReentrancyGuard {
 
     // Update member point and total member point of the clan
     if (_isDecreasing) {
-      member.point[currSeance] -= _point;
+      member.point[currRound] -= _point;
       member.currentPoint -= _point;
-      clan.totalMemberPoint[currSeance] -= _point;
+      clan.totalMemberPoint[currRound] -= _point;
       clan.currentTotalMemberPoint -= _point;
     }
     else {
-      member.point[currSeance] += _point;
+      member.point[currRound] += _point;
       member.currentPoint += _point;
-      clan.totalMemberPoint[currSeance] += _point;
+      clan.totalMemberPoint[currRound] += _point;
       clan.currentTotalMemberPoint += _point;
     }
   }
@@ -540,10 +540,10 @@ contract StickClan is Context, ReentrancyGuard {
     ClanMember storage member = clans[clanOf[_memberAddress]].members[clan.memberIdOf[_memberAddress]];
 
     // Update clan point before interact with them.
-    updateSeance();
+    updateRound();
     updatePoint(clanID, _memberAddress); 
 
-    return member.point[seanceCounter.current()];
+    return member.point[roundCounter.current()];
   }
 
   // returns all the members' point along with IDs
@@ -781,21 +781,21 @@ contract StickClan is Context, ReentrancyGuard {
   }  
 
   /**
-    @notice Anyone can propose point adjustmen right after the seance is complete and until the next seance.
+    @notice Anyone can propose point adjustmen right after the round is complete and until the next round.
     You can't propose a new proposal until the current proposal gets executed
    */ 
-  function proposeClanPointAdjustment(uint256 _seanceNumber, uint256 _clanID, uint256 _pointToChange, bool _isDecreasing) public {
+  function proposeClanPointAdjustment(uint256 _roundNumber, uint256 _clanID, uint256 _pointToChange, bool _isDecreasing) public {
     require(_pointToChange <= maxPointToChange, "Maximum amount of point exceeded!");
     require(clans[_clanID].isDisbanded == false, "This clan is disbanded!");
 
-    // If the are in the new seance
-    updateSeance();
+    // If the are in the new round
+    updateRound();
 
-    uint256 currSeance = seanceCounter.current();
+    uint256 currRound = roundCounter.current();
     Clan storage clan = clans[_clanID];
 
-    // After end of the seance but until the end of the second seance
-    require(_seanceNumber == currSeance - 1, "Invalid seance number!");
+    // After end of the round but until the end of the second round
+    require(_roundNumber == currRound - 1, "Invalid round number!");
 
     // Wait for the proposal to finish or execute it.
     require(proposals[clan.proposal_ID].isExecuted, "Current proposal is not executed yet!");
@@ -835,7 +835,7 @@ contract StickClan is Context, ReentrancyGuard {
   }
 
   /**
-    @dev Only the Stick DAO can clan point change AFTER the current seance UP TO 2 seance later. 
+    @dev Only the Stick DAO can clan point change AFTER the current round UP TO 2 round later. 
     DAO will need 2-3 days to get approved clan point change execution. Therefore, there are limited times to do so.
   */
   function executeClanPointAdjustment(uint256 _proposalID) public {
@@ -858,9 +858,9 @@ contract StickClan is Context, ReentrancyGuard {
     
     Clan storage clan = clans[proposal.index]; // Proposal index is the Clan ID
 
-    // Check seance update
-    updateSeance();
-    uint256 currSeance = seanceCounter.current();
+    // Check round update
+    updateRound();
+    uint256 currRound = roundCounter.current();
 
     // Update clan point before interact with them. Not member (0)
     updatePoint(proposal.index, address(0));
@@ -870,16 +870,16 @@ contract StickClan is Context, ReentrancyGuard {
     if (proposal.status == Status.Approved){
       // If the porposal bool (isDecreasing) is true, then subtract the point
       if (proposal.newBool){
-        clan.point[currSeance] -= proposal.newUint;
-        seances[currSeance].totalClanPoint -= proposal.newUint;
+        clan.point[currRound] -= proposal.newUint;
+        rounds[currRound].totalClanPoint -= proposal.newUint;
       }
       else {
-        clan.point[currSeance] += proposal.newUint;
-        seances[currSeance].totalClanPoint += proposal.newUint;
+        clan.point[currRound] += proposal.newUint;
+        rounds[currRound].totalClanPoint += proposal.newUint;
       }
     }
 
-    // If this was the first time of this clan to get point, record the first seance
-    if (clan.firstSeance == 0) { clan.firstSeance = currSeance; }    
+    // If this was the first time of this clan to get point, record the first round
+    if (clan.firstRound == 0) { clan.firstRound = currRound; }    
   }
 }

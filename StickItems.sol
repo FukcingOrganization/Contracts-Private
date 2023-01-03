@@ -4,21 +4,28 @@ pragma solidity ^0.8.4;
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155URIStorage.sol";
 import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+
+// TEST -> Control the URI things
 
 /**
-  @notice
-  - You can create a Clan with a Clan licence! Licences can only minted
-  by lords!
-  
-  - Each token ID is represents the lords' ID that mint it. 
-  For instance, licence with id 5 is the licence of lord ID 5.
-  
-  - Executors can propose to update contract addresses, proposal types, and mint cost.
+  * @notice
+  * -> Executors can propose to change mintCost and stop item to be minted by FDAO approval.
+  * -> Executors can update token URI without any DAO approval.
+  * -> Minters have to burn certaion amount of STICK token to mint items.
   */
 
-/// @author Bora
-contract StickClanLicence is ERC1155, ERC1155Burnable {
+/**
+ * @author Bora
+ */
+contract StickItems is ERC1155, ERC1155Burnable {
+    
+  struct Item {
+    string itemName;
+    bool isActive;
+    string uri;
+    uint256 mintCost;
+    uint256 totalSupply;
+  }
 
   enum Status{
     NotStarted, // Index: 0
@@ -54,14 +61,14 @@ contract StickClanLicence is ERC1155, ERC1155Burnable {
    *  
    * Index 0: Boss Contract             
    * Index 1: Clan Contract              
-   * Index 2: ClanLicence Contract        
+   * Index 2: ClanLicense Contract        
    * Index 3: Community Contract         
    * Index 4: DAO Contract               
    * Index 5: Executor Contract            
    * Index 6: Items Contract            
    * Index 7: Lord Contract               
    * Index 8: Rent Contract               
-   * Index 9: Seance Contract             
+   * Index 9: Round Contract             
    * Index 10: Staking Contract           
    * Index 11: Token Contract          
    * Index 12: Developer Contract/address  
@@ -69,53 +76,94 @@ contract StickClanLicence is ERC1155, ERC1155Burnable {
   address[13] public contracts; 
 
   mapping(uint256 => Proposal) public proposals;// Proposal ID => Proposal
-  mapping(uint256 => uint256) public numOfActiveLicence; // LordID => current number of Licence
-  mapping(uint256 => string) public customURI; // LordID => current number of Licence
+  mapping(uint256 => Item) public items;
 
-  uint256 public mintCost;
+  constructor() ERC1155("link/{id}.json") { // TEST
+    items[0].isActive = true;       // TEST
+    items[0].uri = "test0";         // TEST
+    items[0].mintCost = 5 ether;    // TEST
 
-  constructor() ERC1155("link/{id}.json") { // TEST 
-    mintCost = 5555 ether;
+    contracts[11] = 0x93f8dddd876c7dBE3323723500e83E202A7C96CC; // TEST token addr
   }
 
-  // @dev returns the valid URI of the licence
-  function uri(uint256 _lordID) public view virtual override returns (string memory){
-    return (bytes(customURI[_lordID]).length) > 0 ? customURI[_lordID] : super.uri(_lordID);
+  function uri(uint256 tokenID) public view virtual override returns (string memory) {
+    require(_msgSender() == contracts[5], "Only executors can call this function!");
+    return items[tokenID].uri;      
   }
 
-  function burn(
-      address account,
-      uint256 id,
-      uint256 value
-  ) public virtual override {
-    // Substract the burn amount from the number of active licence of the lord    
-    numOfActiveLicence[id] -= value;
-
-    super.burn(account, id, value);
+  function setTokenURI(uint256 tokenID, string memory tokenURI) public {
+    require(_msgSender() == contracts[5], "Only executors can call this function!");
+    items[tokenID].uri = tokenURI;
   }
 
-  function setCustomURI(uint256 _lordID, string memory _customURI) public {
-    require(_msgSender() == contracts[7], "Only the Lords can call this function! Now, back off you prick!");
-    customURI[_lordID] = _customURI;
+  function totalSupply(uint256 tokenID) public view virtual returns (uint256) {
+    return items[tokenID].totalSupply;
   }
 
-  function mintLicence(address _lordAddress, uint256 _lordID, uint256 _amount, bytes memory _data) public {
-    require(_msgSender() == contracts[7], "Only the Lords can call this function! Now, back off you prick!");
-    require(numOfActiveLicence[_lordID] + _amount <= 3, "Maximum number of active licence exceeds!");
+  function mint(address account, uint256 id, uint256 amount, bytes memory data) public {
+    require(items[id].isActive, "Stick DAO has stopped this item to be minted!!"); 
 
     // Burn tokens to mint
-    ERC20Burnable(contracts[11]).burnFrom(_lordAddress, _amount * mintCost);
+    (bool txSuccess, ) = contracts[11].call(abi.encodeWithSignature(
+      "burnFrom(address,uint256)", account, items[id].mintCost * amount
+    ));
+    require(txSuccess, "Burn to mint tx has failed!");
 
-    numOfActiveLicence[_lordID] += _amount;       // Add the new licences
-    _mint(_lordAddress, _lordID, _amount, _data); // Mint
+    _mint(account, id, amount, data);
+  }
+
+  function mintBatch(address to, uint256[] memory ids, uint256[] memory amounts, bytes memory data) public {
+    for (uint256 i = 0; i < ids.length; i++) {
+      require(items[ids[i]].isActive, "Invalid item ID!"); 
+
+      // Burn tokens to mint
+      bytes memory payload = abi.encodeWithSignature("burnFrom(address,uint256)", to, items[ids[i]].mintCost * amounts[i]);
+      (bool txSuccess, ) = contracts[11].call(payload);
+      require(txSuccess, "Burn to mint tx has failed!");
+    }
+    
+    _mintBatch(to, ids, amounts, data);
   }
 
   /**
-    Updates by DAO - Update Codes
-    
-    Contract Address Change -> Code: 1
-    Proposal Type Change -> Code: 2
-    mintCost -> Code: 3    
+    * @dev reduce total supply with the before hook
+    * See {ERC1155-_beforeTokenTransfer}.
+    */
+  function _beforeTokenTransfer(
+    address operator,
+    address from,
+    address to,
+    uint256[] memory ids,
+    uint256[] memory amounts,
+    bytes memory data
+  ) internal virtual override {
+    super._beforeTokenTransfer(operator, from, to, ids, amounts, data);
+
+    if (from == address(0)) {
+      for (uint256 i = 0; i < ids.length; ++i) {
+        items[ids[i]].totalSupply += amounts[i];
+      }
+    }
+
+    if (to == address(0)) {
+      for (uint256 i = 0; i < ids.length; ++i) {
+        uint256 id = ids[i];
+        uint256 amount = amounts[i];
+        uint256 supply = items[id].totalSupply;
+        require(supply >= amount, "ERC1155: burn amount exceeds totalSupply");
+        unchecked {items[id].totalSupply = supply - amount;}
+      }
+    }
+  }
+
+  /**
+   * Updates by DAO - Update Codes
+   *
+   * Contract Address Change -> Code: 1
+   * Proposal Type Change -> Code: 2
+   * Mist Cost -> Code: 3
+   * Activation Status of Item -> Code: 4
+   * 
    */
   function proposeContractAddressUpdate(uint256 _contractIndex, address _newAddress) public {
     require(_msgSender() == contracts[5], "Only executors can call this function!");
@@ -124,7 +172,7 @@ contract StickClanLicence is ERC1155, ERC1155Burnable {
     );
 
     string memory proposalDescription = string(abi.encodePacked(
-      "In Clan Licence contract, updating contract address of index ", Strings.toHexString(_contractIndex), " to ", 
+      "In Items contract, updating contract address of index ", Strings.toHexString(_contractIndex), " to ", 
       Strings.toHexString(_newAddress), " from ", Strings.toHexString(contracts[_contractIndex]), "."
     )); 
 
@@ -174,7 +222,7 @@ contract StickClanLicence is ERC1155, ERC1155Burnable {
     require(_proposalIndex != 0, "0 index of proposalTypes is not in service. No need to update!");
 
     string memory proposalDescription = string(abi.encodePacked(
-      "In Clan Licence contract, updating proposal types of index ", Strings.toHexString(_proposalIndex), " to ", 
+      "In Items contract, updating proposal types of index ", Strings.toHexString(_proposalIndex), " to ", 
       Strings.toHexString(_newType), " from ", Strings.toHexString(proposalTypes[_proposalIndex]), "."
     )); 
 
@@ -218,12 +266,12 @@ contract StickClanLicence is ERC1155, ERC1155Burnable {
     proposal.isExecuted = true;
   }
 
-  function proposeMintCostUpdate(uint256 _newMintCost) public {
+  function proposeMintCostUpdate(uint256 _itemID, uint256 _newCost) public {
     require(_msgSender() == contracts[5], "Only executors can call this function!");
 
     string memory proposalDescription = string(abi.encodePacked(
-      "In Clan Licence contract, updating licence mint cost to ",
-      Strings.toHexString(_newMintCost), " from ", Strings.toHexString(mintCost), "."
+      "In Items contract, updating mint cost of item ID: ", Strings.toHexString(_itemID), " to ", 
+      Strings.toHexString(_newCost), " from ", Strings.toHexString(items[_itemID].mintCost), "."
     )); 
 
     // Create a new proposal - DAO (contracts[4]) - Moderately Important Proposal (proposalTypes[1])
@@ -237,7 +285,8 @@ contract StickClanLicence is ERC1155, ERC1155Burnable {
 
     // Save data to the local proposal
     proposals[propID].updateCode = 3;
-    proposals[propID].newUint = _newMintCost;
+    proposals[propID].index = _itemID;
+    proposals[propID].newUint = _newCost;
   }
 
   function executeMintCostProposal(uint256 _proposalID) public {
@@ -260,7 +309,65 @@ contract StickClanLicence is ERC1155, ERC1155Burnable {
 
     // if the proposal is approved, apply the update the state
     if (proposal.status == Status.Approved)
-      mintCost = proposal.newUint;
+      items[proposal.index].mintCost = proposal.newUint;
+
+    proposal.isExecuted = true;
+  }
+
+  function proposeItemActivationUpdate(uint256 _itemID, bool _activationStatus) public {
+    require(_msgSender() == contracts[5], "Only executors can call this function!");
+    require(items[_itemID].isActive != _activationStatus, "The activation status is already same!");
+
+    string memory proposalDescription;
+    if (_activationStatus){
+      proposalDescription = string(abi.encodePacked(
+        "In Items contract, updating activation status of item ID: ", 
+        Strings.toHexString(_itemID), " to ", " TRUE from FALSE."
+      )); 
+    }
+    else {
+      proposalDescription = string(abi.encodePacked(
+        "In Items contract, updating activation status of item ID: ", 
+        Strings.toHexString(_itemID), " to ", " FALSE from TRUE."
+      )); 
+    }
+
+    // Create a new proposal - DAO (contracts[4]) - Less Important Proposal (proposalTypes[0])
+    (bool txSuccess, bytes memory returnData) = contracts[4].call(
+      abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypes[0])
+    );
+    require(txSuccess, "Transaction failed to make new proposal!");
+
+    // Get the ID
+    (uint256 propID) = abi.decode(returnData, (uint256));
+
+    // Save data to the local proposal
+    proposals[propID].updateCode = 4;
+    proposals[propID].index = _itemID;
+    proposals[propID].newBool = _activationStatus;
+  }
+
+  function executeItemActivationProposal(uint256 _proposalID) public {
+    Proposal storage proposal = proposals[_proposalID];
+
+    require(proposal.updateCode == 4 && !proposal.isExecuted, "Wrong proposal ID");
+
+    // Get the proposal result from DAO
+    (bool txSuccess, bytes memory returnData) = contracts[4].call(
+      abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
+    );
+    require(txSuccess, "Transaction failed to retrieve DAO result!");
+    (uint256 statusNum) = abi.decode(returnData, (uint256));
+
+    // Save the result here
+    proposal.status = Status(statusNum);
+
+    // Check if it is finalized or not
+    require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
+
+    // if the proposal is approved, apply the update the state
+    if (proposal.status == Status.Approved)
+      items[proposal.index].isActive = proposal.newBool;
 
     proposal.isExecuted = true;
   }

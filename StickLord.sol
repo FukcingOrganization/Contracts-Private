@@ -14,10 +14,10 @@ import "./IERC4907.sol";
  * @notice
  * -> Executors can propose to change mint cost by FDAO approval.
   *
- * -> A Lord can mint maximum of 3 clan licences. Once a licences used by a clan leader to create
- * clan, the licence burns and lord can mint a new licence.
+ * -> A Lord can mint maximum of 3 clan licenses. Once a licenses used by a clan leader to create
+ * clan, the license burns and lord can mint a new license.
   *
- * -> Lords can set custom URI for their licences
+ * -> Lords can set custom URI for their licenses
   *
  * -> Lords collects taxes from their clans. Initial tax rate is 13%. Which means, 13% of the clan rewards
  * will go to the lord of the clan.
@@ -33,7 +33,7 @@ import "./IERC4907.sol";
  * An owner can't rent out the NFT until the current expire date passes.
   *
  * -> The Lord Tax goes to the renter. If there no renter, tax goes to the owner.
- * The renter can't mint clan licences but can vote for DAO proposals and collects taxes.
+ * The renter can't mint clan licenses but can vote for DAO proposals and collects taxes.
   *
  * -> Owner can rent out the Lord without any fee from the contract or another interfaces. Lords who want
  * to get rent fees in STICK tokens can use StickRent contract to rent them out.
@@ -113,14 +113,14 @@ contract StickLord is ERC721, ERC721Burnable {
    *  
    * Index 0: Boss Contract             
    * Index 1: Clan Contract              
-   * Index 2: ClanLicence Contract        
+   * Index 2: ClanLicense Contract        
    * Index 3: Community Contract         
    * Index 4: DAO Contract               
    * Index 5: Executor Contract            
    * Index 6: Items Contract            
    * Index 7: Lord Contract               
    * Index 8: Rent Contract               
-   * Index 9: Seance Contract             
+   * Index 9: Round Contract             
    * Index 10: Staking Contract           
    * Index 11: Token Contract          
    * Index 12: Developer Contract/address  
@@ -131,8 +131,8 @@ contract StickLord is ERC721, ERC721Burnable {
 
   mapping(uint256 => uint256) public numberOfClans; // that the lord has | Lord ID => number of clans
   mapping(uint256 => uint256[]) public clansOf; // that the lord has | Lord ID => Clan IDs in array []
-  // Lord ID => number of licencese in cirulation (not used therefore not burnt)
-  mapping(uint256 => uint256) public numberOfActiveLicences; 
+  // Lord ID => number of licensese in cirulation (not used therefore not burnt)
+  mapping(uint256 => uint256) public numberOfActiveLicenses; 
   mapping(uint256 => uint256) public numberOfGlories; // Lord ID => number of glories
   mapping(uint256  => uint256) public rebellionOf;    // Lord ID => Rebellion ID
   mapping(uint256  => Rebellion) public rebellions;   // Rebellion ID => Rebellion
@@ -194,27 +194,27 @@ contract StickLord is ERC721, ERC721Burnable {
     baseURI = _newURI;
   }
 
-  function mintClanLicence(uint256 _lordID, uint256 _amount, bytes memory _data) public {
+  function mintClanLicense(uint256 _lordID, uint256 _amount, bytes memory _data) public {
     require(ownerOf(_lordID) == _msgSender(), "Who are you fooling? You are not the Lord that you claim to be!");
     
-    bytes memory payload = abi.encodeWithSignature("mintLicence(address,uint256,uint256,bytes)", _msgSender(), _lordID, _amount, _data);
+    bytes memory payload = abi.encodeWithSignature("mintLicense(address,uint256,uint256,bytes)", _msgSender(), _lordID, _amount, _data);
     (bool txSuccess, ) = address(contracts[2]).call(payload);
-    require(txSuccess, "Transaction has fail to mint new licence from the Licence contract!");
+    require(txSuccess, "Transaction has fail to mint new license from the License contract!");
   }
 
-  function setCustomLicenceURI(uint256 _lordID, string memory _newURI) public {
+  function setCustomLicenseURI(uint256 _lordID, string memory _newURI) public {
     require(ownerOf(_lordID) == _msgSender(), "Who are you fooling? You are not the Lord that you claim to be!");
 
     bytes memory payload = abi.encodeWithSignature("setCustomURI(uint256,string)", _lordID, _newURI);
     (bool txSuccess, ) = address(contracts[2]).call(payload);
-    require(txSuccess, "Transaction has fail to set a new URI for the Licence!");
+    require(txSuccess, "Transaction has fail to set a new URI for the License!");
   }
 
   function clanRegistration(uint256 _lordID, uint256 _clanID) public {
     require(_msgSender() == contracts[1], "Only the Clan contract can call this function! Now, back off you domass!");
 
     clansOf[_lordID].push(_clanID);     // Keep the record of the clan ID
-    numberOfActiveLicences[_lordID]--;  // Reduce the number of active licences since one of them burnt via clan creation
+    numberOfActiveLicenses[_lordID]--;  // Reduce the number of active licenses since one of them burnt via clan creation
   }
 
   function DAOvote(uint256 _proposalID, bool _isApproving, uint256 _lordID) public {

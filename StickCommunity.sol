@@ -69,14 +69,14 @@ contract StickCommunity is Context {
    *  
    * Index 0: Boss Contract                // Proposal ID Tracker (PID) : 0
    * Index 1: Clan Contract                // PID: 1
-   * Index 2: ClanLicence Contract         // PID: 2
+   * Index 2: ClanLicense Contract         // PID: 2
    * Index 3: Community Contract           // PID: 3
    * Index 4: DAO Contract                 // PID: 4
    * Index 5: Executor Contract            // PID: 5
    * Index 6: Items Contract               // PID: 6
    * Index 7: Lord Contract                // PID: 7
    * Index 8: Rent Contract                // PID: 8
-   * Index 9: Seance Contract              // PID: 9
+   * Index 9: Round Contract              // PID: 9
    * Index 10: Staking Contract            // PID: 10
    * Index 11: Token Contract              // PID: 11
    * Index 12: Developer Contract/address  // PID: 12

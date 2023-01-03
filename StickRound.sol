@@ -17,8 +17,8 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 /**
   * @notice
-  * -> A seance is a week and in every seance, players selects 1 boss for each level by funding them.
-  * The funds of the winner boss goes to the players of that level in the following seance.
+  * -> A round is a week and in every round, players selects 1 boss for each level by funding them.
+  * The funds of the winner boss goes to the players of that level in the following round.
   * The funds of the loser bosses burns!
   *
   * -> Every player can claim just 1 reward for each level no matter how many times he/she played. 
@@ -54,10 +54,10 @@ contract StickRound is Context, ReentrancyGuard {
     bytes32 merkleRoot;
   }
 
-  struct Seance{
+  struct Round{
     uint256 endingTime;
     Level[13] levels;
-    uint256 seanceRewards;
+    uint256 roundRewards;
     mapping(address => bool) isPlayerClaimed;
     mapping(address => bool) isBackerClaimed;
   }
@@ -96,14 +96,14 @@ contract StickRound is Context, ReentrancyGuard {
    *  
    * Index 0: Boss Contract             
    * Index 1: Clan Contract              
-   * Index 2: ClanLicence Contract        
+   * Index 2: ClanLicense Contract        
    * Index 3: Community Contract         
    * Index 4: DAO Contract               
    * Index 5: Executor Contract            
    * Index 6: Items Contract            
    * Index 7: Lord Contract               
    * Index 8: Rent Contract               
-   * Index 9: Seance Contract             
+   * Index 9: Round Contract             
    * Index 10: Staking Contract           
    * Index 11: Token Contract          
    * Index 12: Developer Contract/address  
@@ -111,38 +111,38 @@ contract StickRound is Context, ReentrancyGuard {
   address[13] public contracts; 
 
   mapping(uint256 => Proposal) public proposals;// Proposal ID => Proposal
-  mapping(uint256 => Seance) public seances;
+  mapping(uint256 => Round) public rounds;
   
-  Counters.Counter public seanceCounter;
+  Counters.Counter public roundCounter;
 
   uint256[13] levelRewardWeights;
   uint256 totalRewardWeight;
 
-  constructor(uint256 _endOfTheFirstSeance) {
-    seances[seanceCounter.current()].endingTime = _endOfTheFirstSeance; // TEST -> Change it with unix value of Monday 00.00
-    getBackerRewards(seances[seanceCounter.current()]);     
+  constructor(uint256 _endOfTheFirstRound) {
+    rounds[roundCounter.current()].endingTime = _endOfTheFirstRound; // TEST -> Change it with unix value of Monday 00.00
+    getBackerRewards(rounds[roundCounter.current()]);     
   }
 
   function fundBoss(uint256 _levelNumber, uint256 _bossID, uint256 _fundAmount) public nonReentrant() returns (bool) {
     require(_levelNumber >= 0 && _levelNumber < 13, "Invalid level number!");
 
-    Seance storage seance = seances[seanceCounter.current()];
+    Round storage round = rounds[roundCounter.current()];
 
-    // If current seance has ended, start the new one before funding
-    if (block.timestamp > seance.endingTime){
-      startNextSeance(seance);
+    // If current round has ended, start the new one before funding
+    if (block.timestamp > round.endingTime){
+      startNextRound(round);
     }
 
-    // Close funding in the last day of the seance
-    require(seance.endingTime - 1 minutes  > block.timestamp, // TEST -> Change it with 1 day
-      "The funding round is closed for this seance. Maybe next time sweetie!"
+    // Close funding in the last day of the round
+    require(round.endingTime - 1 minutes  > block.timestamp, // TEST -> Change it with 1 day
+      "The funding round is closed for this round. Maybe next time sweetie!"
     );
     // Check if the boss if it exists - If it has an owner, than it exists
     require(IERC721(contracts[0]).ownerOf(_bossID) != address(0), "This Boss doesn't even exist!");
     // Get the funds!
     require(IERC20(contracts[11]).transferFrom(_msgSender(), address(this), _fundAmount), "Couldn't receive funds!");
 
-    Election storage election = seance.levels[_levelNumber].election;
+    Election storage election = round.levels[_levelNumber].election;
     // If the boss is not a candidate yet, make it a candidate for this level
     if (election.isCandidate[_bossID] == false){
       election.isCandidate[_bossID] = true;
@@ -159,13 +159,13 @@ contract StickRound is Context, ReentrancyGuard {
     require(_levelNumber >= 0 && _levelNumber < 13, "Invalid level number!");
     require(IERC721(contracts[0]).ownerOf(_bossID) != address(0), "This Boss doesn't even exist!");
     
-    Seance storage seance = seances[seanceCounter.current()];
+    Round storage round = rounds[roundCounter.current()];
 
-    require(seance.endingTime - 1 minutes  > block.timestamp, // TEST -> Change it with 1 day
-      "The funding round is closed for this seance. Too late sweetie!"
+    require(round.endingTime - 1 minutes  > block.timestamp, // TEST -> Change it with 1 day
+      "The funding round is closed for this round. Too late sweetie!"
     );
 
-    Election storage election = seance.levels[_levelNumber].election;
+    Election storage election = round.levels[_levelNumber].election;
     require(election.isCandidate[_bossID] == true, "This Boss is not even a candidate!");
     require(election.backerFunds[_bossID][_msgSender()] >= _withdrawAmount, "You can't withdraw more than you deposited!");
 
@@ -178,10 +178,10 @@ contract StickRound is Context, ReentrancyGuard {
     return true;
   }
 
-  function startNextSeance(Seance storage _currentSeance) internal {
+  function startNextRound(Round storage _currentRound) internal {
     // Iterate through all 13 level
     for (uint i = 0; i < 13; i++){
-      Election storage election = _currentSeance.levels[i].election;
+      Election storage election = _currentRound.levels[i].election;
 
       // Find Winner Boss
       election.winnerID = election.candidateIDs[0];
@@ -194,7 +194,7 @@ contract StickRound is Context, ReentrancyGuard {
       // Keep the winner's fund for player reward and burn the losers' funds!
       for (uint k = 0; k < election.candidateIDs.length; k++){  // all candidates
         if (election.candidateIDs[k] == election.winnerID){
-          _currentSeance.levels[i].playerReward = election.candidateFunds[election.candidateIDs[k]];
+          _currentRound.levels[i].playerReward = election.candidateFunds[election.candidateIDs[k]];
         }
         else{          
           burnAmount += election.candidateFunds[election.candidateIDs[k]];
@@ -209,28 +209,28 @@ contract StickRound is Context, ReentrancyGuard {
       require(txSuccess1, "Rekt record tx has failed!");
     }
 
-    // Now we have burnt the losers' funds and save the winner's balance. Time to start next Seance!
-    uint256 previousTime = _currentSeance.endingTime;
-    seanceCounter.increment();
-    seances[seanceCounter.current()].endingTime = previousTime + 7 days;
-    getBackerRewards(seances[seanceCounter.current()]);
+    // Now we have burnt the losers' funds and save the winner's balance. Time to start next Round!
+    uint256 previousTime = _currentRound.endingTime;
+    roundCounter.increment();
+    rounds[roundCounter.current()].endingTime = previousTime + 7 days;
+    getBackerRewards(rounds[roundCounter.current()]);
   }
 
-  function claimPlayerReward(bytes32[] calldata _merkleProof, uint256 _seanceNumber) public {
-    require(block.timestamp > seances[_seanceNumber].endingTime, "Wait for the end of the seance!");
-    require(seances[_seanceNumber].endingTime != 0, "Invalied seance number!"); // If there is no end time
+  function claimPlayerReward(bytes32[] calldata _merkleProof, uint256 _roundNumber) public {
+    require(block.timestamp > rounds[_roundNumber].endingTime, "Wait for the end of the round!");
+    require(rounds[_roundNumber].endingTime != 0, "Invalied round number!"); // If there is no end time
 
-    Seance storage seance = seances[_seanceNumber];
+    Round storage round = rounds[_roundNumber];
     address sender = _msgSender();
     
-    require(!seance.isPlayerClaimed[sender], "Dude! You have already claimed your reward! Why too aggressive?");
-    seance.isPlayerClaimed[sender] = true;  // Save as claimed
+    require(!round.isPlayerClaimed[sender], "Dude! You have already claimed your reward! Why too aggressive?");
+    round.isPlayerClaimed[sender] = true;  // Save as claimed
 
     // Check all the levels and sum up the rewards if any
     uint256 reward;
 
     for (uint i = 0; i < 13; i++){
-      Level storage level = seance.levels[i]; // Get the level
+      Level storage level = round.levels[i]; // Get the level
 
       // Check the merkle tree to validate the sender has played this level
       bytes32 leaf = keccak256(abi.encodePacked(sender));
@@ -243,21 +243,21 @@ contract StickRound is Context, ReentrancyGuard {
     require(IERC20(contracts[11]).transfer(sender, reward), "Something went wrong while you're trying to get your reward!");
   }
   
-  function claimBackerReward(uint256 _seanceNumber) public {
-    require(block.timestamp > seances[_seanceNumber].endingTime, "Wait for the end of the seance!");
-    require(seances[_seanceNumber].endingTime != 0, "Invalied seance number!");
+  function claimBackerReward(uint256 _roundNumber) public {
+    require(block.timestamp > rounds[_roundNumber].endingTime, "Wait for the end of the round!");
+    require(rounds[_roundNumber].endingTime != 0, "Invalied round number!");
 
-    Seance storage seance = seances[_seanceNumber];
+    Round storage round = rounds[_roundNumber];
     address sender = _msgSender();
     
-    require(!seance.isBackerClaimed[sender], "Dude! You have already claimed your reward! Why too aggressive?");
-    seance.isBackerClaimed[sender] = true;  // Save as claimed
+    require(!round.isBackerClaimed[sender], "Dude! You have already claimed your reward! Why too aggressive?");
+    round.isBackerClaimed[sender] = true;  // Save as claimed
 
     // Check all the levels and sum up the rewards if any
     uint256 reward;
 
     for (uint i = 0; i < 13; i++){
-      Level storage level = seance.levels[i];     // Get the level
+      Level storage level = round.levels[i];     // Get the level
       Election storage election = level.election; // Get the election
 
       // Collect the reward from this level's election
@@ -270,17 +270,17 @@ contract StickRound is Context, ReentrancyGuard {
     require(IERC20(contracts[11]).transfer(sender, reward), "Something went wrong while you're trying to get your reward!");
   }
 
-  function getPlayerRewards(bytes32[] calldata _merkleProof, uint256 _seanceNumber) public view returns (uint256[13] memory) {
-    require(block.timestamp > seances[_seanceNumber].endingTime, "Wait for the end of the seance!");
-    require(seances[_seanceNumber].endingTime != 0, "Invalied seance number!"); // If there is no end time
+  function getPlayerRewards(bytes32[] calldata _merkleProof, uint256 _roundNumber) public view returns (uint256[13] memory) {
+    require(block.timestamp > rounds[_roundNumber].endingTime, "Wait for the end of the round!");
+    require(rounds[_roundNumber].endingTime != 0, "Invalied round number!"); // If there is no end time
 
     uint256[13] memory rewards;
 
-    Seance storage seance = seances[_seanceNumber];
+    Round storage round = rounds[_roundNumber];
     address sender = _msgSender();
 
     for (uint i = 0; i < 13; i++){
-      Level storage level = seance.levels[i]; // Get the level
+      Level storage level = round.levels[i]; // Get the level
 
       // Check the merkle tree to validate the sender has played this level
       bytes32 leaf = keccak256(abi.encodePacked(sender));
@@ -292,17 +292,17 @@ contract StickRound is Context, ReentrancyGuard {
     return rewards;
   }
 
-  function getBackerRewards(uint256 _seanceNumber) public view returns (uint256[13] memory) {
-    require(block.timestamp > seances[_seanceNumber].endingTime, "Wait for the end of the seance!");
-    require(seances[_seanceNumber].endingTime != 0, "Invalied seance number!"); // If there is no end time
+  function getBackerRewards(uint256 _roundNumber) public view returns (uint256[13] memory) {
+    require(block.timestamp > rounds[_roundNumber].endingTime, "Wait for the end of the round!");
+    require(rounds[_roundNumber].endingTime != 0, "Invalied round number!"); // If there is no end time
 
     uint256[13] memory rewards;
 
-    Seance storage seance = seances[_seanceNumber];
+    Round storage round = rounds[_roundNumber];
     address sender = _msgSender();
 
     for (uint i = 0; i < 13; i++){
-      Level storage level = seance.levels[i];     // Get the level
+      Level storage level = round.levels[i];     // Get the level
       Election storage election = level.election; // Get the election
 
       // Collect the reward from this level's election
@@ -315,19 +315,19 @@ contract StickRound is Context, ReentrancyGuard {
     return rewards;
   }
 
-  function returnMerkleRoot(uint256 _seanceNumber, uint256 _levelNumber) public view returns (bytes32) {
-    return seances[_seanceNumber].levels[_levelNumber].merkleRoot;
+  function returnMerkleRoot(uint256 _roundNumber, uint256 _levelNumber) public view returns (bytes32) {
+    return rounds[_roundNumber].levels[_levelNumber].merkleRoot;
   }
 
-  function getBackerRewards(Seance storage _seance) internal {
+  function getBackerRewards(Round storage _round) internal {
     // Get the backer rewards from token
     (bool txSuccess, bytes memory returnData) = contracts[11].call(abi.encodeWithSignature("backerMint()"));
     require(txSuccess, "Transaction has failed to get backer rewards from Token contract!");
-    (_seance.seanceRewards) = abi.decode(returnData, (uint256));
+    (_round.roundRewards) = abi.decode(returnData, (uint256));
 
     // Distribute it according to level weights
     for (uint256 i = 0; i < 13; i++) {
-      _seance.levels[i].backerReward = _seance.seanceRewards * levelRewardWeights[i] / totalRewardWeight;
+      _round.levels[i].backerReward = _round.roundRewards * levelRewardWeights[i] / totalRewardWeight;
     }
   }
 

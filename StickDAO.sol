@@ -171,14 +171,14 @@ contract StickDAO is ERC20 {
      *  
      * Index 0: Boss Contract             
      * Index 1: Clan Contract              
-     * Index 2: ClanLicence Contract        
+     * Index 2: ClanLicense Contract        
      * Index 3: Community Contract         
      * Index 4: DAO Contract               
      * Index 5: Executor Contract            
      * Index 6: Items Contract            
      * Index 7: Lord Contract               
      * Index 8: Rent Contract               
-     * Index 9: Seance Contract             
+     * Index 9: Round Contract             
      * Index 10: Staking Contract           
      * Index 11: Token Contract          
      * Index 12: Developer Contract/address  
@@ -197,7 +197,7 @@ contract StickDAO is ERC20 {
 
     uint256 public minBalanceToPropose;     // Amount of tokens without decimals
 
-    constructor() ERC20("StickDAO", "FDAO") {
+    constructor() ERC20("StickDAO", "SDAO") {
         /*
          * The contract creator starts with the smallest balance (0.0000000000000000001 token) to approve the first mint. 
          * First proposal will be mint of 666 tokens to be distributed amoung the community (50%) and the team (50%).

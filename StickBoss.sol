@@ -64,14 +64,14 @@ contract StickBoss is ERC721, ERC721URIStorage, ERC721Burnable {
    *  
    * Index 0: Boss Contract             
    * Index 1: Clan Contract              
-   * Index 2: ClanLicence Contract        
+   * Index 2: ClanLicense Contract        
    * Index 3: Community Contract         
    * Index 4: DAO Contract               
    * Index 5: Executor Contract            
    * Index 6: Items Contract            
    * Index 7: Lord Contract               
    * Index 8: Rent Contract               
-   * Index 9: Seance Contract             
+   * Index 9: Round Contract             
    * Index 10: Staking Contract           
    * Index 11: Token Contract          
    * Index 12: Developer Contract/address  
