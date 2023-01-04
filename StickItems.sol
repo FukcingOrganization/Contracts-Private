@@ -100,16 +100,16 @@ contract StickItems is ERC1155, ERC1155Burnable {
     return items[tokenID].totalSupply;
   }
 
-  function mint(address account, uint256 id, uint256 amount, bytes memory data) public {
+  function mint(uint256 id, uint256 amount, bytes memory data) public {
     require(items[id].isActive, "Stick DAO has stopped this item to be minted!!"); 
 
     // Burn tokens to mint
     (bool txSuccess, ) = contracts[11].call(abi.encodeWithSignature(
-      "burnFrom(address,uint256)", account, items[id].mintCost * amount
+      "burnFrom(address,uint256)", _msgSender(), items[id].mintCost * amount
     ));
     require(txSuccess, "Burn to mint tx has failed!");
 
-    _mint(account, id, amount, data);
+    _mint(_msgSender(), id, amount, data);
   }
 
   function mintBatch(address to, uint256[] memory ids, uint256[] memory amounts, bytes memory data) public {
