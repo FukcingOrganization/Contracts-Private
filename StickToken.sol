@@ -23,14 +23,14 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 
 /**
   * -> Vesting Mechanism                                                        //   Ether per sec         Wei per sec         Year
-  * Backers     -> Round gets automatically        // 7days (0.6%) TGE         // 0.224538876188384    224538876188384000      3 
+  * Backers     -> Round gets automatically         //                          // 0.224538876188384    224538876188384000      3 
   * Clans       -> Clan contract gets automatically                             // 0.224538876188384    224538876188384000      3 
-  * Community   -> Executors pulls to the contract  // 13% TGE                  // 0.0748462920627947   74846292062794700       3 
+  * Community   -> Executors pulls to the contract  //                          // 0.0748462920627947   74846292062794700       3 
   * Staking     -> Executors pulls to the contract  // New Contract (later)     // 0.0748462920627947   74846292062794700       3 
   * FDAO        -> Executors pulls to the contract                              // 0.0374231460313974   37423146031397400       3 
-  * Dev         -> Executors pulls to a EOA         // 1 yr                     // 0.112269438094192    112269438094192000      1
-  * Testnet     -> Individual claim with 66 Level   // 1 yr - 13% TGE           // 0.112269438094192    112269438094192000      1  
-  * Team        -> Individual claim                 // 1 yr                     // 0.112269438094192    112269438094192000      1 
+  * Dev         -> Executors pulls to a EOA         // 2 yr                     // 0.112269438094192    112269438094192000      1
+  * Testnet     -> Individual claim with 66 Level   // 1 yr - 10% TGE           // 0.112269438094192    112269438094192000      1  
+  * Team        -> Individual claim                 // 3 yr                     // 0.112269438094192    112269438094192000      1 
   *
   * Clans' claim can not exceed the total supply of DAO tokens !! 
   * Therefore, DAO members (most of them are clans) should approve new DAO token mints that are proposed by the Executors.
@@ -208,19 +208,28 @@ contract StickToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
         return currentReward;
     }
 
-    function communityMint() public returns (uint256){
+    function availableCommunityMint() public view returns (uint256) {
+        // Calculate current total reward
+        uint256 totalReward = (block.timestamp - (deploymentTime - communityTGErelease)) * mintPerSecond[2];
+
+        // Return the current available reward by subtracting the already claimed reward
+        return totalReward - totalMints[2];    
+    }
+
+    function communityMint(uint256 _amount) public returns (bool){
         require(_msgSender() == contracts[3], "Only the Community can call this function!");
         require(totalSupply() <= maxSupply, "Max supply has been reached!");
         
-        // Community mint date starts ~142 days ago to have 13% TGE which is 921k tokens.
         uint256 totalReward = (block.timestamp - (deploymentTime - communityTGErelease)) * mintPerSecond[2];
         uint256 currentReward = totalReward - totalMints[2];
 
-        totalMints[2] += currentReward;
+        require(currentReward >= _amount, "Not enough available reward!");
 
-        _mint(contracts[3], currentReward);
+        totalMints[2] += _amount;
 
-        return currentReward;
+        _mint(contracts[3], _amount);
+
+        return true;
     }
 
     function stakingMint() public returns (uint256){        
@@ -237,18 +246,26 @@ contract StickToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
         return currentReward;
     }
 
-    function daoMint() public returns (uint256){        
+    function avaliableDaoMint() public view returns (uint256){                
+        uint256 totalReward = (block.timestamp - deploymentTime) * mintPerSecond[4];
+
+        return totalReward - totalMints[4];
+    }
+
+    function daoMint(uint256 _amount) public returns (bool){        
         require(_msgSender() == contracts[5], "Only the Executors can call this function!");
         require(totalSupply() <= maxSupply, "Max supply has been reached!");
         
         uint256 totalReward = (block.timestamp - deploymentTime) * mintPerSecond[4];
         uint256 currentReward = totalReward - totalMints[4];
 
-        totalMints[4] += currentReward;
+        require(currentReward >= _amount, "Not enough available reward!");
 
-        _mint(contracts[4], currentReward);
+        totalMints[4] += _amount;
 
-        return currentReward;
+        _mint(contracts[4], _amount);
+
+        return true;
     }
 
     function testnetMint(bytes32[] calldata _merkleProof) public {
@@ -256,7 +273,7 @@ contract StickToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
         require(totalMints[6] <= teamAndTestnetCap, "All of testnet allocation has been minted!");
 
         
-        uint256 totalReward = calculateTestnetReward(_merkleProof);
+        uint256 totalReward = calculateTesterReward(_merkleProof);
         require(totalReward > 0, "Bruh, you don't have any allowance! Maybe next time ;)");
 
         uint256 currentReward = totalReward - claimedAllowance[_msgSender()];
@@ -266,21 +283,36 @@ contract StickToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
         _mint(_msgSender(), currentReward);
     }
 
-    function developmentMint() public returns (uint256){        
+    function availableDevelopmentMint() public view returns (uint256){    
+        require(block.timestamp <= oneYearLater, "Development vesting period ended!");    
+        uint256 totalReward = (block.timestamp - deploymentTime) * mintPerSecond[5];
+        return totalReward - totalMints[5];
+    }
+
+    function developmentMint(uint256 _amount) public returns (bool){        
         require(_msgSender() == contracts[5], "Only the Executors can call this function!");
         require(block.timestamp <= oneYearLater, "Development vesting period ended!");
         
         uint256 totalReward = (block.timestamp - deploymentTime) * mintPerSecond[5];
         uint256 currentReward = totalReward - totalMints[5];
 
-        totalMints[5] += currentReward;
+        require(currentReward >= _amount, "Not enough available reward!");
 
-        _mint(contracts[12], currentReward);
+        totalMints[5] += _amount;
 
-        return currentReward;
+        _mint(contracts[12], _amount);
+
+        return true;
     }
 
-    function teamMint(uint256 _index) public {
+    function availableTeamMint(uint256 _index) public view returns (uint256) {
+        require(block.timestamp <= oneYearLater, "Team vesting period ended!");
+
+        uint256 totalReward = (block.timestamp - deploymentTime) * teamMintPerSecond[_index];
+        return totalReward - claimedAllowance[teamAddress[_index]];
+    }
+
+    function teamMint(uint256 _index, uint256 _amount) public {
         require(_msgSender() == teamAddress[_index], "You don't share the team allocation, check your wallet address! Dummy!");
         require(block.timestamp <= oneYearLater, "Team vesting period ended!");
         require(totalMints[7] <= teamAndTestnetCap, "The team members minted all of their allocation!");
@@ -288,13 +320,15 @@ contract StickToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
         uint256 totalReward = (block.timestamp - deploymentTime) * teamMintPerSecond[_index];
         uint256 currentReward = totalReward - claimedAllowance[teamAddress[_index]];
 
-        claimedAllowance[teamAddress[_index]] += currentReward;
-        totalMints[7] += currentReward;
+        require(currentReward >= _amount, "Not enough available reward!");
 
-        _mint(teamAddress[_index], currentReward);
+        claimedAllowance[teamAddress[_index]] += _amount;
+        totalMints[7] += _amount;
+
+        _mint(teamAddress[_index], _amount);
     }
 
-    function calculateTestnetReward(bytes32[] calldata _merkleProof) internal view returns (uint256) {
+    function calculateTesterReward(bytes32[] calldata _merkleProof) internal view returns (uint256) {
         uint256 totalReward;
         bytes32 leaf = keccak256(abi.encodePacked(_msgSender()));
         
