@@ -13,7 +13,7 @@ import "@openzeppelin/contracts/utils/Counters.sol";
   * @notice:
   * -> STICK token has dynamic minting mechanism. Every allocation part has its mint per second to mint in any time.
   *
-  * -> maxSupply can change by DAO 13 days long proposal with %90 approval rate after 2 years from
+  * -> maxSupply can change by DAO 10 days long proposal with %90 approval rate after 2 years from
   * and there is 1 month left to reach the current max supply
   *
   * -> Mint rate can chage with same hard approval after 1 year: backers, clans, community, staking
@@ -120,8 +120,8 @@ contract StickToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
      */
     uint256[8] public totalMints; // Minted Amount for each allocation subject 
 
-    uint256[13] public testnetMintPerSecond;
-    bytes32[13] public testnetRoots;
+    uint256[6] public testnetMintPerSecond;
+    bytes32[6] public testnetRoots;
     address[] teamAddress;                      // Test -> add team members total number like testnet
     uint256[] teamMintPerSecond;
 
@@ -136,8 +136,8 @@ contract StickToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
     constructor(
         address[] memory _teamAddress,          // TEST -> Add the size here as well
         uint256[] memory _teamMintPerSecond,
-        bytes32[13] memory _testnetRoots,
-        uint256[13] memory _testnetMintPerSecond
+        bytes32[6] memory _testnetRoots,
+        uint256[6] memory _testnetMintPerSecond
     ) 
         ERC20("StickToken", "STICK") 
     {
@@ -338,7 +338,7 @@ contract StickToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
             // If the proof valid for this index, get the reward for this index
             if (MerkleProof.verify(_merkleProof, testnetRoots[i], leaf)){
 
-                // Community mint date starts ~142 days ago to have 13% TGE which is 921k tokens.
+                // Tester mint date starts ~36 days ago to have 10% TGE unlock which is 500k tokens.
                 totalReward = (block.timestamp - (deploymentTime - testnetTGErelease)) * testnetMintPerSecond[i];
                 break;
             }
@@ -466,11 +466,11 @@ contract StickToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
 
         if (_newMintPerSecond > mintPerSecond[_mintIndex]){
             uint256 changeRate = (_newMintPerSecond - mintPerSecond[_mintIndex]) * 100 / mintPerSecond[_mintIndex];
-            require(changeRate <= 13, "New mint per second can only have 13% change!");
+            require(changeRate <= 10, "New mint per second can only have 10% change!");
         }
         else {                
             uint256 changeRate = (mintPerSecond[_mintIndex] - _newMintPerSecond) * 100 / mintPerSecond[_mintIndex];
-            require(changeRate <= 13, "New mint per second can only have 13% change!");
+            require(changeRate <= 10, "New mint per second can only have 10% change!");
         }
 
         string memory proposalDescription = string(abi.encodePacked(
@@ -523,9 +523,9 @@ contract StickToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
         require(block.timestamp > twoYearsLater, "You can't increase the max supply till end of the second year!");
         require(_newMaxSupply > maxSupply, "New max supply can't be equal or lower than the current one");
 
-        // Max supply can be increased by maxiumum of 13% at a time
+        // Max supply can be increased by maxiumum of 10% at a time
         uint256 changeRate = (_newMaxSupply - maxSupply) * 100 / maxSupply;
-        require(changeRate <= 13, "New mint per second can only have 13% change!");
+        require(changeRate <= 10, "New mint per second can only have 10% change!");
 
         string memory proposalDescription = string(abi.encodePacked(
             "MAX SUPPLY CHANGE !! NEW SUPPLY: ", Strings.toHexString(_newMaxSupply), 

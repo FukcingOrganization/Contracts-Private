@@ -56,7 +56,7 @@ contract StickRound is Context, ReentrancyGuard {
 
   struct Round{
     uint256 endingTime;
-    Level[13] levels;
+    Level[10] levels;
     uint256 roundRewards;
     mapping(address => bool) isPlayerClaimed;
     mapping(address => bool) isBackerClaimed;
@@ -115,7 +115,7 @@ contract StickRound is Context, ReentrancyGuard {
   
   Counters.Counter public roundCounter;
 
-  uint256[13] levelRewardWeights;
+  uint256[10] levelRewardWeights;
   uint256 totalRewardWeight;
 
   constructor(uint256 _endOfTheFirstRound) {
@@ -124,7 +124,7 @@ contract StickRound is Context, ReentrancyGuard {
   }
 
   function fundBoss(uint256 _levelNumber, uint256 _bossID, uint256 _fundAmount) public nonReentrant() returns (bool) {
-    require(_levelNumber >= 0 && _levelNumber < 13, "Invalid level number!");
+    require(_levelNumber >= 0 && _levelNumber < 10, "Invalid level number!");
 
     Round storage round = rounds[roundCounter.current()];
 
@@ -156,7 +156,7 @@ contract StickRound is Context, ReentrancyGuard {
   }
 
   function defundBoss(uint256 _levelNumber, uint256 _bossID, uint256 _withdrawAmount) public nonReentrant() returns (bool) {
-    require(_levelNumber >= 0 && _levelNumber < 13, "Invalid level number!");
+    require(_levelNumber >= 0 && _levelNumber < 10, "Invalid level number!");
     require(IERC721(contracts[0]).ownerOf(_bossID) != address(0), "This Boss doesn't even exist!");
     
     Round storage round = rounds[roundCounter.current()];
@@ -179,8 +179,8 @@ contract StickRound is Context, ReentrancyGuard {
   }
 
   function startNextRound(Round storage _currentRound) internal {
-    // Iterate through all 13 level
-    for (uint i = 0; i < 13; i++){
+    // Iterate through all 10 level
+    for (uint i = 0; i < 10; i++){
       Election storage election = _currentRound.levels[i].election;
 
       // Find Winner Boss
@@ -229,7 +229,7 @@ contract StickRound is Context, ReentrancyGuard {
     // Check all the levels and sum up the rewards if any
     uint256 reward;
 
-    for (uint i = 0; i < 13; i++){
+    for (uint i = 0; i < 10; i++){
       Level storage level = round.levels[i]; // Get the level
 
       // Check the merkle tree to validate the sender has played this level
@@ -256,7 +256,7 @@ contract StickRound is Context, ReentrancyGuard {
     // Check all the levels and sum up the rewards if any
     uint256 reward;
 
-    for (uint i = 0; i < 13; i++){
+    for (uint i = 0; i < 10; i++){
       Level storage level = round.levels[i];     // Get the level
       Election storage election = level.election; // Get the election
 
@@ -270,16 +270,16 @@ contract StickRound is Context, ReentrancyGuard {
     require(IERC20(contracts[11]).transfer(sender, reward), "Something went wrong while you're trying to get your reward!");
   }
 
-  function getPlayerRewards(bytes32[] calldata _merkleProof, uint256 _roundNumber) public view returns (uint256[13] memory) {
+  function getPlayerRewards(bytes32[] calldata _merkleProof, uint256 _roundNumber) public view returns (uint256[10] memory) {
     require(block.timestamp > rounds[_roundNumber].endingTime, "Wait for the end of the round!");
     require(rounds[_roundNumber].endingTime != 0, "Invalied round number!"); // If there is no end time
 
-    uint256[13] memory rewards;
+    uint256[10] memory rewards;
 
     Round storage round = rounds[_roundNumber];
     address sender = _msgSender();
 
-    for (uint i = 0; i < 13; i++){
+    for (uint i = 0; i < 10; i++){
       Level storage level = round.levels[i]; // Get the level
 
       // Check the merkle tree to validate the sender has played this level
@@ -292,16 +292,16 @@ contract StickRound is Context, ReentrancyGuard {
     return rewards;
   }
 
-  function getBackerRewards(uint256 _roundNumber) public view returns (uint256[13] memory) {
+  function getBackerRewards(uint256 _roundNumber) public view returns (uint256[10] memory) {
     require(block.timestamp > rounds[_roundNumber].endingTime, "Wait for the end of the round!");
     require(rounds[_roundNumber].endingTime != 0, "Invalied round number!"); // If there is no end time
 
-    uint256[13] memory rewards;
+    uint256[10] memory rewards;
 
     Round storage round = rounds[_roundNumber];
     address sender = _msgSender();
 
-    for (uint i = 0; i < 13; i++){
+    for (uint i = 0; i < 10; i++){
       Level storage level = round.levels[i];     // Get the level
       Election storage election = level.election; // Get the election
 
@@ -326,14 +326,14 @@ contract StickRound is Context, ReentrancyGuard {
     (_round.roundRewards) = abi.decode(returnData, (uint256));
 
     // Distribute it according to level weights
-    for (uint256 i = 0; i < 13; i++) {
+    for (uint256 i = 0; i < 10; i++) {
       _round.levels[i].backerReward = _round.roundRewards * levelRewardWeights[i] / totalRewardWeight;
     }
   }
 
   function updateLevelRewardRates(uint256 _level, uint256 _newWeight) public {
     require(_msgSender() == contracts[5], "Only the Executors can update the level reward rates!!");
-    require(_level >= 0 && _level < 13, "Dude! Check the level number! It can be 0 to 12!");
+    require(_level >= 0 && _level < 10, "Dude! Check the level number! It can be 0 to 12!");
 
     // Update total weight
     if (levelRewardWeights[_level] > _newWeight)

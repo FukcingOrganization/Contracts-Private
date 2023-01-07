@@ -19,14 +19,14 @@ import "./IERC4907.sol";
   *
  * -> Lords can set custom URI for their licenses
   *
- * -> Lords collects taxes from their clans. Initial tax rate is 13%. Which means, 13% of the clan rewards
+ * -> Lords collects taxes from their clans. Initial tax rate is 10%. Which means, 10% of the clan rewards
  * will go to the lord of the clan.
   *
  * -> If the clans starts a rebellion and fails, tax rate increases according to formula below.
  * Tax rate formula: tax rate = base tax rate + (tax rate change * number of glories);
  * If the rebellion wins the war, lord dies and clans would be free. No more taxes!
  * War is a simply battle of resources. Lord or rebels should have at least 66% of funding to win.
- * 13% of the total funds in a war burns as war casualties. Remaining funds goes to the winner side.
+ * 10% of the total funds in a war burns as war casualties. Remaining funds goes to the winner side.
  * Everyone can support the lord or rebels! Supporters of winner side shares the losers' funds after war!
   *
  * -> Lord NFTs are rentable. Lords can rent them out by setting renter address and expire date.
@@ -155,12 +155,12 @@ contract StickLord is ERC721, ERC721Burnable {
     rebellionCounter.increment(); // Leave first (0) rebellion empty for all lords to start a new one
     maxSupply = 666;
     mintCost = 6666 ether;  // TEST -> Change it with the final value
-    baseTaxRate = 13;     // TEST -> Change it with the final value
+    baseTaxRate = 10;     // TEST -> Change it with the final value
     taxChangeRate = 7;    // TEST -> Change it with the final value
     rebellionLenght = 7 days;     // TEST -> Change it with the final value
     signalLenght = 3 days;        // TEST -> Change it with the final value
     victoryRate = 66;             // TEST -> Change it with the final value
-    warCasualtyRate = 13;         // TEST -> Change it with the final value
+    warCasualtyRate = 10;         // TEST -> Change it with the final value
 
     // TEST -> Add warning in the decription of metedata that says "If you earn taxes and vote in DAO,
     // check if the lord is rented to another address before you buy! Click the link below and use isRented()
@@ -286,7 +286,7 @@ contract StickLord is ERC721, ERC721Burnable {
 
   function signalRebellion(uint256 _lordID, uint256 _clanID) public {
     require(_msgSender() == contracts[1], "Only clans can call this function!");
-    require(clansOf[_lordID].length >= 13, "You can't start rebellion unless there are at least 13 clans!");
+    require(clansOf[_lordID].length >= 3, "You can't start rebellion unless there are at least 3 clans!");
     require(_exists(_lordID), "This lord doesn't exists!");
 
     Rebellion storage reb = rebellions[rebellionOf[_lordID]];
