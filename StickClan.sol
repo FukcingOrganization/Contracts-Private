@@ -119,7 +119,6 @@ contract StickClan is Context, ReentrancyGuard {
   }
   
   Counters.Counter public clanCounter;
-  Counters.Counter public roundCounter;
 
   /**
    * proposalTypes's Indexes with corresponding meaning
@@ -160,12 +159,18 @@ contract StickClan is Context, ReentrancyGuard {
   uint256 public currentTotalClanPoint;  
   uint256 public maxPointToChange;        // Maximum point that can be given in a propsal
   uint256 public cooldownTime;            // Cool down time to give clan point by executors
-  uint256 public firstRoundEnd;          // End of the first round, hence the first reward time
+  uint256 public roundNumber;             // Tracking the round number
 
   constructor(){
     clanCounter.increment();  // clan ID's should start from 1
     maxPointToChange = 666;
     cooldownTime = 3 days;
+
+    // Set the round contract address and get the current round number from it
+    contracts[9] = 0x0000000000000000000000000000000000000000;
+    (bool txSuccess0, bytes memory returnData) = contracts[9].call(abi.encodeWithSignature("getCurrentRoundNumber()"));
+    require(txSuccess0, "Transaction has failed to get backer rewards from Token contract!");
+    (roundNumber) = abi.decode(returnData, (uint256));
   }
 
   function createClan(
@@ -241,7 +246,7 @@ contract StickClan is Context, ReentrancyGuard {
     clanCooldownTime[_clanID] = block.timestamp + cooldownTime; // set a new cooldown time
 
     // If the are in the new round
-    updateRound();
+    checkAndUpdateRound();
 
     uint256 currRound = roundCounter.current();
     Clan storage clan = clans[_clanID];
@@ -270,7 +275,7 @@ contract StickClan is Context, ReentrancyGuard {
     require(clans[_clanID].leader != address(0), "There is no such clan with that ID!");
 
     // If the are in the new round
-    updateRound();
+    checkAndUpdateRound();
 
     uint256 currRound = roundCounter.current();
 
@@ -308,7 +313,7 @@ contract StickClan is Context, ReentrancyGuard {
 
   function memberRewardClaim(uint256 _clanID, uint256 _roundNumber) public {
     // If the are in the new round
-    updateRound();
+    checkAndUpdateRound();
 
     Clan storage clan = clans[_clanID];
     uint256 _round = _roundNumber;
@@ -342,26 +347,27 @@ contract StickClan is Context, ReentrancyGuard {
   }
 
   /// @dev Starts the new round if the time is up
-  function updateRound() public {
-    uint256 currRound = roundCounter.current();
+  function checkAndUpdateRound() public {
+    (bool txSuccess0, bytes memory returnData) = contracts[9].call(abi.encodeWithSignature("getCurrentRoundNumber()"));
+    require(txSuccess0, "Transaction has failed to get backer rewards from Token contract!");
+    (uint256 currentRound) = abi.decode(returnData, (uint256));
 
-    // If time is up, get rewards from StickToken contract first
-    if (block.timestamp > (currRound * 1 days) + firstRoundEnd){ // TEST -> make it 7 days
+    // If the new round has started, get rewards from StickToken contract first
+    if (currentRound > roundNumber){ 
       // Get the clans rewards from token
       (bool txSuccess0, bytes memory returnData0) = contracts[11].call(abi.encodeWithSignature("clanMint()"));
       require(txSuccess0, "Transaction has failed to get backer rewards from Token contract!");
 
       // Save the reward to the round
-      (rounds[currRound].clanRewards) = abi.decode(returnData0, (uint256));
+      (rounds[roundNumber].clanRewards) = abi.decode(returnData0, (uint256));
 
       // Keep the total clan point to pass on to the next round
-      uint256 currentTotalClanPoint = rounds[currRound].totalClanPoint;
-
-      // Pass on to the next round
-      roundCounter.increment();
+      uint256 currentTotalClanPoint = rounds[roundNumber].totalClanPoint;
 
       // Pass on the current total clan point to the next round
-      rounds[roundCounter.current()].totalClanPoint = currentTotalClanPoint;
+      rounds[currentRound].totalClanPoint = currentTotalClanPoint;
+
+      roundNumber = currentRound; // Save the new round number
     }
   }
 
@@ -445,7 +451,7 @@ contract StickClan is Context, ReentrancyGuard {
     Clan storage clan = clans[_clanID];
     ClanMember storage member = clans[_clanID].members[clan.memberIdOf[_memberAddress]];
     
-    updateRound();
+    checkAndUpdateRound();
     uint256 currRound = roundCounter.current();
 
     require(clan.isDisbanded == false, "This clan is disbanded!");
@@ -540,7 +546,7 @@ contract StickClan is Context, ReentrancyGuard {
     ClanMember storage member = clans[clanOf[_memberAddress]].members[clan.memberIdOf[_memberAddress]];
 
     // Update clan point before interact with them.
-    updateRound();
+    checkAndUpdateRound();
     updatePoint(clanID, _memberAddress); 
 
     return member.point[roundCounter.current()];
@@ -789,7 +795,7 @@ contract StickClan is Context, ReentrancyGuard {
     require(clans[_clanID].isDisbanded == false, "This clan is disbanded!");
 
     // If the are in the new round
-    updateRound();
+    checkAndUpdateRound();
 
     uint256 currRound = roundCounter.current();
     Clan storage clan = clans[_clanID];
@@ -859,7 +865,7 @@ contract StickClan is Context, ReentrancyGuard {
     Clan storage clan = clans[proposal.index]; // Proposal index is the Clan ID
 
     // Check round update
-    updateRound();
+    checkAndUpdateRound();
     uint256 currRound = roundCounter.current();
 
     // Update clan point before interact with them. Not member (0)

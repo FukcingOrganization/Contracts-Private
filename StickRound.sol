@@ -118,6 +118,8 @@ contract StickRound is Context, ReentrancyGuard {
   uint256[10] levelRewardWeights;
   uint256 totalRewardWeight;
 
+  uint256 roundLenght = 7 days;
+
   constructor(uint256 _endOfTheFirstRound) {
     rounds[roundCounter.current()].endingTime = _endOfTheFirstRound; // TEST -> Change it with unix value of Monday 00.00
     getBackerRewards(rounds[roundCounter.current()]);     
@@ -212,7 +214,7 @@ contract StickRound is Context, ReentrancyGuard {
     // Now we have burnt the losers' funds and save the winner's balance. Time to start next Round!
     uint256 previousTime = _currentRound.endingTime;
     roundCounter.increment();
-    rounds[roundCounter.current()].endingTime = previousTime + 7 days;
+    rounds[roundCounter.current()].endingTime = previousTime + roundLenght;
     getBackerRewards(rounds[roundCounter.current()]);
   }
 
@@ -343,6 +345,15 @@ contract StickRound is Context, ReentrancyGuard {
     
     // Update level weight
     levelRewardWeights[_level] = _newWeight;
+  }
+
+  function getCurrentRoundNumber() public returns (uint256) {
+    Round storage round = rounds[roundCounter.current()];
+
+    // If current round has ended, start the new one before funding
+    if (block.timestamp > round.endingTime){
+      startNextRound(round);
+    }
   }
 
   /**
