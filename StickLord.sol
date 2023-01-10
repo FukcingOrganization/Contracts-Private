@@ -151,12 +151,17 @@ contract StickLord is ERC721, ERC721Burnable {
   uint256 public warCasualtyRate; // Adjustable by DAO  | The rate (%) that will burn as a result of the war
 
   constructor(string memory _baseURI) ERC721("StickLord", "SLORD") {
-    _tokenIdCounter.increment();  // token IDs starts from 1 and goes to 666
+    teamAndCommunityMint();       // Mint first 50 Lords for team and community allocation
     rebellionCounter.increment(); // Leave first (0) rebellion empty for all lords to start a new one
-    maxSupply = 666;
-    mintCost = 6666 ether;  // TEST -> Change it with the final value
+
+    maxSupply = 500;
+
+    baseMintCost = 0.05 ether;  // TEST -> Change it with the final value - Initial cost to mint a Lord
+    mintCostIncrement = 0.0005 ether;  // TEST -> Change it with the final value - Increases 0.0005 ETH with every mint
+
     baseTaxRate = 10;     // TEST -> Change it with the final value
     taxChangeRate = 7;    // TEST -> Change it with the final value
+
     rebellionLenght = 7 days;     // TEST -> Change it with the final value
     signalLenght = 3 days;        // TEST -> Change it with the final value
     victoryRate = 66;             // TEST -> Change it with the final value
@@ -175,15 +180,33 @@ contract StickLord is ERC721, ERC721Burnable {
     super._burn(tokenId);
   }
 
-  function safeMint(address to) public {
+  function teamAndCommunityMint() internal {
+    _tokenIdCounter.increment();  // Start the token ID from 1 by increasing the counter initially
+
+    // Mint first 50 Lords for the deployer address
+    for (uint tokenId = 1; i <= 50; tokenId++) {      
+      _safeMint(_msgSender(), tokenId);
+
+      _tokenIdCounter.increment();
+      totalSupply++;
+    }
+  }
+
+  function lordMint() public {
     uint256 tokenId = _tokenIdCounter.current();
 
-    require(tokenId < maxSupply, "Sorry mate, there can ever be only 666 Lords, and they are all out!");
-    ERC20Burnable(contracts[11]).burnFrom(_msgSender(), mintCost);
+    // Calculate the current mint cost
+    uint256 mintCost = baseMintCost + ((tokenId - 50) * mintCostIncrement);
+
+    require(tokenId <= maxSupply, "Sorry mate, there can ever be only 500 Lords, and they are all out!");
+    require(msg.value >= mintCost, "Not sufficient mint cost!");   
     
-    _tokenIdCounter.increment();
-    totalSupply++;
-    _safeMint(to, tokenId);
+    _tokenIdCounter.increment();            // Increase the ID counter
+    totalSupply++;                          // Increase the totalSupply
+    _safeMint(_msgSender(), tokenId);       // Mint the Lord
+    
+    uint256 change = msg.value - mintCost;  // Get the change
+    transfer(_msgSender(), change);         // Return the change
   }
 
   function _baseURI() internal view virtual override returns (string memory) {
@@ -411,17 +434,6 @@ contract StickLord is ERC721, ERC721Burnable {
       uint256 trophy = reb.totalFunds * contributionRate / 100;
       ERC20(contracts[11]).transfer(sender, trophy);
     }
-  }
-
-  /**
-    @notice Executors can update mint cost without DAO approval. This is due to the expected 
-    extreme volatility at the beginning of the game. The upper limit of the mint cost will be 666$. 
-    Executors will the mint cost according to the token price. This process will end when the lords 
-    reach the maximum supply.
-   */
-  function updateMintCost(uint256 _newCost) public {
-    require(_msgSender() == contracts[5], "Only executors can call this function!");
-    mintCost = _newCost;
   }
 
   /**
