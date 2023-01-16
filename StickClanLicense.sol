@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
-import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155URIStorage.sol";
-import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+import "./dependencies/ERC1155.sol";
+import "./dependencies/ERC1155URIStorage.sol";
+import "./dependencies/ERC1155Burnable.sol";
+import "./dependencies/ERC20Burnable.sol";
 
 /**
   @notice

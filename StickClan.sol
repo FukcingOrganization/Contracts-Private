@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
-import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/utils/Context.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/utils/Counters.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
+import "./dependencies/ERC20Burnable.sol";
+import "./dependencies/ERC1155Burnable.sol";
+import "./dependencies/IERC20.sol";
+import "./dependencies/Context.sol";
+import "./dependencies/ReentrancyGuard.sol";
+import "./dependencies/Counters.sol";
+import "./dependencies/Strings.sol";
 
 /**
   @notice
