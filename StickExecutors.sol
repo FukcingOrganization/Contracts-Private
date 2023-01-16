@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "./dependencies/Context.sol";
-import "./dependencies/AccessControl.sol";
-import "./dependencies/Counters.sol";
+import "./Context.sol";
+import "./AccessControl.sol";
+import "./Counters.sol";
 
 /**
   * -> Update: signal time

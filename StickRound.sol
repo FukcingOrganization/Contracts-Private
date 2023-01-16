@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "./dependencies/IERC20.sol";
-import "./dependencies/IERC721.sol";
-import "./dependencies/Counters.sol";
-import "./dependencies/Context.sol";
-import "./dependencies/Strings.sol";
-import "./dependencies/MerkleProof.sol";
-import "./dependencies/ReentrancyGuard.sol";
+import "./IERC20.sol";
+import "./IERC721.sol";
+import "./Counters.sol";
+import "./Context.sol";
+import "./Strings.sol";
+import "./MerkleProof.sol";
+import "./ReentrancyGuard.sol";
 
 /**
  * -> To-do: 
@@ -354,6 +354,8 @@ contract StickRound is Context, ReentrancyGuard {
     if (block.timestamp > round.endingTime){
       startNextRound(round);
     }
+
+    return roundCounter.current();
   }
 
   /**

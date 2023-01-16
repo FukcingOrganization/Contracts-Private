@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "./dependencies/ERC1155.sol";
-import "./dependencies/ERC1155URIStorage.sol";
-import "./dependencies/ERC1155Burnable.sol";
+import "./ERC1155.sol";
+import "./ERC1155URIStorage.sol";
+import "./ERC1155Burnable.sol";
 
 // TEST -> Control the URI things
 

@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "./dependencies/ERC721.sol";
-import "./dependencies/ERC721URIStorage.sol";
-import "./dependencies/ERC721Burnable.sol";
-import "./dependencies/Counters.sol";
-import "./dependencies/IERC20.sol";
-import "./dependencies/ERC20Burnable.sol";
-import "./dependencies/IERC4907.sol";
+import "./ERC721.sol";
+import "./ERC721URIStorage.sol";
+import "./ERC721Burnable.sol";
+import "./Counters.sol";
+import "./IERC20.sol";
+import "./ERC20Burnable.sol";
+import "./IERC4907.sol";
 
 
 /**

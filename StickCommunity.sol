@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "./dependencies/ERC20.sol";
-import "./dependencies/Context.sol";
-import "./dependencies/Strings.sol";
-import "./dependencies/MerkleProof.sol";
+import "./ERC20.sol";
+import "./Context.sol";
+import "./Strings.sol";
+import "./MerkleProof.sol";
 
 /**
   @notice
