@@ -248,27 +248,26 @@ contract StickClan is Context, ReentrancyGuard {
     // If the are in the new round
     checkAndUpdateRound();
 
-    uint256 currRound = roundCounter.current();
     Clan storage clan = clans[_clanID];
 
     // Update clan point before interact with them. Not member (0)
     updatePoint(_clanID, address(0));
     
     if (_isDecreasing){
-      clan.point[currRound] -= _point;
+      clan.point[roundNumber] -= _point;
       clan.currentPoint -= _point;
-      rounds[currRound].totalClanPoint -= _point;
+      rounds[roundNumber].totalClanPoint -= _point;
       currentTotalClanPoint -= _point;
     }
     else {
-      clan.point[currRound] += _point;
+      clan.point[roundNumber] += _point;
       clan.currentPoint += _point;
-      rounds[currRound].totalClanPoint += _point;
+      rounds[roundNumber].totalClanPoint += _point;
       currentTotalClanPoint += _point;
     }
 
     // If this was the first time of this clan, record the first round
-    if (clan.firstRound == 0) { clan.firstRound = currRound; }
+    if (clan.firstRound == 0) { clan.firstRound = roundNumber; }
   }
 
   function clanRewardClaim(uint256 _clanID, uint256 _roundNumber) public {    
@@ -277,12 +276,10 @@ contract StickClan is Context, ReentrancyGuard {
     // If the are in the new round
     checkAndUpdateRound();
 
-    uint256 currRound = roundCounter.current();
-
-    require(_roundNumber < currRound, "You can't claim the current or future rounds' rounds. Check round number!");
-    
-    require(rounds[currRound].isClanClaimed[_clanID] == false, "Your clan already claimed its reward for this round!");
-    rounds[currRound].isClanClaimed[_clanID] == true;  // If not claimed yet, mark it claimed.
+    require(_roundNumber < roundNumber, "You can't claim the current or future rounds' rounds. Check round number!");
+    BUG: roundNumber diyor?
+    require(rounds[roundNumber].isClanClaimed[_clanID] == false, "Your clan already claimed its reward for this round!");
+    rounds[roundNumber].isClanClaimed[_clanID] == true;  // If not claimed yet, mark it claimed.
 
     Clan storage clan = clans[_clanID];
 
@@ -290,8 +287,8 @@ contract StickClan is Context, ReentrancyGuard {
     updatePoint(_clanID, address(0));  
 
     // total clan reward * clan Point * 100 / total clan point
-    uint256 reward = rounds[currRound].clanRewards * (clan.point[_roundNumber] * 100 / rounds[currRound].totalClanPoint);
-    rounds[currRound].claimedRewards += reward;  // Keep record of the claimed rewards
+    uint256 reward = rounds[roundNumber].clanRewards * (clan.point[_roundNumber] * 100 / rounds[roundNumber].totalClanPoint);
+    rounds[roundNumber].claimedRewards += reward;  // Keep record of the claimed rewards
 
     // Get the address and the tax rate of the lord
     (bool txSuccess1, bytes memory returnData1) = address(contracts[7]).call(abi.encodeWithSignature("lordTaxInfo(uint256)", clan.lordID));
@@ -307,7 +304,7 @@ contract StickClan is Context, ReentrancyGuard {
       IERC20(contracts[11]).transfer(lordAddress, lordTax);
 
     // Then keep the remaining for the clan
-    clan.rewards[currRound] = reward;
+    clan.rewards[roundNumber] = reward;
     clan.balance += reward;
   }
 
@@ -317,13 +314,12 @@ contract StickClan is Context, ReentrancyGuard {
 
     Clan storage clan = clans[_clanID];
     uint256 _round = _roundNumber;
-    uint256 currRound = roundCounter.current();
     address sender = _msgSender();
     uint256 memberID = clan.memberIdOf[sender];
     
     require(clan.members[memberID].isMember, "You are not a member of this clan!");
-    require(3 <= currRound, "Wait for the first 3 round to finish to have finalized reward!");
-    require(_round <= currRound - 3, "You can't claim the reward until it finalizes. Rewards are getting finalized after 3 rounds!");
+    require(3 <= roundNumber, "Wait for the first 3 round to finish to have finalized reward!"); BUG
+    require(_round <= roundNumber - 3, "You can't claim the reward until it finalizes. Rewards are getting finalized after 3 rounds!");
     require(clan.isMemberClaimed[_round][sender] == false, "You already claimed your reward for this round!");
     clan.isMemberClaimed[_round][sender] == true;  // If not claimed yet, mark it claimed.
 
@@ -371,26 +367,25 @@ contract StickClan is Context, ReentrancyGuard {
     }
   }
 
-  function updatePoint(uint256 _clanID, address _member) internal {  
-    uint256 currRound = roundCounter.current();
+  function updatePoint(uint256 _clanID, address _member) internal { 
     Clan storage clan = clans[_clanID];
     
     // Update clan point
-    uint256 index = currRound;
+    uint256 index = roundNumber;
     while (clan.point[index] == 0 && index > clan.firstRound) { index--; }
-    clan.point[currRound] = clan.point[index];
+    clan.point[roundNumber] = clan.point[index];
 
     // Update total member point of the clan
-    index = currRound;
+    index = roundNumber;
     while (clan.totalMemberPoint[index] == 0 && index > clan.firstRound) { index--; }
-    clan.totalMemberPoint[currRound] = clan.totalMemberPoint[index];
+    clan.totalMemberPoint[roundNumber] = clan.totalMemberPoint[index];
     
     // Member point of the clan
     if (_member == address(0)) { return; }  // If the member address is null, then skip it
     uint256 memberID = clan.memberIdOf[_member];
-    index = currRound;
+    index = roundNumber;
     while (clan.members[memberID].point[index] == 0 && index > clan.firstRound) { index--; }
-    clan.members[memberID].point[currRound] = clan.members[memberID].point[index];
+    clan.members[memberID].point[roundNumber] = clan.members[memberID].point[index];
   }
 
   // Governance Functions
@@ -452,7 +447,6 @@ contract StickClan is Context, ReentrancyGuard {
     ClanMember storage member = clans[_clanID].members[clan.memberIdOf[_memberAddress]];
     
     checkAndUpdateRound();
-    uint256 currRound = roundCounter.current();
 
     require(clan.isDisbanded == false, "This clan is disbanded!");
     require(clan.members[clan.memberIdOf[_msgSender()]].isExecutor, "You have no authority to give point for this clan!");
@@ -463,15 +457,15 @@ contract StickClan is Context, ReentrancyGuard {
 
     // Update member point and total member point of the clan
     if (_isDecreasing) {
-      member.point[currRound] -= _point;
+      member.point[roundNumber] -= _point;
       member.currentPoint -= _point;
-      clan.totalMemberPoint[currRound] -= _point;
+      clan.totalMemberPoint[roundNumber] -= _point;
       clan.currentTotalMemberPoint -= _point;
     }
     else {
-      member.point[currRound] += _point;
+      member.point[roundNumber] += _point;
       member.currentPoint += _point;
-      clan.totalMemberPoint[currRound] += _point;
+      clan.totalMemberPoint[roundNumber] += _point;
       clan.currentTotalMemberPoint += _point;
     }
   }
@@ -549,7 +543,7 @@ contract StickClan is Context, ReentrancyGuard {
     checkAndUpdateRound();
     updatePoint(clanID, _memberAddress); 
 
-    return member.point[roundCounter.current()];
+    return member.point[roundNumber];
   }
 
   // returns all the members' point along with IDs
@@ -797,11 +791,10 @@ contract StickClan is Context, ReentrancyGuard {
     // If the are in the new round
     checkAndUpdateRound();
 
-    uint256 currRound = roundCounter.current();
     Clan storage clan = clans[_clanID];
 
     // After end of the round but until the end of the second round
-    require(_roundNumber == currRound - 1, "Invalid round number!");
+    require(_roundNumber == roundNumber - 1, "Invalid round number!");
 
     // Wait for the proposal to finish or execute it.
     require(proposals[clan.proposal_ID].isExecuted, "Current proposal is not executed yet!");
@@ -866,7 +859,6 @@ contract StickClan is Context, ReentrancyGuard {
 
     // Check round update
     checkAndUpdateRound();
-    uint256 currRound = roundCounter.current();
 
     // Update clan point before interact with them. Not member (0)
     updatePoint(proposal.index, address(0));
@@ -876,16 +868,16 @@ contract StickClan is Context, ReentrancyGuard {
     if (proposal.status == Status.Approved){
       // If the porposal bool (isDecreasing) is true, then subtract the point
       if (proposal.newBool){
-        clan.point[currRound] -= proposal.newUint;
-        rounds[currRound].totalClanPoint -= proposal.newUint;
+        clan.point[roundNumber] -= proposal.newUint;
+        rounds[roundNumber].totalClanPoint -= proposal.newUint;
       }
       else {
-        clan.point[currRound] += proposal.newUint;
-        rounds[currRound].totalClanPoint += proposal.newUint;
+        clan.point[roundNumber] += proposal.newUint;
+        rounds[roundNumber].totalClanPoint += proposal.newUint;
       }
     }
 
     // If this was the first time of this clan to get point, record the first round
-    if (clan.firstRound == 0) { clan.firstRound = currRound; }    
+    if (clan.firstRound == 0) { clan.firstRound = roundNumber; }    
   }
 }

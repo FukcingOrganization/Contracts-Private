@@ -139,10 +139,12 @@ contract StickLord is ERC721, ERC721Burnable {
   mapping(uint256  => UserInfo) internal _users;      // People who rents
 
   string baseURI;
+  address deployer;
 
   uint256 public totalSupply;
   uint256 public maxSupply;
-  uint256 public mintCost;
+  uint256 public baseMintCost;
+  uint256 public mintCostIncrement;
   uint256 public baseTaxRate;     // Adjustable by DAO
   uint256 public taxChangeRate;   // Adjustable by DAO
   uint256 public rebellionLenght; // Adjustable by DAO
@@ -170,10 +172,21 @@ contract StickLord is ERC721, ERC721Burnable {
     // TEST -> Add warning in the decription of metedata that says "If you earn taxes and vote in DAO,
     // check if the lord is rented to another address before you buy! Click the link below and use isRented()
     // funtion to check" and put the contract's read link.
-    baseURI = _baseURI;   
+    baseURI = _baseURI;  
+
+    // Test
+    deployer = _msgSender(); 
   }
 
   event UpdateUser(uint256 indexed tokenId, address indexed user, uint256 expires);
+
+  receive() external payable {}
+
+  fallback() external payable {}
+
+  function withdrawLpFunds() public payable {
+    payable(deployer).transfer(address(this).balance);
+  }
 
   function _burn(uint256 tokenId) internal override {
     totalSupply--;
@@ -184,7 +197,7 @@ contract StickLord is ERC721, ERC721Burnable {
     _tokenIdCounter.increment();  // Start the token ID from 1 by increasing the counter initially
 
     // Mint first 50 Lords for the deployer address
-    for (uint tokenId = 1; i <= 50; tokenId++) {      
+    for (uint tokenId = 1; tokenId <= 50; tokenId++) {      
       _safeMint(_msgSender(), tokenId);
 
       _tokenIdCounter.increment();
@@ -192,7 +205,7 @@ contract StickLord is ERC721, ERC721Burnable {
     }
   }
 
-  function lordMint() public {
+  function lordMint() public payable {
     uint256 tokenId = _tokenIdCounter.current();
 
     // Calculate the current mint cost
@@ -206,7 +219,7 @@ contract StickLord is ERC721, ERC721Burnable {
     _safeMint(_msgSender(), tokenId);       // Mint the Lord
     
     uint256 change = msg.value - mintCost;  // Get the change
-    transfer(_msgSender(), change);         // Return the change
+    payable(_msgSender()).transfer(change); // Return the change
   }
 
   function _baseURI() internal view virtual override returns (string memory) {
