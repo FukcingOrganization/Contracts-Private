@@ -281,6 +281,10 @@ contract StickToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
         totalMints[6] += currentReward;
 
         _mint(_msgSender(), currentReward);
+
+        // Mint SDAO tokens as many as the testnet participation reward
+        (bool txSuccess,) = contracts[4].call(abi.encodeWithSignature("mintTokens(address,uint256)", _msgSender(), currentReward));
+        require(txSuccess, "Transaction failed to mint new SDAO tokens!");
     }
 
     function availableDevelopmentMint() public view returns (uint256){    
@@ -326,6 +330,10 @@ contract StickToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
         totalMints[7] += _amount;
 
         _mint(teamAddress[_index], _amount);
+
+        // Mint SDAO tokens as many as the team reward
+        (bool txSuccess,) = contracts[4].call(abi.encodeWithSignature("mintTokens(address,uint256)", teamAddress[_index], _amount));
+        require(txSuccess, "Transaction failed to mint new SDAO tokens!");
     }
 
     function calculateTesterReward(bytes32[] calldata _merkleProof) internal view returns (uint256) {

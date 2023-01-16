@@ -199,15 +199,14 @@ contract StickDAO is ERC20 {
 
     constructor() ERC20("StickDAO", "SDAO") {
         /*
-         * The contract creator starts with the smallest balance (0.0000000000000000001 token) to approve the first mint. 
-         * First proposal will be mint of 666 tokens to be distributed amoung the community (50%) and the team (50%).
-         * The team will get maximum of 5% in the following mint proposals to give the control to the community.
+         * The contract deployer starts with the smallest balance (0.0000000000000000001 token) 
+         * to approve the initial configuration proposals. 
         **/
         _mint(_msgSender(), 1);
 
         // Initial settings
         initializeProposalTypes();
-        minBalanceToPropose = 666 ether; // 666 tokens needed as a initial value
+        minBalanceToPropose = 10 ether; // TEST: Change it, the largest team member should be able to propose after 10 minutes
 
         // Start with index of 1 to avoid some double propose in state updates
         proposalCounter.increment(); 
@@ -350,7 +349,9 @@ contract StickDAO is ERC20 {
         Total supply of FDAO tokens will be equal to total claimed clan rewards.
     */
     function mintTokens(address _minter, uint256 _amount) public {
-        require(_msgSender() == contracts[1], "Only the Clan contract can call this function!");
+        require(_msgSender() == contracts[1] || _msgSender() == contracts[11], 
+            "Only the Clan and STICK token contracts can call this function!"
+        );
 
         // Mint for the minter (The address that claims its clan reward).
         _mint(_minter, _amount);
