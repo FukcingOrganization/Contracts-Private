@@ -14,7 +14,7 @@ import "./Counters.sol";
  * @notice
  * -> Executors executes update proposals to maintain the sustainablity and balance in Stick Fight.
  * -> At least half of the executors should signal to propose a new proposal within the signal time
- * -> FDAO can hire or fire executors.
+ * -> SDAO can hire or fire executors.
  */
 
 /**
@@ -302,7 +302,7 @@ contract StickExecutors is Context, AccessControl {
 
     /// *************** Check Caller's Eligibility to Propose *************** ///
 
-    // Only addresses who hold required amount of governance token (FDAO) can call this function
+    // Only addresses who hold required amount of governance token (SDAO) can call this function
     // Get required balance to propose
     (bool txSuccess0, bytes memory returnData0) = 
       contracts[4].call(abi.encodeWithSignature("getMinBalanceToPropose()")
@@ -314,10 +314,10 @@ contract StickExecutors is Context, AccessControl {
     (bool txSuccess1, bytes memory returnData1) = 
       contracts[4].call(abi.encodeWithSignature("balanceOf(address)", _msgSender())
     );
-    require(txSuccess1, "Transaction failed to get FDAO token balance of the caller!");
+    require(txSuccess1, "Transaction failed to get SDAO token balance of the caller!");
     (uint256 callerBalance) = abi.decode(returnData1, (uint256));
 
-    require(callerBalance >= requiredBalance, "You don't have enough FDAO tokens to call this function!");
+    require(callerBalance >= requiredBalance, "You don't have enough SDAO tokens to call this function!");
 
         
     /// ************************** Create Proposal ************************** ///

@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "./dependencies/ERC20.sol";
-import "./dependencies/ERC20Burnable.sol";
-import "./dependencies/ERC20Snapshot.sol";
-import "./dependencies/Pausable.sol";
-import "./dependencies/Strings.sol";
-import "./dependencies/MerkleProof.sol";
-import "./dependencies/Counters.sol";
+import "./ERC20.sol";
+import "./ERC20Burnable.sol";
+import "./ERC20Snapshot.sol";
+import "./Pausable.sol";
+import "./Strings.sol";
+import "./MerkleProof.sol";
+import "./Counters.sol";
 
 /**
   * @notice:
@@ -27,7 +27,7 @@ import "./dependencies/Counters.sol";
   * Clans       -> Clan contract gets automatically                             // 0.224538876188384    224538876188384000      3 
   * Community   -> Executors pulls to the contract  //                          // 0.0748462920627947   74846292062794700       3 
   * Staking     -> Executors pulls to the contract  // New Contract (later)     // 0.0748462920627947   74846292062794700       3 
-  * FDAO        -> Executors pulls to the contract                              // 0.0374231460313974   37423146031397400       3 
+  * SDAO        -> Executors pulls to the contract                              // 0.0374231460313974   37423146031397400       3 
   * Dev         -> Executors pulls to a EOA         // 2 yr                     // 0.112269438094192    112269438094192000      1
   * Testnet     -> Individual claim with 66 Level   // 1 yr - 10% TGE           // 0.112269438094192    112269438094192000      1  
   * Team        -> Individual claim                 // 3 yr                     // 0.112269438094192    112269438094192000      1 

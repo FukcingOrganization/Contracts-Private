@@ -9,7 +9,7 @@ import "./ERC1155Burnable.sol";
 
 /**
   * @notice
-  * -> Executors can propose to change mintCost and stop item to be minted by FDAO approval.
+  * -> Executors can propose to change mintCost and stop item to be minted by SDAO approval.
   * -> Executors can update token URI without any DAO approval.
   * -> Minters have to burn certaion amount of STICK token to mint items.
   */

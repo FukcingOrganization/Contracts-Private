@@ -9,21 +9,21 @@ import "./ReentrancyGuard.sol";
 
 /**
   * @notice
-  * -> FDAO tokens are non-transferable! Therefore, you can't buy the governance,
+  * -> SDAO tokens are non-transferable! Therefore, you can't buy the governance,
   * you can't transfer the governance! You should earn it.
   *
-  * -> Executors of Stick Fight proposes new updated and FDAO decide wheter apply or deny
+  * -> Executors of Stick Fight proposes new updated and SDAO decide wheter apply or deny
   * the update. These updates are fully on-chain and not optional for the team to apply.
   *
   * -> Addresses with a minimum balance to propose can propose new custom proposals to
   * show community's decision on specific topics.
   *
-  * -> FDAO issues the new FDAO tokens for distribution to designated accounts.
+  * -> SDAO issues the new SDAO tokens for distribution to designated accounts.
   *
   * -> The DAO has 5% allocation of STICK tokens. The DAO will vote for spending of these tokens
   * alongside with other ERC20 tokens and native coins that might be donated to the DAO.
   *
-  * -> Lords represents 50% of the DAO. The lord contract holds 50% of FDAO tokens.
+  * -> Lords represents 50% of the DAO. The lord contract holds 50% of SDAO tokens.
   */
 
 /*
@@ -71,10 +71,10 @@ import "./ReentrancyGuard.sol";
 
     The Stick DAO tokens are not transferable!
     Therefore you can't buy them, you have to earn them!
-    FDAO token is based on ERC-20 standard and manipulated to be non-transferable.
+    SDAO token is based on ERC-20 standard and manipulated to be non-transferable.
 
     What does DAO do?
-    - Issues new FDAO tokens.
+    - Issues new SDAO tokens.
     - Approves all economic changes in Stick Fight.
     - Provides a on-chain voting mechanism for both off-chain and on-chain changes.
     - The Lords represent 50% of the DAO.
@@ -85,7 +85,7 @@ import "./ReentrancyGuard.sol";
 
     Only 1 monetary proposal can be active at a time! Therefore, you need to wait for
     the current one to finalize to propose a new monetary proposal. There are 3 different
-    monetary proposals: FDAO token mint, STICK token spending, Native Coin Spending.
+    monetary proposals: SDAO token mint, STICK token spending, Native Coin Spending.
 
     DAO will decide how to spend its treasury with monetary proposals.
 */
@@ -324,7 +324,7 @@ contract StickDAO is ERC20 {
         proposal.isLordVoted[_lordID] = true;
         
         // Get the voting power of the lord: 
-        // Lord voting power (aka. 50% of total supply of FDAO token) / lord total supply
+        // Lord voting power (aka. 50% of total supply of SDAO token) / lord total supply
         // Removing decimals (1 ether) to avoid unnecessarily large numbers.
         uint256 votes = balanceOf(contracts[7]) / _lordTotalSupply / 1 ether;
 
@@ -344,9 +344,9 @@ contract StickDAO is ERC20 {
     // >< >< >< >< >< >< >< >< >< ><                                                              >< >< >< >< >< >< >< >< //
 
     /**
-        @dev Clan members mint as much FDAO tokens as they received in STICK token reward by Clan Rewards. 
+        @dev Clan members mint as much SDAO tokens as they received in STICK token reward by Clan Rewards. 
         Therefore, only clan contract can call this functions and only clan members can mint new tokens.
-        Total supply of FDAO tokens will be equal to total claimed clan rewards.
+        Total supply of SDAO tokens will be equal to total claimed clan rewards.
     */
     function mintTokens(address _minter, uint256 _amount) public {
         require(_msgSender() == contracts[1] || _msgSender() == contracts[11], 

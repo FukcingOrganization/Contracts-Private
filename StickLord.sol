@@ -12,7 +12,7 @@ import "./IERC4907.sol";
 
 /**
  * @notice
- * -> Executors can propose to change mint cost by FDAO approval.
+ * -> Executors can propose to change mint cost by SDAO approval.
   *
  * -> A Lord can mint maximum of 3 clan licenses. Once a licenses used by a clan leader to create
  * clan, the license burns and lord can mint a new license.

@@ -34,8 +34,8 @@ import "./Strings.sol";
   point of a clan. DAO will have 3 days long proposal to make changes and Executors will have 6 days
   cool down to make changes.
   
-  - Total clan rewards is limited by total supply of FDAO tokens. This incentivizes the DAO members
-  who are most likely the clans members to approve new FDAO token mints to expand DAO's member base and
+  - Total clan rewards is limited by total supply of SDAO tokens. This incentivizes the DAO members
+  who are most likely the clans members to approve new SDAO token mints to expand DAO's member base and
   increases decentralization of DAO.
   
   - Executors can propose to update contract addresses, proposal types, cooldown time, and maximum 
@@ -337,9 +337,9 @@ contract StickClan is Context, ReentrancyGuard {
     clan.balance -= reward; // Update the balance of the clan
     clan.claimedRewards[_round] += reward; // Update the claimed rewards
 
-    // Mint FDAO tokens as much as the clan member reward
+    // Mint SDAO tokens as much as the clan member reward
     (bool txSuccess,) = contracts[4].call(abi.encodeWithSignature("mintTokens(address,uint256)", sender, reward));
-    require(txSuccess, "Transaction failed to mint new FDAO tokens!");
+    require(txSuccess, "Transaction failed to mint new SDAO tokens!");
   }
 
   /// @dev Starts the new round if the time is up
