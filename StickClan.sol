@@ -278,10 +278,10 @@ contract StickClan is Context, ReentrancyGuard {
     // If the are in the new round
     checkAndUpdateRound();
 
-    require(_roundNumber < roundNumber, "You can't claim the current or future rounds' rounds. Check round number!");
-    //BUG: roundNumber diyor?
-    require(rounds[roundNumber].isClanClaimed[_clanID] == false, "Your clan already claimed its reward for this round!");
-    rounds[roundNumber].isClanClaimed[_clanID] == true;  // If not claimed yet, mark it claimed.
+    // TEST: Set the final value: Now, you can only claim clan rewards after 3 rounds to ensure your earnings!
+    require(_roundNumber < roundNumber - 3, "You can't claim the reward until it finalizes. Rewards are getting finalized after 3 rounds!");
+    require(rounds[_roundNumber].isClanClaimed[_clanID] == false, "Your clan already claimed its reward for this round!");
+    rounds[_roundNumber].isClanClaimed[_clanID] == true;  // If not claimed yet, mark it claimed.
 
     Clan storage clan = clans[_clanID];
 
@@ -289,8 +289,8 @@ contract StickClan is Context, ReentrancyGuard {
     updatePoint(_clanID, address(0));  
 
     // total clan reward * clan Point * 100 / total clan point
-    uint256 reward = rounds[roundNumber].clanRewards * (clan.point[_roundNumber] * 100 / rounds[roundNumber].totalClanPoint);
-    rounds[roundNumber].claimedRewards += reward;  // Keep record of the claimed rewards
+    uint256 reward = rounds[_roundNumber].clanRewards * (clan.point[_roundNumber] * 100 / rounds[_roundNumber].totalClanPoint);
+    rounds[_roundNumber].claimedRewards += reward;  // Keep record of the claimed rewards
 
     // Get the address and the tax rate of the lord
     (bool txSuccess1, bytes memory returnData1) = address(contracts[7]).call(abi.encodeWithSignature("lordTaxInfo(uint256)", clan.lordID));
@@ -315,29 +315,27 @@ contract StickClan is Context, ReentrancyGuard {
     checkAndUpdateRound();
 
     Clan storage clan = clans[_clanID];
-    uint256 _round = _roundNumber;
     address sender = _msgSender();
     uint256 memberID = clan.memberIdOf[sender];
     
     require(clan.members[memberID].isMember, "You are not a member of this clan!");
-    require(3 <= roundNumber, "Wait for the first 3 round to finish to have finalized reward!");// BUG
-    require(_round <= roundNumber - 3, "You can't claim the reward until it finalizes. Rewards are getting finalized after 3 rounds!");
-    require(clan.isMemberClaimed[_round][sender] == false, "You already claimed your reward for this round!");
-    clan.isMemberClaimed[_round][sender] == true;  // If not claimed yet, mark it claimed.
+    require(_roundNumber < roundNumber - 3, "You can't claim the reward until it finalizes. Rewards are getting finalized after 3 rounds!");
+    require(clan.isMemberClaimed[_roundNumber][sender] == false, "You already claimed your reward for this round!");
+    clan.isMemberClaimed[_roundNumber][sender] == true;  // If not claimed yet, mark it claimed.
 
     // Update clan point before interact with them.
     updatePoint(_clanID, sender);  
 
     // if clan reward is not claimed by clan executors or the leader, claim it.
-    if (clan.rewards[_round] == 0) { clanRewardClaim(_clanID, _round); }      
+    if (clan.rewards[_roundNumber] == 0) { clanRewardClaim(_clanID, _roundNumber); }      
 
     // calculate the reward and send it to the member!
     uint256 reward = // total reward of the clan * member Point * 100 / total member point of the clan
-      clan.rewards[_round] * (clan.members[memberID].point[_round] * 100 / clan.totalMemberPoint[_round]);
+      clan.rewards[_roundNumber] * (clan.members[memberID].point[_roundNumber] * 100 / clan.totalMemberPoint[_roundNumber]);
 
     IERC20(contracts[11]).transfer(sender, reward);
     clan.balance -= reward; // Update the balance of the clan
-    clan.claimedRewards[_round] += reward; // Update the claimed rewards
+    clan.claimedRewards[_roundNumber] += reward; // Update the claimed rewards
 
     // Mint SDAO tokens as much as the clan member reward
     (bool txSuccess,) = contracts[4].call(abi.encodeWithSignature("mintTokens(address,uint256)", sender, reward));
