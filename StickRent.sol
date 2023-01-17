@@ -45,15 +45,7 @@ contract StickRent is Context {
     uint256 length;
   }
 
-  /**
-   * proposalTypes's Indexes with corresponding meaning
-   *  
-   * Index 0: Less important proposals
-   * Index 1: Moderately important proposals
-   * Index 2: Highly important proposals
-   * Index 3: MAX SUPPLY CHANGE PROPOSAL
-  */
-  uint256[4] public proposalTypes;
+  uint256 public proposalTypeIndex;
 
   /**
    * contracts' Indexes with corresponding meaning
@@ -140,9 +132,9 @@ contract StickRent is Context {
       Strings.toHexString(_newAddress), " from ", Strings.toHexString(contracts[_contractIndex]), "."
     )); 
 
-    // Create a new proposal - Call DAO contract (contracts[4]) - proposal type : 2 - Highly Important
+    // Create a new proposal - Call DAO contract (contracts[4])
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
-      abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypes[2])
+      abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypeIndex)
     );
     require(txSuccess, "Transaction failed to make new proposal!");
 
@@ -180,19 +172,18 @@ contract StickRent is Context {
     proposal.isExecuted = true;
   }
 
-  function proposeProposalTypesUpdate(uint256 _proposalIndex, uint256 _newType) public {
+  function proposeFunctionsProposalTypesUpdate(uint256 _newTypeIndex) public {
     require(_msgSender() == contracts[5], "Only executors can call this function!");
-    require(_newType != proposalTypes[_proposalIndex], "Proposal Types are already the same moron, check your input!");
-    require(_proposalIndex != 0, "0 index of proposalTypes is not in service. No need to update!");
+    require(_newTypeIndex != proposalTypeIndex, "Index is already the same!");
 
     string memory proposalDescription = string(abi.encodePacked(
-      "In Rent contract, updating proposal types of index ", Strings.toHexString(_proposalIndex), " to ", 
-      Strings.toHexString(_newType), " from ", Strings.toHexString(proposalTypes[_proposalIndex]), "."
+      "In Rent contract, updating index of proposal type to ", 
+      Strings.toHexString(_newTypeIndex), " from ", Strings.toHexString(proposalTypeIndex), "."
     )); 
 
-    // Create a new proposal - Call DAO contract (contracts[4]) - proposal type : 2 - Highly Important
+    // Create a new proposal - Call DAO contract (contracts[4])
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
-        abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypes[2])
+        abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypeIndex)
     );
     require(txSuccess, "Transaction failed to make new proposal!");
 
@@ -201,11 +192,10 @@ contract StickRent is Context {
 
     // Get data to the proposal
     proposals[propID].updateCode = 2;
-    proposals[propID].index = _proposalIndex;
-    proposals[propID].newUint = _newType;
+    proposals[propID].newUint = _newTypeIndex;
   }
 
-  function executeProposalTypesUpdateProposal(uint256 _proposalID) public {
+  function executeFunctionsProposalTypesUpdateProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
     require(proposal.updateCode == 2 && !proposal.isExecuted, "Wrong proposal ID");
@@ -225,7 +215,7 @@ contract StickRent is Context {
 
     // if the current one is approved, apply the update the state
     if (proposal.status == Status.Approved)
-      proposalTypes[proposal.index] = proposal.newUint;
+      proposalTypeIndex = proposal.newUint;
 
     proposal.isExecuted = true;
   }

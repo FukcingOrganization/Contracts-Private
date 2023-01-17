@@ -137,6 +137,7 @@ contract StickDAO is ERC20 {
     struct ProposalTypeUpdate {
         Status status;
         bool isExecuted;
+        bool isNewType;
         uint256 proposalTypeNumber;
         uint256 newLength;
         uint256 newRequiredApprovalRate;
@@ -156,15 +157,20 @@ contract StickDAO is ERC20 {
         bool newBool;
     }
 
-    /**
-     * proposalTypes's Indexes with corresponding meaning
-     *  
-     * Index 0: Less important proposals
-     * Index 1: Moderately important proposals
-     * Index 2: Highly important proposals
-     * Index 3: MAX SUPPLY CHANGE PROPOSAL
+    /** 
+        If we want to change a function's proposal type, then we can simply change its type index
+
+        Index : Associated Function
+        0: New token spending
+        1: New coin spending
+        2: Contract address update
+        3: Functions proposal types update
+        4: Update minimum balance to propose
+        5: Propose a new proposal type
+        6: Update a proposal type
+        7: Propose clan point change
      */
-    uint256[4] public proposalTypeIndexes;
+    uint256[8] public functionsProposalTypes;
 
     /**
      * contracts' Indexes with corresponding meaning
@@ -398,7 +404,7 @@ contract StickDAO is ERC20 {
             Strings.toHexString(_tokenContractAddress), " contract address."
         ));
         
-        proposal.proposalID = newProposal(proposalDescription, proposalTypeIndexes[1]);
+        proposal.proposalID = newProposal(proposalDescription, functionsProposalTypes[0]);
     }
 
     function claimTokenSpending(uint256 _spendingProposalNumber, bytes32[] calldata _merkleProof) public {
@@ -438,7 +444,7 @@ contract StickDAO is ERC20 {
 
         string memory proposalDescription = string(abi.encodePacked("Spending of ", Strings.toString(_totalSpending), " coins"));
         
-        proposal.proposalID = newProposal(proposalDescription, proposalTypeIndexes[1]);
+        proposal.proposalID = newProposal(proposalDescription, functionsProposalTypes[1]);
     }
 
     function claimCoinSpending(uint256 _spendingProposalNumber, bytes32[] calldata _merkleProof) public {
@@ -484,8 +490,8 @@ contract StickDAO is ERC20 {
             Strings.toHexString(_newAddress), " from ", Strings.toHexString(contracts[_contractIndex]), "."
         )); 
 
-        // Create a new proposal - proposal type Index : 2 - Highly Important
-        uint256 propID = newProposal(proposalDescription, proposalTypeIndexes[2]);
+        // Create a new proposal
+        uint256 propID = newProposal(proposalDescription, functionsProposalTypes[2]);
 
         // Save data to the proposal
         proposalTrackers[propID].updateCode = 1;
@@ -511,26 +517,25 @@ contract StickDAO is ERC20 {
         proposal.isExecuted = true;
     }
 
-    function updateProposalTypeIndex(uint256 _proposalIndex, uint256 _newType) public {
+    function proposeFunctionsProposalTypesUpdate(uint256 _functionIndex, uint256 _newIndex) public {
         require(_msgSender() == contracts[5], "Only executors can call this function!");
-        require(_newType != proposalTypeIndexes[_proposalIndex], "Proposal Types are already the same moron, check your input!");
-        require(_proposalIndex != 0, "0 index of proposalTypes is not in service. No need to update!");
+        require(_newIndex != functionsProposalTypes[_functionIndex], "Desired function index is already set!");
 
         string memory proposalDescription = string(abi.encodePacked(
-        "In Stick DAO contract, Updating proposal type indexes of index ", Strings.toHexString(_proposalIndex), " to ", 
-            Strings.toHexString(_newType), " from ", Strings.toHexString(proposalTypeIndexes[_proposalIndex]), "."
+        "In Stick DAO contract, Updating proposal type indexes of index ", Strings.toHexString(_functionIndex), " to ", 
+            Strings.toHexString(_newIndex), " from ", Strings.toHexString(functionsProposalTypes[_functionIndex]), "."
         )); 
 
-        // Create a new proposal - proposal type Index : 2 - Highly Important
-        uint256 propID = newProposal(proposalDescription, proposalTypeIndexes[2]);
+        // Create a new proposal
+        uint256 propID = newProposal(proposalDescription, functionsProposalTypes[3]);
 
         // Get data to the proposal
         proposalTrackers[propID].updateCode = 2;
-        proposalTrackers[propID].index = _proposalIndex;
-        proposalTrackers[propID].newUint = _newType;
+        proposalTrackers[propID].index = _functionIndex;
+        proposalTrackers[propID].newUint = _newIndex;
     }
 
-    function executeProposalTypeIndexUpdateProposal(uint256 _proposalID) public {
+    function executeFunctionsProposalTypesUpdateProposal(uint256 _proposalID) public {
         ProposalTracker storage proposal = proposalTrackers[_proposalID];
 
         require(proposal.updateCode == 2 && !proposal.isExecuted, "Wrong proposal ID");
@@ -543,7 +548,7 @@ contract StickDAO is ERC20 {
 
         // if the current one is approved, apply the update the state
         if (proposal.status == Status.Approved)
-            proposalTypeIndexes[proposal.index] = proposal.newUint;
+            functionsProposalTypes[proposal.index] = proposal.newUint;
 
         proposal.isExecuted = true;
     }    
@@ -557,7 +562,7 @@ contract StickDAO is ERC20 {
         )); 
 
         // Create a new proposal- proposal type Index : 2 - Highly Important
-        uint256 propID = newProposal(proposalDescription, proposalTypeIndexes[2]);
+        uint256 propID = newProposal(proposalDescription, functionsProposalTypes[4]);
 
         // Save data to the local proposal
         proposalTrackers[propID].updateCode = 3;
@@ -601,10 +606,11 @@ contract StickDAO is ERC20 {
             "Required Participant Amount of ", Strings.toString(_requiredParticipantAmount), "."
         ));
 
-        uint256 propID = newProposal(proposalDescription, proposalTypeIndexes[1]);
+        uint256 propID = newProposal(proposalDescription, functionsProposalTypes[5]);
 
         // Get new state update by proposal ID we get from newProposal
         ProposalTypeUpdate storage update = proposalTypeUpdates[propID];
+        update.isNewType = true;
         update.newLength = _length;
         update.newRequiredApprovalRate = _requiredApprovalRate;
         update.newRequiredTokenAmount = _requiredTokenAmount;
@@ -614,7 +620,8 @@ contract StickDAO is ERC20 {
     function executeNewProposalTypeProposal(uint256 _proposalID) public {
         ProposalTypeUpdate storage update = proposalTypeUpdates[_proposalID];
 
-        require(update.isExecuted == false, "Wrong proposal ID");
+        // It should be NOT executed and a new type
+        require(!update.isExecuted && update.isNewType, "Wrong proposal ID");
         
         // Save the staus
         update.status = Status(proposalResult(_proposalID));
@@ -661,7 +668,7 @@ contract StickDAO is ERC20 {
         )); 
         string memory proposalDescription = string(abi.encodePacked(part1, part2)); 
 
-        uint256 propID = newProposal(proposalDescription, proposalTypeIndexes[2]);
+        uint256 propID = newProposal(proposalDescription, functionsProposalTypes[6]);
 
         // Get new state update by proposal ID we get from newProposal
         ProposalTypeUpdate storage update = proposalTypeUpdates[propID];
@@ -675,7 +682,8 @@ contract StickDAO is ERC20 {
     function executeProposalTypeUpdateProposal(uint256 _proposalID) public {
         ProposalTypeUpdate storage update = proposalTypeUpdates[_proposalID];
 
-        require(update.isExecuted == false, "Wrong proposal ID");
+        // It should be NOT executed and NOT a new type
+        require(!update.isExecuted && !update.isNewType, "Wrong proposal ID");
         
         // Save the staus
         update.status = Status(proposalResult(_proposalID));
@@ -714,7 +722,7 @@ contract StickDAO is ERC20 {
         }
 
         // Create a new proposal- proposal type Index : 2 - Highly Important
-        uint256 propID = newProposal(proposalDescription, proposalTypeIndexes[2]);
+        uint256 propID = newProposal(proposalDescription, functionsProposalTypes[7]);
 
         // Save data to the local proposal
         proposalTrackers[propID].updateCode = 4;
@@ -747,6 +755,8 @@ contract StickDAO is ERC20 {
     // >< >< >< >< >< >< >< >< ><                                                              >< >< >< >< >< >< >< >< >< //
 
     receive() external payable {}
+
+    fallback() external payable {}
 
     /*
      *  @dev Depending on the desired proposal length, there will be required conditions

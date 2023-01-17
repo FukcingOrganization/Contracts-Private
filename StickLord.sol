@@ -98,15 +98,20 @@ contract StickLord is ERC721, ERC721Burnable {
     bool newBool;
   }
 
-  /**
-   * proposalTypes's Indexes with corresponding meaning
-   *  
-   * Index 0: Less important proposals
-   * Index 1: Moderately important proposals
-   * Index 2: Highly important proposals
-   * Index 3: MAX SUPPLY CHANGE PROPOSAL
+  /** 
+    If we want to change a function's proposal type, then we can simply change its type index
+
+    Index : Associated Function
+    0: Contract address update
+    1: Functions Proposal Types update
+    2: Base tax rate update
+    3: Tax rate change update
+    4: Rebellion lenght update
+    5: Signal lenght update
+    6: Victory rate update
+    7: War casualties rate update
   */
-  uint256[4] public proposalTypes;
+  uint256[8] public functionsProposalTypes;
 
   /**
    * contracts' Indexes with corresponding meaning
@@ -473,9 +478,9 @@ contract StickLord is ERC721, ERC721Burnable {
       Strings.toHexString(_newAddress), " from ", Strings.toHexString(contracts[_contractIndex]), "."
     )); 
 
-    // Create a new proposal - Call DAO contract (contracts[4]) - proposal type : 2 - Highly Important
+    // Create a new proposal - Call DAO contract (contracts[4])
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
-      abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypes[2])
+      abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, functionsProposalTypes[0])
     );
     require(txSuccess, "Transaction failed to make new proposal!");
 
@@ -513,19 +518,18 @@ contract StickLord is ERC721, ERC721Burnable {
     proposal.isExecuted = true;
   }
 
-  function proposeProposalTypesUpdate(uint256 _proposalIndex, uint256 _newType) public {
+  function proposeFunctionsProposalTypesUpdate(uint256 _functionIndex, uint256 _newIndex) public {
     require(_msgSender() == contracts[5], "Only executors can call this function!");
-    require(_newType != proposalTypes[_proposalIndex], "Proposal Types are already the same moron, check your input!");
-    require(_proposalIndex != 0, "0 index of proposalTypes is not in service. No need to update!");
+    require(_newIndex != functionsProposalTypes[_functionIndex], "Desired function index is already set!");
 
     string memory proposalDescription = string(abi.encodePacked(
-      "In Lord contract, updating proposal types of index ", Strings.toHexString(_proposalIndex), " to ", 
-      Strings.toHexString(_newType), " from ", Strings.toHexString(proposalTypes[_proposalIndex]), "."
+      "In Lord contract, updating proposal types of index ", Strings.toHexString(_functionIndex), " to ", 
+      Strings.toHexString(_newIndex), " from ", Strings.toHexString(functionsProposalTypes[_functionIndex]), "."
     )); 
 
-    // Create a new proposal - Call DAO contract (contracts[4]) - proposal type : 2 - Highly Important
+    // Create a new proposal - Call DAO contract (contracts[4])
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
-        abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypes[2])
+        abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, functionsProposalTypes[1])
     );
     require(txSuccess, "Transaction failed to make new proposal!");
 
@@ -534,11 +538,11 @@ contract StickLord is ERC721, ERC721Burnable {
 
     // Get data to the proposal
     proposals[propID].updateCode = 2;
-    proposals[propID].index = _proposalIndex;
-    proposals[propID].newUint = _newType;
+    proposals[propID].index = _functionIndex;
+    proposals[propID].newUint = _newIndex;
   }
 
-  function executeProposalTypesUpdateProposal(uint256 _proposalID) public {
+  function executeFunctionsProposalTypesUpdateProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
     require(proposal.updateCode == 2 && !proposal.isExecuted, "Wrong proposal ID");
@@ -558,7 +562,7 @@ contract StickLord is ERC721, ERC721Burnable {
 
     // if the current one is approved, apply the update the state
     if (proposal.status == Status.Approved)
-      proposalTypes[proposal.index] = proposal.newUint;
+      functionsProposalTypes[proposal.index] = proposal.newUint;
 
     proposal.isExecuted = true;
   }
@@ -571,9 +575,9 @@ contract StickLord is ERC721, ERC721Burnable {
       Strings.toHexString(_newBaseTaxRate), " from ", Strings.toHexString(baseTaxRate), "."
     )); 
 
-    // Create a new proposal - DAO (contracts[4]) - Moderately Important Proposal (proposalTypes[1])
+    // Create a new proposal - DAO (contracts[4])
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
-      abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypes[1])
+      abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, functionsProposalTypes[2])
     );
     require(txSuccess, "Transaction failed to make new proposal!");
 
@@ -618,9 +622,9 @@ contract StickLord is ERC721, ERC721Burnable {
       Strings.toHexString(_newTaxChangeRate), " from ", Strings.toHexString(taxChangeRate), "."
     )); 
 
-    // Create a new proposal - DAO (contracts[4]) - Moderately Important Proposal (proposalTypes[1])
+    // Create a new proposal - DAO (contracts[4])
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
-      abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypes[1])
+      abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, functionsProposalTypes[3])
     );
     require(txSuccess, "Transaction failed to make new proposal!");
 
@@ -665,9 +669,9 @@ contract StickLord is ERC721, ERC721Burnable {
       Strings.toHexString(_newRebellionLenght), " from ", Strings.toHexString(rebellionLenght), "."
     )); 
 
-    // Create a new proposal - DAO (contracts[4]) - Moderately Important Proposal (proposalTypes[1])
+    // Create a new proposal - DAO (contracts[4])
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
-      abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypes[1])
+      abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, functionsProposalTypes[4])
     );
     require(txSuccess, "Transaction failed to make new proposal!");
 
@@ -712,9 +716,9 @@ contract StickLord is ERC721, ERC721Burnable {
       Strings.toHexString(_newSignalLenght), " from ", Strings.toHexString(signalLenght), "."
     )); 
 
-    // Create a new proposal - DAO (contracts[4]) - Moderately Important Proposal (proposalTypes[1])
+    // Create a new proposal - DAO (contracts[4])
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
-      abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypes[1])
+      abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, functionsProposalTypes[5])
     );
     require(txSuccess, "Transaction failed to make new proposal!");
 
@@ -759,9 +763,9 @@ contract StickLord is ERC721, ERC721Burnable {
       Strings.toHexString(_newVictoryRate), " from ", Strings.toHexString(victoryRate), "."
     )); 
 
-    // Create a new proposal - DAO (contracts[4]) - Moderately Important Proposal (proposalTypes[1])
+    // Create a new proposal - DAO (contracts[4])
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
-      abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypes[1])
+      abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, functionsProposalTypes[6])
     );
     require(txSuccess, "Transaction failed to make new proposal!");
 
@@ -806,9 +810,9 @@ contract StickLord is ERC721, ERC721Burnable {
       Strings.toHexString(_newWarCasualtyRate), " from ", Strings.toHexString(warCasualtyRate), "."
     )); 
 
-    // Create a new proposal - DAO (contracts[4]) - Moderately Important Proposal (proposalTypes[1])
+    // Create a new proposal - DAO (contracts[4])
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
-      abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypes[1])
+      abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, functionsProposalTypes[7])
     );
     require(txSuccess, "Transaction failed to make new proposal!");
 
