@@ -112,7 +112,7 @@ contract StickExecutors is Context, AccessControl {
   function createContractAddressUpdateProposal(
     uint256 _contractIndex,  // Destination Contract address
     uint256 _subjectIndex,   // The address that we want to update in the destination contract. Same index as contracts
-    address _newAddress     // New address
+    address _newAddress      // New address
   ) public onlyRole(EXECUTOR_ROLE) {
     // Get the current signal ID for this proposal function
     uint256 sID = signalTrackerID[1];
@@ -131,8 +131,8 @@ contract StickExecutors is Context, AccessControl {
       newSignal.subjectIndex = _subjectIndex;
       newSignal.propAddrees = _newAddress;
 
-      newSignal.numOfSignals++;
       newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
+      newSignal.numOfSignals++;
       return; // finish the function
     }   
 
