@@ -19,7 +19,72 @@ import "./Counters.sol";
 
 /**
  * @author Bora
- */
+*/
+
+interface IBaseUpdate {
+  function proposeContractAddressUpdate(uint256 _contractIndex, address _newAddress) external;
+  function proposeFunctionsProposalTypesUpdate(uint256 _functionIndex, uint256 _newIndex) external;
+}
+
+interface IBoss {
+  function proposeMintCostUpdate(uint256 _newCost) external;
+}
+
+interface IClan {
+  function proposeMaxPointToChangeUpdate(uint256 _newMaxPoint) external;
+  function proposeCooldownTimeUpdate(uint256 _newCooldownTime) external;
+  function proposeClanPointAdjustment(uint256 _roundNumber, uint256 _clanID, uint256 _pointToChange, bool _isDecreasing) external;
+}
+
+interface IClanLicense {
+  function proposeMintCostUpdate(uint256 _newMintCost) external;
+}
+
+interface ICommunity {
+  function proposeReward(address[] memory _receivers, uint256[] memory _rewards) external;
+  function proposeMerkleReward(bytes32[] memory _roots, uint256[] memory _rewards, uint256 _totalReward) external;
+  function proposeHighRewarLimitSet(uint256 _newLimit) external;
+  function proposeExtremeRewardLimitSet(uint256 _newLimit) external;
+}
+
+interface IDAO {
+  function proposeMinBalanceToPropUpdate(uint256 _newAmount) external;
+  function proposeMinBalanceToPropClanPointUpdate(uint256 _newAmount) external;
+  function proposeClanPointChange(uint256 _clanID, uint256 _pointsToChange, bool _isDecreasing) external;
+  function proposeNewProposalType(
+    uint256 _length, 
+    uint256 _requiredApprovalRate, 
+    uint256 _requiredTokenAmount, 
+    uint256 _requiredParticipantAmount
+  ) external;
+  function proposeProposalTypeUpdate(
+    uint256 _proposalTypeNumber, 
+    uint256 _newLength, 
+    uint256 _newRequiredApprovalRate, 
+    uint256 _newRequiredTokenAmount, 
+    uint256 _newRequiredParticipantAmount
+  ) external;  
+}
+
+interface IItems {
+  function proposeMintCostUpdate(uint256 _itemID, uint256 _newCost) external;
+  function proposeItemActivationUpdate(uint256 _itemID, bool _activationStatus) external;
+}
+
+interface ILord {
+  function proposeBaseTaxRateUpdate(uint256 _newBaseTaxRate) external;
+  function proposeTaxChangeRateUpdate(uint256 _newTaxChangeRate) external;
+  function proposeRebellionLenghtUpdate(uint256 _newRebellionLenght) external;
+  function proposeSignalLenghtUpdate(uint256 _newSignalLenght) external;
+  function proposeVictoryRateUpdate(uint256 _newVictoryRate) external;
+  function proposeWarCasualtyRateUpdate(uint256 _newWarCasualtyRate) external;
+}
+
+interface IToken {
+  function proposeMintPerSecondUpdate(uint256 _mintIndex, uint256 _newMintPerSecond) external;
+  function proposeToIncreaseMaxSupply(uint256 _newMaxSupply) external;
+}
+
 contract StickExecutors is Context, AccessControl {
   using Counters for Counters.Counter;  
 
@@ -146,45 +211,7 @@ contract StickExecutors is Context, AccessControl {
 
     // Execute proposal if the half of the executors signaled
     if (signal.numOfSignals >= (numOfExecutors / 2)){
-      (bool txSuccess, ) = contracts[signal.contractIndex].call(abi.encodeWithSignature(
-        "proposeContractAddressUpdate(uint256,address)", signal.subjectIndex, signal.propAddrees
-      ));
-      require(txSuccess, "Transaction failed to execute update function!");
-      signal.expires = 0; // To avoid further executions
-    }       
-  }
-  
-  function updateLordMintCost(uint256 _newCost) public onlyRole(EXECUTOR_ROLE) {
-    // Get the current signal ID for this proposal function
-    uint256 sID = signalTrackerID[3];
-
-    // If current signal date passed, then start a new signal
-    if (block.timestamp > signals[sID].expires) {
-      signalTrackerID[3] = signalCounter.current();           // Save the current signal ID to the tracker
-      Signal storage newSignal = signals[signalTrackerID[3]]; // Get the signal
-      signalCounter.increment();  // Increment the counter for other signals
-
-      // Save data
-      newSignal.expires = block.timestamp + signalTime;
-      newSignal.propUint = _newCost;
-
-      newSignal.numOfSignals++;
-      newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
-      return; // finish the function
-    }   
-
-    // If we are in the signal time, get the signal and check caller's signal status
-    Signal storage signal = signals[signalTrackerID[3]];
-    require(!signal.isSignaled[_msgSender()], "You already signaled for this proposal");
-
-    // If not signaled, save it and increase the number of signals
-    signal.isSignaled[_msgSender()] = true;
-    signal.numOfSignals++;
-
-    // Execute proposal if the half of the executors signaled
-    if (signal.numOfSignals >= (numOfExecutors / 2)){
-      (bool txSuccess, ) = contracts[7].call(abi.encodeWithSignature("updateMintCost(uint256)", signal.propUint));
-      require(txSuccess, "Transaction failed to execute update function!");
+      IBaseUpdate(contracts[signal.contractIndex]).proposeContractAddressUpdate(signal.subjectIndex, signal.propAddrees);
       signal.expires = 0; // To avoid further executions
     }       
   }

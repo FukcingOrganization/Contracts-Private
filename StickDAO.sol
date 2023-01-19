@@ -623,7 +623,6 @@ contract StickDAO is ERC20 {
 
         proposal.isExecuted = true;
     }
-
     
     // Changing clan point by DAO approval
     function proposeClanPointChange(uint256 _clanID, uint256 _pointsToChange, bool _isDecreasing) public {
