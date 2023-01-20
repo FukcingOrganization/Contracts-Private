@@ -56,7 +56,7 @@ contract StickClan is Context, ReentrancyGuard {
     mapping(uint256 => uint256) point;   // Round Number => the last point recorded
   }
 
-  struct Clan {
+  struct ClanInfo {
     // Clan foundation info
     address leader;
     uint256 lordID;
@@ -66,6 +66,16 @@ contract StickClan is Context, ReentrancyGuard {
     string description;
     string motto;
     string logoURI;
+
+    // Admin settings of the Clan set by the leader
+    bool canExecutorsSignalRebellion;
+    bool canExecutorsSetPoint;
+    bool canModerateMembers;
+    bool isDisbanded;
+  }
+
+  struct Clan {
+    ClanInfo info;
 
     // Clan point and balance
     uint256 proposal_ID;
@@ -84,12 +94,6 @@ contract StickClan is Context, ReentrancyGuard {
     mapping(uint256 => uint256) totalMemberPoint; // Total member pts at the time
     mapping(uint256 => mapping(address => bool)) isMemberClaimed; // Round Number => Address => isclaimed?
     mapping(uint256 => uint256) claimedRewards;     // Total claimed rewards by members in a round
-
-    // Admin settings of the Clan set by the leader
-    bool canExecutorsSignalRebellion;
-    bool canExecutorsSetPoint;
-    bool canModerateMembers;
-    bool isDisbanded;
   }
 
   enum Status{
@@ -198,12 +202,12 @@ contract StickClan is Context, ReentrancyGuard {
     Clan storage clan = clans[clanID];
     clanCounter.increment();
 
-    clan.leader = _msgSender();
-    clan.lordID = _lordID;
-    clan.name = _clanName;
-    clan.description = _clanDescription;
-    clan.motto = _clanMotto;
-    clan.logoURI = _clanLogoURI;
+    clan.info.leader = _msgSender();
+    clan.info.lordID = _lordID;
+    clan.info.name = _clanName;
+    clan.info.description = _clanDescription;
+    clan.info.motto = _clanMotto;
+    clan.info.logoURI = _clanLogoURI;
     clan.memberIdOf[_msgSender()] = 0; // Assign the first ID to the leader
 
     // Sign the leader as a member of the clan as well and give full authority
@@ -216,8 +220,8 @@ contract StickClan is Context, ReentrancyGuard {
   }
 
   function declareClan(uint256 _clanID) public {
-    require(clans[_clanID].leader != address(0), "There is no such clan with that ID!");
-    require(clans[_clanID].isDisbanded == false, "This clan is disbanded!");
+    require(clans[_clanID].info.leader != address(0), "There is no such clan with that ID!");
+    require(clans[_clanID].info.isDisbanded == false, "This clan is disbanded!");
     
     address sender = _msgSender();
     Clan storage currClan = clans[clanOf[sender]];
@@ -241,7 +245,7 @@ contract StickClan is Context, ReentrancyGuard {
   function giveClanPoint(uint256 _clanID, uint256 _point, bool _isDecreasing) public {
     require(_msgSender() == contracts[5], "Only Executors can call this function!"); 
     require(_point <= maxPointToChange, "Maximum amount of point exceeded!");
-    require(clans[_clanID].isDisbanded == false, "This clan is disbanded!");
+    require(clans[_clanID].info.isDisbanded == false, "This clan is disbanded!");
     
     // Wait if the cooldown time is not passed. Avoids executors to change point as they wish!
     require(block.timestamp > clanCooldownTime[_clanID], "Wait for the cooldown time!");
@@ -273,7 +277,7 @@ contract StickClan is Context, ReentrancyGuard {
   }
 
   function clanRewardClaim(uint256 _clanID, uint256 _roundNumber) public {    
-    require(clans[_clanID].leader != address(0), "There is no such clan with that ID!");
+    require(clans[_clanID].info.leader != address(0), "There is no such clan with that ID!");
 
     // If the are in the new round
     checkAndUpdateRound();
@@ -293,7 +297,7 @@ contract StickClan is Context, ReentrancyGuard {
     rounds[_roundNumber].claimedRewards += reward;  // Keep record of the claimed rewards
 
     // Get the address and the tax rate of the lord
-    (bool txSuccess1, bytes memory returnData1) = address(contracts[7]).call(abi.encodeWithSignature("lordTaxInfo(uint256)", clan.lordID));
+    (bool txSuccess1, bytes memory returnData1) = address(contracts[7]).call(abi.encodeWithSignature("lordTaxInfo(uint256)", clan.info.lordID));
     require(txSuccess1, "Failed to get the address of the lord!");
     (address lordAddress, uint256 taxRate) = abi.decode(returnData1, (address, uint256));
 
@@ -394,9 +398,9 @@ contract StickClan is Context, ReentrancyGuard {
     ClanMember storage member = clans[_clanID].members[clan.memberIdOf[_address]];
 
     require(clanOf[_address] == _clanID, "The member should join the clan first!");
-    require(clan.isDisbanded == false, "This clan is disbanded!");
+    require(clan.info.isDisbanded == false, "This clan is disbanded!");
     require(clan.members[clan.memberIdOf[_msgSender()]].isMod, "You have no authority to moderate memberships for this clan!");
-    require(clan.leader != _address, "You can't set the leader as a member!");
+    require(clan.info.leader != _address, "You can't set the leader as a member!");
 
     if (_isMember) {
       require(_clanID == clanOf[_address], "The address you wish to set as member should declare its clan first!");
@@ -424,8 +428,8 @@ contract StickClan is Context, ReentrancyGuard {
     Clan storage clan = clans[_clanID];
     ClanMember storage member = clans[_clanID].members[clan.memberIdOf[_address]];
 
-    require(clan.isDisbanded == false, "This clan is disbanded!");
-    require(_msgSender() == clan.leader, "You have no authority to give Executor Role for this clan!");
+    require(clan.info.isDisbanded == false, "This clan is disbanded!");
+    require(_msgSender() == clan.info.leader, "You have no authority to give Executor Role for this clan!");
 
     if (_isExecutor) { member.isExecutor = true; }
     else { member.isExecutor = false; }
@@ -435,8 +439,8 @@ contract StickClan is Context, ReentrancyGuard {
     Clan storage clan = clans[_clanID];
     ClanMember storage member = clans[_clanID].members[clan.memberIdOf[_address]];
 
-    require(clan.isDisbanded == false, "This clan is disbanded!");
-    require(_msgSender() == clan.leader, "You have no authority to give Executor Role for this clan!");
+    require(clan.info.isDisbanded == false, "This clan is disbanded!");
+    require(_msgSender() == clan.info.leader, "You have no authority to give Executor Role for this clan!");
 
     if (_isMod) { member.isMod = true; }
     else { member.isMod = false; }
@@ -448,7 +452,7 @@ contract StickClan is Context, ReentrancyGuard {
     
     checkAndUpdateRound();
 
-    require(clan.isDisbanded == false, "This clan is disbanded!");
+    require(clan.info.isDisbanded == false, "This clan is disbanded!");
     require(clan.members[clan.memberIdOf[_msgSender()]].isExecutor, "You have no authority to give point for this clan!");
     require(clan.members[clan.memberIdOf[_memberAddress]].isMember, "The address is not a member!");
 
@@ -473,46 +477,46 @@ contract StickClan is Context, ReentrancyGuard {
   function signalRebellion(uint256 _clanID) public {
     Clan storage clan = clans[_clanID];
 
-    require(clan.isDisbanded == false, "This clan is disbanded!");    
+    require(clan.info.isDisbanded == false, "This clan is disbanded!");    
     require(clan.members[clan.memberIdOf[_msgSender()]].isExecutor, "You have no authority to signal a rebellion for this clan!");
 
     // Signal a rebellion,
     (bool txSuccess, ) = contracts[7].call(abi.encodeWithSignature(
-      "signalRebellion(uint256,uint256)", clan.lordID, _clanID)
+      "signalRebellion(uint256,uint256)", clan.info.lordID, _clanID)
     );
     require(txSuccess, "The transaction has failed when signalling");
   }
 
   function transferLeadership(uint256 _clanID, address _newLeader) public  {
-    require(clans[_clanID].leader == _msgSender(), "You have no authority to transfer leadership for this clan!");
-    clans[_clanID].leader = _newLeader;
+    require(clans[_clanID].info.leader == _msgSender(), "You have no authority to transfer leadership for this clan!");
+    clans[_clanID].info.leader = _newLeader;
   }
 
   function disbandClan(uint256 _clanID) public {
-    require(clans[_clanID].leader == _msgSender(), "You have no authority to disband this clan!");
-    clans[_clanID].leader = address(0);    
-    clans[_clanID].isDisbanded = true;
+    require(clans[_clanID].info.leader == _msgSender(), "You have no authority to disband this clan!");
+    clans[_clanID].info.leader = address(0);    
+    clans[_clanID].info.isDisbanded = true;
   }
 
   // Update Clan Info
   function updateClanName(uint256 _clanID, string memory _newName) public  {
-    require(clans[_clanID].leader == _msgSender(), "You have no authority to update clan name for this clan!");
-    clans[_clanID].name = _newName;
+    require(clans[_clanID].info.leader == _msgSender(), "You have no authority to update clan name for this clan!");
+    clans[_clanID].info.name = _newName;
   }
   
   function updateClanDescription(uint256 _clanID, string memory _newDescription) public  {
-    require(clans[_clanID].leader == _msgSender(), "You have no authority to update clan name for this clan!");
-    clans[_clanID].description = _newDescription;
+    require(clans[_clanID].info.leader == _msgSender(), "You have no authority to update clan name for this clan!");
+    clans[_clanID].info.description = _newDescription;
   }
   
   function updateClanMotto(uint256 _clanID, string memory _newMotto) public  {
-    require(clans[_clanID].leader == _msgSender(), "You have no authority to update clan name for this clan!");
-    clans[_clanID].motto = _newMotto;
+    require(clans[_clanID].info.leader == _msgSender(), "You have no authority to update clan name for this clan!");
+    clans[_clanID].info.motto = _newMotto;
   }
   
   function updateClanLogoURI(uint256 _clanID, string memory _newLogoURI) public  {
-    require(clans[_clanID].leader == _msgSender(), "You have no authority to update clan name for this clan!");
-    clans[_clanID].logoURI = _newLogoURI;
+    require(clans[_clanID].info.leader == _msgSender(), "You have no authority to update clan name for this clan!");
+    clans[_clanID].info.logoURI = _newLogoURI;
   }
   
   // Returns the real clan of an address. Only members with point are real members, others are default
@@ -785,7 +789,7 @@ contract StickClan is Context, ReentrancyGuard {
    */ 
   function proposeClanPointAdjustment(uint256 _roundNumber, uint256 _clanID, uint256 _pointToChange, bool _isDecreasing) public {
     require(_pointToChange <= maxPointToChange, "Maximum amount of point exceeded!");
-    require(clans[_clanID].isDisbanded == false, "This clan is disbanded!");
+    require(clans[_clanID].info.isDisbanded == false, "This clan is disbanded!");
 
     // If the are in the new round
     checkAndUpdateRound();

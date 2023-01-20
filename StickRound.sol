@@ -107,13 +107,14 @@ contract StickRound is Context, ReentrancyGuard {
   
   Counters.Counter public roundCounter;
 
-  uint256[10] levelRewardWeights;
-  uint256 totalRewardWeight;
+  uint256[10] public levelRewardWeights;
+  uint256 public totalRewardWeight;
 
-  uint256 roundLenght = 7 days;
+  uint256 public roundLenght;
 
   constructor(uint256 _endOfTheFirstRound) {
     rounds[roundCounter.current()].endingTime = _endOfTheFirstRound; // TEST -> Change it with unix value of Monday 00.00
+    roundLenght = 7 days;
     getBackerRewards(rounds[roundCounter.current()]);     
   }
 
