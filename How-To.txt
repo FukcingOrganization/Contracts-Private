@@ -1,0 +1,6 @@
+- Change the contract name in deploy.js
+- Add arguments in arguments.js. If there is none, comment out all
+- Deploy: npx hardhat run scripts/deploy.js --network arbitrumGoerli
+- Verify: npx hardhat verify --network arbitrumGoerli --contract contracts/ContractName.sol:ContractName  [CONTRACT ADDRESS] --constructor-args arguments.js
+
+* If there is no arguments, then delete the last "--constructor-arg arguments.js" part from the verify command!

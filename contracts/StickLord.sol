@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "./ERC721.sol";
-import "./ERC721URIStorage.sol";
-import "./ERC721Burnable.sol";
-import "./Counters.sol";
-import "./IERC20.sol";
-import "./ERC20Burnable.sol";
-import "./IERC4907.sol";
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol";
+import "@openzeppelin/contracts/utils/Counters.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+import "IERC4907.sol";
 
 
 /**
@@ -139,9 +138,12 @@ contract StickLord is ERC721, ERC721Burnable {
   // Lord ID => number of licensese in cirulation (not used therefore not burnt)
   mapping(uint256 => uint256) public numberOfActiveLicenses; 
   mapping(uint256 => uint256) public numberOfGlories; // Lord ID => number of glories
-  mapping(uint256  => uint256) public rebellionOf;    // Lord ID => Rebellion ID
-  mapping(uint256  => Rebellion) public rebellions;   // Rebellion ID => Rebellion
-  mapping(uint256  => UserInfo) internal _users;      // People who rents
+  mapping(uint256 => uint256) public rebellionOf;     // Lord ID => Rebellion ID
+  mapping(uint256 => Rebellion) public rebellions;    // Rebellion ID => Rebellion
+  mapping(uint256 => UserInfo) internal _users;       // People who rents
+  
+  mapping(uint256 => string) private customLordURI;   // Lord ID => Custom Lord URIs
+  mapping(uint256 => bool) public useCustomLordURI;   // Lord ID => Enabled Custom URI?
 
   string baseURI;
   address deployer;
@@ -157,7 +159,7 @@ contract StickLord is ERC721, ERC721Burnable {
   uint256 public victoryRate;     // Adjustable by DAO  | The rate (%) of the funds that is required to declare victory against the lord 
   uint256 public warCasualtyRate; // Adjustable by DAO  | The rate (%) that will burn as a result of the war
 
-  constructor(string memory _baseURI) ERC721("StickLord", "SLORD") {
+  constructor() ERC721("StickLord", "SLORD") {
     teamAndCommunityMint();       // Mint first 50 Lords for team and community allocation
     rebellionCounter.increment(); // Leave first (0) rebellion empty for all lords to start a new one
 
@@ -167,7 +169,7 @@ contract StickLord is ERC721, ERC721Burnable {
     mintCostIncrement = 0.0005 ether;  // TEST -> Change it with the final value - Increases 0.0005 ETH with every mint
 
     baseTaxRate = 10;     // TEST -> Change it with the final value
-    taxChangeRate = 7;    // TEST -> Change it with the final value
+    taxChangeRate = 5;    // TEST -> Change it with the final value
 
     rebellionLenght = 7 days;     // TEST -> Change it with the final value
     signalLenght = 3 days;        // TEST -> Change it with the final value
@@ -177,7 +179,7 @@ contract StickLord is ERC721, ERC721Burnable {
     // TEST -> Add warning in the decription of metedata that says "If you earn taxes and vote in DAO,
     // check if the lord is rented to another address before you buy! Click the link below and use isRented()
     // funtion to check" and put the contract's read link.
-    baseURI = _baseURI;  
+    baseURI = "ipfs://QmTS6eW2bt4nzrRK3a4fmMLysJwA2wAorLhXUiNFhQHmek";  
 
     // Test
     deployer = _msgSender(); 
@@ -191,6 +193,20 @@ contract StickLord is ERC721, ERC721Burnable {
 
   function withdrawLpFunds() public payable {
     payable(deployer).transfer(address(this).balance);
+  }
+
+  function tokenURI(uint256 _lordId) public view override returns(string memory) {
+    _requireMinted(_lordId);
+    
+    if (useCustomLordURI[_lordId])
+      return customLordURI[_lordId];
+    else
+      return baseURI;
+  }
+
+  function setCustomLordURI(uint256 _lordId, string memory _customURI) public {
+    require(ownerOf(_lordId) == _msgSender(), "You don't own this lord!");
+    customLordURI[_lordId] = _customURI;
   }
 
   function _burn(uint256 tokenId) internal override {

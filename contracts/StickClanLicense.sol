@@ -1,34 +1,24 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "./ERC721.sol";
-import "./ERC721URIStorage.sol";
-import "./ERC721Burnable.sol";
-import "./IERC20.sol";
-import "./ERC20Burnable.sol";
-import "./Counters.sol";
-
-/**
-  TO-DO
-  -> Close new boss mint the last day of the elections
- */
+import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
+import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155URIStorage.sol";
+import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Burnable.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 
 /**
   @notice
-  - You can mint and select a boss!
+  - You can create a Clan with a Clan license! Licenses can only minted
+  by lords!
   
-  - Boss NFTs can't be transferred therefore can't be sold!
-  - The minter can only change metadata by setting token URI.
-  - Minters have to burn certaion amount of STICK token to mint a boss.
+  - Each token ID is represents the lords' ID that mint it. 
+  For instance, license with id 5 is the license of lord ID 5.
   
-  - Executors can propose to update contract addresses, proposal types, and the mint cost.
+  - Executors can propose to update contract addresses, proposal types, and mint cost.
   */
 
 /// @author Bora
-contract StickBoss is ERC721, ERC721URIStorage, ERC721Burnable {
-  using Counters for Counters.Counter;
-
-  Counters.Counter private _tokenIdCounter;
+contract StickClanLicense is ERC1155, ERC1155Burnable {
 
   enum Status{
     NotStarted, // Index: 0
@@ -55,7 +45,7 @@ contract StickBoss is ERC721, ERC721URIStorage, ERC721Burnable {
     Index : Associated Function
     0: Contract address update
     1: Functions Proposal Types update
-    2: Mint cost update
+    2: Mint Cost Update
   */
   uint256[3] public functionsProposalTypes;
 
@@ -78,81 +68,54 @@ contract StickBoss is ERC721, ERC721URIStorage, ERC721Burnable {
    */
   address[13] public contracts; 
 
-  /// @notice Proposal ID => Proposal
-  mapping(uint256 => Proposal) public proposals;
+  mapping(uint256 => Proposal) public proposals;// Proposal ID => Proposal
+  mapping(uint256 => uint256) public numOfActiveLicense; // LordID => current number of License
+  mapping(uint256 => string) public customURI; // LordID => current number of License
 
-  /// @notice token ID => How many times this boss got rekt
-  mapping(uint256 => uint256) public numOfRekt;
-
-  uint256 public totalSupply;
   uint256 public mintCost;
 
-  constructor() ERC721("StickBoss", "SBOSS") {
-    mintCost = 66666 ether; // TEST -> Change it with final value
-  }
-    
-  /**
-   *  @dev Making token non-transferable by overriding all the transfer functions
-   */
-  function approve(address spender, uint256 tokenId) public virtual override {
-    revert("This is a non-transferable token!");
+  constructor() ERC1155("link/{id}.json") { // TEST 
+    mintCost = 5555 ether;
   }
 
-  function setApprovalForAll(address operator, bool approved) public virtual override {
-    revert("This is a non-transferable token!");
-  }
-    
-  function transferFrom(address from, address to, uint256 tokenId) public virtual override {
-    revert("This is a non-transferable token!");
+  // @dev returns the valid URI of the license
+  function uri(uint256 _lordID) public view virtual override returns (string memory){
+    return (bytes(customURI[_lordID]).length) > 0 ? customURI[_lordID] : super.uri(_lordID);
   }
 
-  function safeTransferFrom(address from, address to, uint256 tokenId) public virtual override {
-    revert("This is a non-transferable token!");
+  function burn(
+      address account,
+      uint256 id,
+      uint256 value
+  ) public virtual override {
+    // Substract the burn amount from the number of active license of the lord    
+    numOfActiveLicense[id] -= value;
+
+    super.burn(account, id, value);
   }
 
-  function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory data) public virtual override {
-    revert("This is a non-transferable token!");
-  }
-  
-  // The following 2 functions are overrides required by Solidity.
-
-  function _burn(uint256 tokenId) internal override(ERC721, ERC721URIStorage) {
-    totalSupply--;
-    super._burn(tokenId);
+  function setCustomURI(uint256 _lordID, string memory _customURI) public {
+    require(_msgSender() == contracts[7], "Only the Lords can call this function! Now, back off you prick!");
+    customURI[_lordID] = _customURI;
   }
 
-  function tokenURI(uint256 tokenId) public view override(ERC721, ERC721URIStorage) returns (string memory){
-    return super.tokenURI(tokenId);
-  }
+  function mintLicense(address _lordAddress, uint256 _lordID, uint256 _amount, bytes memory _data) public {
+    require(_msgSender() == contracts[7], "Only the Lords can call this function! Now, back off you prick!");
+    require(numOfActiveLicense[_lordID] + _amount <= 3, "Maximum number of active license exceeds!");
 
-  function safeMint(address to, string memory uri) public {
-    // Burn the mist cost to mint
-    ERC20Burnable(contracts[11]).burnFrom(_msgSender(), mintCost);
+    // Burn tokens to mint
+    ERC20Burnable(contracts[11]).burnFrom(_lordAddress, _amount * mintCost);
 
-    uint256 tokenId = _tokenIdCounter.current();
-    _tokenIdCounter.increment();
-    totalSupply++;
-    _safeMint(to, tokenId);
-    _setTokenURI(tokenId, uri);
-  }
-
-  function setTokenURI(uint256 tokenId, string memory _tokenURI) public {
-    require(ownerOf(tokenId) == _msgSender(), "Only the owner can change the URI!");
-    _setTokenURI(tokenId, _tokenURI);
-  }
-
-  function bossRekt(uint256 _tokenID) public {
-    require(_msgSender() == contracts[9], "Only the Round contract can write!");
-
-    numOfRekt[_tokenID]++;
+    numOfActiveLicense[_lordID] += _amount;       // Add the new licenses
+    _mint(_lordAddress, _lordID, _amount, _data); // Mint
   }
 
   /**
     Updates by DAO - Update Codes
-   
+    
     Contract Address Change -> Code: 1
     Proposal Type Change -> Code: 2
-    Mist Cost -> Code: 3
+    mintCost -> Code: 3    
    */
   function proposeContractAddressUpdate(uint256 _contractIndex, address _newAddress) public {
     require(_msgSender() == contracts[5], "Only executors can call this function!");
@@ -161,7 +124,7 @@ contract StickBoss is ERC721, ERC721URIStorage, ERC721Burnable {
     );
 
     string memory proposalDescription = string(abi.encodePacked(
-      "In Boss contract, updating contract address of index ", Strings.toHexString(_contractIndex), " to ", 
+      "In Clan License contract, updating contract address of index ", Strings.toHexString(_contractIndex), " to ", 
       Strings.toHexString(_newAddress), " from ", Strings.toHexString(contracts[_contractIndex]), "."
     )); 
 
@@ -210,7 +173,7 @@ contract StickBoss is ERC721, ERC721URIStorage, ERC721Burnable {
     require(_newIndex != functionsProposalTypes[_functionIndex], "Desired function index is already set!");
 
     string memory proposalDescription = string(abi.encodePacked(
-      "In Boss contract, updating proposal types of index ", Strings.toHexString(_functionIndex), " to ", 
+      "In Clan License contract, updating proposal types of index ", Strings.toHexString(_functionIndex), " to ", 
       Strings.toHexString(_newIndex), " from ", Strings.toHexString(functionsProposalTypes[_functionIndex]), "."
     )); 
 
@@ -254,12 +217,12 @@ contract StickBoss is ERC721, ERC721URIStorage, ERC721Burnable {
     proposal.isExecuted = true;
   }
 
-  function proposeMintCostUpdate(uint256 _newCost) public {
+  function proposeMintCostUpdate(uint256 _newMintCost) public {
     require(_msgSender() == contracts[5], "Only executors can call this function!");
 
     string memory proposalDescription = string(abi.encodePacked(
-      "In Boss contract, updating mint cost of Boss to ", Strings.toHexString(_newCost), 
-      " from ", Strings.toHexString(mintCost), "."
+      "In Clan License contract, updating license mint cost to ",
+      Strings.toHexString(_newMintCost), " from ", Strings.toHexString(mintCost), "."
     )); 
 
     // Create a new proposal - DAO (contracts[4]) - Moderately Important Proposal (proposalTypes[1])
@@ -273,7 +236,7 @@ contract StickBoss is ERC721, ERC721URIStorage, ERC721Burnable {
 
     // Save data to the local proposal
     proposals[propID].updateCode = 3;
-    proposals[propID].newUint = _newCost;
+    proposals[propID].newUint = _newMintCost;
   }
 
   function executeMintCostProposal(uint256 _proposalID) public {

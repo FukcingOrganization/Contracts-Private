@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "./IERC20.sol";
-import "./IERC721.sol";
-import "./Counters.sol";
-import "./Context.sol";
-import "./Strings.sol";
-import "./MerkleProof.sol";
-import "./ReentrancyGuard.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts/utils/Counters.sol";
+import "@openzeppelin/contracts/utils/Context.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
+import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 /**
  * -> To-do: 

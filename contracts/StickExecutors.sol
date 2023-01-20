@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "./Context.sol";
-import "./AccessControl.sol";
-import "./Counters.sol";
+import "@openzeppelin/contracts/utils/Context.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/utils/Counters.sol";
 
 /**
   * -> Update: signal time
