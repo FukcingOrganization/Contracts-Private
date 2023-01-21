@@ -202,7 +202,6 @@ contract StickDAO is ERC20 {
     ProposalType[] public proposalTypes;
 
     uint256 public minBalanceToPropose;     // Amount of tokens without decimals
-    uint256 public minBalanceToProposeClanPointChange;  // Amount of tokens without decimals
 
     constructor() ERC20("StickDAO", "SDAO") {
         /*
@@ -214,7 +213,6 @@ contract StickDAO is ERC20 {
         // Initial settings
         initializeProposalTypes();
         minBalanceToPropose = 100 ether; // TEST: Change it, the largest team member should be able to propose after 10 minutes
-        minBalanceToProposeClanPointChange = 100 ether;
 
         // Start with index of 1 to avoid some double propose in state updates
         proposalCounter.increment(); 
@@ -477,8 +475,6 @@ contract StickDAO is ERC20 {
      * Contract Address Change -> Code: 1
      * Proposal Type Index Change -> Code: 2
      * minBalanceToProp -> Code: 3
-     * minBalanceToClanPoint -> Code: 4
-     * Clan Point Change -> Code: 5
      * 
      */
 
@@ -588,89 +584,6 @@ contract StickDAO is ERC20 {
             minBalanceToPropose = proposal.newUint;
 
         proposal.isExecuted = true;
-    }
-
-    function proposeMinBalanceToPropClanPointUpdate(uint256 _newAmount) public {
-        require(_msgSender() == contracts[5], "Only executors can call this function!");
-
-        string memory proposalDescription = string(abi.encodePacked(
-            "In Stick DAO contract, updating Minimum Balance To Propose to ", 
-            Strings.toHexString(_newAmount), " from ", Strings.toHexString(minBalanceToProposeClanPointChange), "."
-        )); 
-
-        // Create a new proposal
-        uint256 propID = newProposal(proposalDescription, functionsProposalTypes[5]);
-
-        // Save data to the local proposal
-        proposalTrackers[propID].updateCode = 4;
-        proposalTrackers[propID].newUint = _newAmount;
-    }
-
-    function executeMinBalanceToPropClanPointUpdateProposal(uint256 _proposalID) public {
-        ProposalTracker storage proposal = proposalTrackers[_proposalID];
-
-        require(proposal.updateCode == 4 && !proposal.isExecuted, "Wrong proposal ID");
-        
-        // Save the staus
-        proposal.status = Status(proposalResult(_proposalID));
-
-        // Check if it is finalized or not
-        require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
-
-        // if the proposal is approved, apply the update the state
-        if (proposal.status == Status.Approved)
-            minBalanceToProposeClanPointChange = proposal.newUint;
-
-        proposal.isExecuted = true;
-    }
-    
-    // Changing clan point by DAO approval
-    function proposeClanPointChange(uint256 _clanID, uint256 _pointsToChange, bool _isDecreasing) public {
-        require(balanceOf(_msgSender()) >= minBalanceToProposeClanPointChange, 
-            "You don't have enough DAO token to propose a Clan Point Change!"
-        );
-        
-        string memory proposalDescription;
-        if (_isDecreasing){
-            proposalDescription = string(abi.encodePacked(
-                "Decreasing the points of clan ID: ", Strings.toHexString(_clanID),
-                " by ", Strings.toHexString(minBalanceToPropose), " points."
-            )); 
-        }
-        else {
-            proposalDescription = string(abi.encodePacked(
-                "Increasing the points of clan ID: ", Strings.toHexString(_clanID),
-                " by ", Strings.toHexString(minBalanceToPropose), " points."
-            )); 
-        }
-
-        // Create a new proposal- proposal type Index : 2 - Highly Important
-        uint256 propID = newProposal(proposalDescription, functionsProposalTypes[6]);
-
-        // Save data to the local proposal
-        proposalTrackers[propID].updateCode = 5;
-        proposalTrackers[propID].index = _clanID;
-        proposalTrackers[propID].newUint = _pointsToChange;
-        proposalTrackers[propID].newBool = _isDecreasing;
-    }
-
-    function executeClanPointChangeProposal(uint256 _proposalID) public {
-        ProposalTracker storage proposal = proposalTrackers[_proposalID];
-
-        require(proposal.updateCode == 5 && !proposal.isExecuted, "Wrong proposal ID");
-        
-        // Save the staus
-        proposal.status = Status(proposalResult(_proposalID));
-
-        // Check if it is finalized or not
-        require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
-
-        // if the proposal is approved, apply the update the state
-        if (proposal.status == Status.Approved) {
-            // TEST -> contracts[1].giveClanPoints(proposal.index, proposal.newUint, proposal.newBool);
-        }
-
-        proposal.isExecuted = true;        
     }
 
     /**

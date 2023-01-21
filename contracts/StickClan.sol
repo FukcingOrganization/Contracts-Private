@@ -43,6 +43,14 @@ import "@openzeppelin/contracts/utils/Strings.sol";
   */
 
 /// @author Bora
+
+interface IDAO {
+  function newProposal(string memory _description, uint256 _proposalType) external returns(uint256);
+  function proposalResult(uint256 _proposalID) external returns(uint256);
+  function getMinBalanceToPropose() external view returns (uint256);
+  function balanceOf(address account) external view returns (uint256);
+}
+
 contract StickClan is Context, ReentrancyGuard {
   using Counters for Counters.Counter;
 
@@ -132,9 +140,10 @@ contract StickClan is Context, ReentrancyGuard {
     1: Functions Proposal Types update
     2: Max point to change
     3: Cooldown time update
-    4: Clan Point Adjustment
+    4: Min Balance to Clan Point Change
+    5: Clan Point Adjustment
   */
-  uint256[5] public functionsProposalTypes;
+  uint256[6] public functionsProposalTypes;
 
   /**
    * contracts' Indexes with corresponding meaning
@@ -166,11 +175,13 @@ contract StickClan is Context, ReentrancyGuard {
   uint256 public maxPointToChange;        // Maximum point that can be given in a propsal
   uint256 public cooldownTime;            // Cool down time to give clan point by executors
   uint256 public roundNumber;             // Tracking the round number
+  uint256 public minBalanceToProposeClanPointChange;  // Amount of tokens without decimals
 
   constructor(){
     clanCounter.increment();  // clan ID's should start from 1
     maxPointToChange = 666;
     cooldownTime = 3 days;
+    minBalanceToProposeClanPointChange = 100 ether;
 
     // Set the round contract address and get the current round number from it
     contracts[9] = 0x0000000000000000000000000000000000000000;
@@ -587,7 +598,8 @@ contract StickClan is Context, ReentrancyGuard {
     Proposal Type Change -> Code: 2
     maxPointToChange -> Code: 3
     cooldownTime -> Code: 4
-    clan Point Adjustment -> Code: 5 
+    Min Balance to Clan Point Change -> Code: 5
+    clan Point Adjustment -> Code: 6
    */
   function proposeContractAddressUpdate(uint256 _contractIndex, address _newAddress) public {
     require(_msgSender() == contracts[5], "Only executors can call this function!");
@@ -783,6 +795,40 @@ contract StickClan is Context, ReentrancyGuard {
     proposal.isExecuted = true;
   }  
 
+  function proposeMinBalanceToPropClanPointUpdate(uint256 _newAmount) public {
+    require(_msgSender() == contracts[5], "Only executors can call this function!");
+
+    string memory proposalDescription = string(abi.encodePacked(
+      "In Clan contract, updating Minimum Balance To Propose to ", 
+      Strings.toHexString(_newAmount), " from ", Strings.toHexString(minBalanceToProposeClanPointChange), "."
+    )); 
+
+    // Create a new proposal
+    uint256 propID = IDAO(contracts[4]).newProposal(proposalDescription, functionsProposalTypes[4]);
+
+    // Save data to the local proposal
+    proposals[propID].updateCode = 5;
+    proposals[propID].newUint = _newAmount;
+  }
+
+  function executeMinBalanceToPropClanPointUpdateProposal(uint256 _proposalID) public {
+    Proposal storage proposal = proposals[_proposalID];
+
+    require(proposal.updateCode == 5 && !proposal.isExecuted, "Wrong proposal ID");
+    
+    // Save the staus
+    proposal.status = Status(IDAO(contracts[4]).proposalResult(_proposalID));
+
+    // Check if it is finalized or not
+    require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
+
+    // if the proposal is approved, apply the update the state
+    if (proposal.status == Status.Approved)
+      minBalanceToProposeClanPointChange = proposal.newUint;
+
+    proposal.isExecuted = true;
+  }
+
   /**
     @notice Anyone can propose point adjustmen right after the round is complete and until the next round.
     You can't propose a new proposal until the current proposal gets executed
@@ -790,14 +836,17 @@ contract StickClan is Context, ReentrancyGuard {
   function proposeClanPointAdjustment(uint256 _roundNumber, uint256 _clanID, uint256 _pointToChange, bool _isDecreasing) public {
     require(_pointToChange <= maxPointToChange, "Maximum amount of point exceeded!");
     require(clans[_clanID].info.isDisbanded == false, "This clan is disbanded!");
+    require(IDAO(contracts[4]).balanceOf(_msgSender()) >= minBalanceToProposeClanPointChange,
+      "You don't have enough SDAO balance to make this proposal!"
+    );
 
     // If the are in the new round
     checkAndUpdateRound();
 
     Clan storage clan = clans[_clanID];
 
-    // After end of the round but until the end of the second round
-    require(_roundNumber == roundNumber - 1, "Invalid round number!");
+    // After end of the round but until the end of the second round TEST: Check the numbers      Eg. RN:5, Allowed:4-3, Too late:2
+    require(_roundNumber < roundNumber && _roundNumber > roundNumber - 3, "Invalid round number!");
 
     // Wait for the proposal to finish or execute it.
     require(proposals[clan.proposal_ID].isExecuted, "Current proposal is not executed yet!");
@@ -819,7 +868,7 @@ contract StickClan is Context, ReentrancyGuard {
 
     // Create a new proposal - Call DAO contract (contracts[4]) - proposal type : 1 - Moderately Important
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
-      abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, functionsProposalTypes[4])
+      abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, functionsProposalTypes[5])
     );
     require(txSuccess, "Transaction failed to make new proposal!");
 
@@ -827,7 +876,7 @@ contract StickClan is Context, ReentrancyGuard {
     (uint256 propID) = abi.decode(returnData, (uint256));
 
     // Save data to the proposal
-    proposals[propID].updateCode = 5;
+    proposals[propID].updateCode = 6;
     proposals[propID].index = _clanID;
     proposals[propID].newUint = _pointToChange;
     proposals[propID].newBool = _isDecreasing;
@@ -843,7 +892,7 @@ contract StickClan is Context, ReentrancyGuard {
   function executeClanPointAdjustment(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
-    require(proposal.updateCode == 5 && !proposal.isExecuted, "Wrong proposal ID");
+    require(proposal.updateCode == 6 && !proposal.isExecuted, "Wrong proposal ID");
     
     // Get the result from DAO
     (bool txSuccess, bytes memory returnData) = contracts[4].call(
