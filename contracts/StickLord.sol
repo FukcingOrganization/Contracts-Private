@@ -230,7 +230,7 @@ contract StickLord is ERC721, ERC721Burnable {
     uint256 tokenId = _tokenIdCounter.current();
 
     // Calculate the current mint cost
-    uint256 mintCost = baseMintCost + ((tokenId - 50) * mintCostIncrement);
+    uint256 mintCost = baseMintCost + ((totalSupply - 50) * mintCostIncrement);
 
     require(tokenId <= maxSupply, "Sorry mate, there can ever be only 500 Lords, and they are all out!");
     require(msg.value >= mintCost, "Not sufficient mint cost!");   

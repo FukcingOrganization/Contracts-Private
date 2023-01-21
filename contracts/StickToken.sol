@@ -131,24 +131,26 @@ contract StickToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
     uint256 public twoYearsLater;
     uint256 public communityTGErelease;         // 12,307,196   Unix time    -> ~142 days
     uint256 public testnetTGErelease;           // 4,102,399    Unix time    -> ~47 days
-    uint256 public maxSupply = 70857567 ether;        // ~70 million initial max supply
+    uint256 public maxSupply = 100000000 ether;       // 100000000 million initial max supply
     uint256 public teamAndTestnetCap = 3542878 ether; // ~3.5 million for both team and testnet allocation
     
     constructor(
         address[] memory _teamAddress,          // TEST -> Add the size here as well
         uint256[] memory _teamMintPerSecond,
         bytes32[6] memory _testnetRoots,
-        uint256[6] memory _testnetMintPerSecond
+        uint256[6] memory _testnetMintPerSecond,
+        uint256[8] memory _totalMints
     ) 
         ERC20("StickToken", "STICK") 
     {
-        deploymentTime = block.timestamp;   // Test -> Add the exact date here as comment for people to see
+        deploymentTime = block.timestamp;   // Test -> Make it a first monday 00:00
         oneYearLater = deploymentTime + 31556926;   // Add 1 year
         twoYearsLater = oneYearLater + 31556926;    // Add 1 more year
         teamAddress = _teamAddress;
         teamMintPerSecond = _teamMintPerSecond;
         testnetRoots = _testnetRoots;
         testnetMintPerSecond = _testnetMintPerSecond;
+        totalMints = _totalMints;
     }
 
     function snapshot() public {

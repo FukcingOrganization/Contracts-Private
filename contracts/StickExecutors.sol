@@ -48,6 +48,11 @@ interface ICommunity {
 }
 
 interface IDAO {
+  function newProposal(string memory _description, uint256 _proposalType) external returns(uint256);
+  function proposalResult(uint256 _proposalID) external returns(uint256);
+  function getMinBalanceToPropose() external view returns (uint256);
+  function balanceOf(address account) external view returns (uint256);
+
   function proposeMinBalanceToPropUpdate(uint256 _newAmount) external;
   function proposeMinBalanceToPropClanPointUpdate(uint256 _newAmount) external;
   function proposeClanPointChange(uint256 _clanID, uint256 _pointsToChange, bool _isDecreasing) external;
@@ -143,23 +148,16 @@ contract StickExecutors is Context, AccessControl {
     */
   address[13] public contracts;
 
-  /** 
-    If we want to change a function's proposal type, then we can simply change its type index
-
-    Index : Associated Function
-    0: Contract address update
-    1: Functions Proposal Types update
-    2: Executor Role
-  */
-  uint256[3] public functionsProposalTypes;
+  uint256 public executorProposalTypeIndex;
 
   uint256 public numOfExecutors;
-  uint256[] public signalTrackerID;
+  uint256[100] public signalTrackerID; // TEST: Set it the number of signals
   uint256 public signalTime;
 
   constructor() {
     // Grant the deployer as an executor
     _grantRole(EXECUTOR_ROLE, _msgSender());
+    isExecutor[_msgSender()] = true;
     numOfExecutors++;  
 
     // At least half of the executor should signal within (initially) 1 day to execute a new proposal 
@@ -171,23 +169,62 @@ contract StickExecutors is Context, AccessControl {
    * Signal Tracker IDs
    *
    * Contract Address Update: 1
-   * Proposal Type Update: 2      MISSING - ADD IT
-   * Lord mint cost update: 3
+   * Creating Contract Address Update Proposal in other contracts: 2
+   * Creating Functions Proposal Type Update Proposal in other contracts: 3
    */
+  function updateContractAddress(uint256 _contractIndex, address _newAddress) public onlyRole(EXECUTOR_ROLE) {
+    // Get the current signal
+    Signal storage currentSignal = signals[signalTrackerID[1]];
+
+    // If current signal date passed, then start a new signal
+    if (block.timestamp > currentSignal.expires) {
+      require(_newAddress != address(0), "You can't set the address to null!");
+
+      signalTrackerID[1] = signalCounter.current();           // Save the current signal ID to the tracker
+      Signal storage newSignal = signals[signalTrackerID[1]]; // Get the signal
+      signalCounter.increment();  // Increment the counter for other signals
+
+      // Save data
+      newSignal.expires = block.timestamp + signalTime;
+      newSignal.contractIndex = _contractIndex;
+      newSignal.propAddrees = _newAddress;
+
+      newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
+      newSignal.numOfSignals++;
+      return; // finish the function
+    }   
+
+    // If there is not enough signals, count this one as well. Then continue to check it again.
+    if (currentSignal.numOfSignals < (numOfExecutors / 2)){      
+      // If we are in the signal time, check caller's signal status
+      require(!currentSignal.isSignaled[_msgSender()], "You already signaled for this proposal");
+
+      // If not signaled, save it and increase the number of signals
+      currentSignal.isSignaled[_msgSender()] = true;
+      currentSignal.numOfSignals++;
+    }
+
+    // Execute proposal if the half of the executors signaled
+    if (currentSignal.numOfSignals >= (numOfExecutors / 2)){
+      contracts[currentSignal.contractIndex]= currentSignal.propAddrees;
+      signalTrackerID[1] = 0; // To avoid further executions
+    }       
+  }
+  
   function createContractAddressUpdateProposal(
     uint256 _contractIndex,  // Destination Contract address
     uint256 _subjectIndex,   // The address that we want to update in the destination contract. Same index as contracts
     address _newAddress      // New address
   ) public onlyRole(EXECUTOR_ROLE) {
-    // Get the current signal ID for this proposal function
-    uint256 sID = signalTrackerID[1];
+    // Get the current signal
+    Signal storage currentSignal = signals[signalTrackerID[2]];
 
     // If current signal date passed, then start a new signal
-    if (block.timestamp > signals[sID].expires) {
+    if (block.timestamp > currentSignal.expires) {
       require(_newAddress != address(0), "You can't set the address to null!");
 
-      signalTrackerID[1] = signalCounter.current();           // Save the current signal ID to the tracker
-      Signal storage newSignal = signals[signalTrackerID[1]]; // Get the signal
+      signalTrackerID[2] = signalCounter.current();           // Save the current signal ID to the tracker
+      Signal storage newSignal = signals[signalTrackerID[2]]; // Get the signal
       signalCounter.increment();  // Increment the counter for other signals
 
       // Save data
@@ -201,156 +238,129 @@ contract StickExecutors is Context, AccessControl {
       return; // finish the function
     }   
 
-    // If we are in the signal time, get the signal and check caller's signal status
-    Signal storage signal = signals[signalTrackerID[1]];
-    require(!signal.isSignaled[_msgSender()], "You already signaled for this proposal");
+    // If there is not enough signals, count this one as well. Then continue to check it again.
+    if (currentSignal.numOfSignals < (numOfExecutors / 2)){      
+      // If we are in the signal time, check caller's signal status
+      require(!currentSignal.isSignaled[_msgSender()], "You already signaled for this proposal");
 
-    // If not signaled, save it and increase the number of signals
-    signal.isSignaled[_msgSender()] = true;
-    signal.numOfSignals++;
+      // If not signaled, save it and increase the number of signals
+      currentSignal.isSignaled[_msgSender()] = true;
+      currentSignal.numOfSignals++;
+    }
 
     // Execute proposal if the half of the executors signaled
-    if (signal.numOfSignals >= (numOfExecutors / 2)){
-      IBaseUpdate(contracts[signal.contractIndex]).proposeContractAddressUpdate(signal.subjectIndex, signal.propAddrees);
-      signal.expires = 0; // To avoid further executions
+    if (currentSignal.numOfSignals >= (numOfExecutors / 2)){
+      IBaseUpdate(contracts[currentSignal.contractIndex]).proposeContractAddressUpdate(
+        currentSignal.subjectIndex, currentSignal.propAddrees
+      );
+      signalTrackerID[2] = 0; // To avoid further executions
     }       
+  }
+
+  function createFunctionsProposalTypesUpdateProposal(
+    uint256 _contractIndex, // Destination Contract address
+    uint256 _subjectIndex,  // The Proposal Type Index that we want to update in the destination contract
+    uint256 _newIndex       // New index
+  ) public onlyRole(EXECUTOR_ROLE) {
+    // Get the current signal
+    Signal storage currentSignal = signals[signalTrackerID[3]];
+
+    // If current signal date passed, then start a new signal
+    if (block.timestamp > currentSignal.expires) {
+
+      signalTrackerID[3] = signalCounter.current();           // Save the current signal ID to the tracker
+      Signal storage newSignal = signals[signalTrackerID[3]]; // Get the signal
+      signalCounter.increment();  // Increment the counter for other signals
+
+      // Save data
+      newSignal.expires = block.timestamp + signalTime;
+      newSignal.contractIndex = _contractIndex;
+      newSignal.subjectIndex = _subjectIndex;
+      newSignal.propUint = _newIndex;
+
+      newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
+      newSignal.numOfSignals++;
+      return; // finish the function
+    }   
+
+    // If there is not enough signals, count this one as well. Then continue to check it again.
+    if (currentSignal.numOfSignals < (numOfExecutors / 2)){      
+      // If we are in the signal time, check caller's signal status
+      require(!currentSignal.isSignaled[_msgSender()], "You already signaled for this proposal");
+
+      // If not signaled, save it and increase the number of signals
+      currentSignal.isSignaled[_msgSender()] = true;
+      currentSignal.numOfSignals++;
+    }
+
+    // Execute proposal if the half of the executors signaled
+    if (currentSignal.numOfSignals >= (numOfExecutors / 2)){
+      IBaseUpdate(contracts[currentSignal.contractIndex]).proposeFunctionsProposalTypesUpdate(
+        currentSignal.subjectIndex, currentSignal.propUint
+      );
+      signalTrackerID[3] = 0; // To avoid further executions
+    }       
+  }
+
+
+  /// @dev returns the time remeaning until the end of the singalling period
+  function getSignalTiming(uint256 _signalIndex) public view returns (uint256) {
+    return signals[_signalIndex].expires > block.timestamp ? signals[_signalIndex].expires - block.timestamp : 0;
   }
 
   
   /**
    * Updates by DAO - Update Codes
-   * Contract Address Change -> Code: 1
-   * Proposal Type Change -> Code: 2
-   * Executor Propsosal -> Code: 3
+   * Executor Assignment Proposal Type Change -> Code: 1
+   * Executor Propsosal -> Code: 2
    * 
    */
-  function proposeContractAddressUpdate(uint256 _contractIndex, address _newAddress) public onlyRole(EXECUTOR_ROLE) {
-    require(_newAddress != address(0) || _newAddress != contracts[_contractIndex], 
-      "New address can not be the null or same address!"
-    );
-
-    string memory proposalDescription = string(abi.encodePacked(
-      "In Executors, updating contract address of index ", Strings.toHexString(_contractIndex), " to ", 
-      Strings.toHexString(_newAddress), " from ", Strings.toHexString(contracts[_contractIndex]), "."
-    )); 
-
-    // Create a new proposal - Call DAO contract (contracts[4])
-    (bool txSuccess, bytes memory returnData) = contracts[4].call(
-      abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, functionsProposalTypes[0])
-    );
-    require(txSuccess, "Transaction failed to make new proposal!");
-
-    // Save the ID to create proposal in here
-    (uint256 propID) = abi.decode(returnData, (uint256));
-
-    // Save data to the proposal
-    proposals[propID].updateCode = 1;
-    proposals[propID].index = _contractIndex;
-    proposals[propID].newAddress = _newAddress;
-  }
-
-  function executeContractAddressUpdateProposal(uint256 _proposalID) public {
-    Proposal storage proposal = proposals[_proposalID];
-
-    require(proposal.updateCode == 1 && !proposal.isExecuted, "Wrong proposal ID");
-    
-    // Get the result from DAO
-    (bool txSuccess, bytes memory returnData) = contracts[4].call(
-        abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
-    );
-    require(txSuccess, "Transaction failed to retrieve DAO result!");
-    (uint256 statusNum) = abi.decode(returnData, (uint256));
-
-    // Save it here
-    proposal.status = Status(statusNum);
-
-    // Wait for the current one to finalize
-    require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
-
-    // if approved, apply the update the state
-    if (proposal.status == Status.Approved)
-        contracts[proposal.index] = proposal.newAddress;
-
-    proposal.isExecuted = true;
-  }
-
-  function proposeFunctionsProposalTypesUpdate(uint256 _functionIndex, uint256 _newIndex) public onlyRole(EXECUTOR_ROLE) {
-    require(_newIndex != functionsProposalTypes[_functionIndex], "Desired function index is already set!");
+  function proposeFunctionsProposalTypesUpdate(uint256 _newIndex) public onlyRole(EXECUTOR_ROLE) {
+    require(_newIndex != executorProposalTypeIndex, "Desired function index is already set!");
   
     string memory proposalDescription = string(abi.encodePacked(
-      "In Executors contract, updating proposal types of index ", Strings.toHexString(_functionIndex), " to ", 
-      Strings.toHexString(_newIndex), " from ", Strings.toHexString(functionsProposalTypes[_functionIndex]), "."
+      "In Executors contract, updating the index of executor proposal to ", 
+      Strings.toHexString(_newIndex), " from ", Strings.toHexString(executorProposalTypeIndex), "."
     )); 
   
     // Create a new proposal - Call DAO contract (contracts[4])
-    (bool txSuccess, bytes memory returnData) = contracts[4].call(
-      abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, functionsProposalTypes[1])
-    );
-    require(txSuccess, "Transaction failed to make new proposal!");
-  
-    // Save the ID
-    (uint256 propID) = abi.decode(returnData, (uint256));
+    uint256 propID = IDAO(contracts[4]).newProposal(proposalDescription, executorProposalTypeIndex);
   
     // Get data to the proposal
-    proposals[propID].updateCode = 2;
-    proposals[propID].index = _functionIndex;
+    proposals[propID].updateCode = 1;
     proposals[propID].newUint = _newIndex;
   }
   
   function executeFunctionsProposalTypesUpdateProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
   
-    require(proposal.updateCode == 2 && !proposal.isExecuted, "Wrong proposal ID");
+    require(proposal.updateCode == 1 && !proposal.isExecuted, "Wrong proposal ID");
   
-    // If there is already a proposal, Get its result from DAO
-    (bool txSuccess, bytes memory returnData) = contracts[4].call(
-      abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
-    );
-    require(txSuccess, "Transaction failed to retrieve DAO result!");
-    (uint256 statusNum) = abi.decode(returnData, (uint256));
-  
-    // Save it here
-    proposal.status = Status(statusNum);
+    // Get the proposal status from DAO contract
+    proposal.status = Status(IDAO(contracts[4]).proposalResult(_proposalID));
   
     // Wait for the current one to finalize
     require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
   
     // if the current one is approved, apply the update the state
     if (proposal.status == Status.Approved)
-      functionsProposalTypes[proposal.index] = proposal.newUint;
+      executorProposalTypeIndex = proposal.newUint;
   
     proposal.isExecuted = true;
   }
   
-  function proposeExecutorRole(address _address, bool _setAsExecutor) public {
+  function proposeExecutorRole(address _address, bool _isAssigning) public {
     require(_address != address(0), "The executor address can not be the null address!");
-    require(hasRole(EXECUTOR_ROLE, _address) != _setAsExecutor, "The role of the address is already same!");
-
-    /// *************** Check Caller's Eligibility to Propose *************** ///
+    require(hasRole(EXECUTOR_ROLE, _address) != _isAssigning, "The role of the address is already same!");
 
     // Only addresses who hold required amount of governance token (SDAO) can call this function
-    // Get required balance to propose
-    (bool txSuccess0, bytes memory returnData0) = 
-      contracts[4].call(abi.encodeWithSignature("getMinBalanceToPropose()")
+    require(IDAO(contracts[4]).balanceOf(_msgSender()) >= IDAO(contracts[4]).getMinBalanceToPropose(), 
+      "You don't have enough SDAO tokens to call this function!"
     );
-    require(txSuccess0, "Transaction failed to get required balance to propose from DAO!");
-    (uint256 requiredBalance) = abi.decode(returnData0, (uint256));
 
-    // Get caller's balance
-    (bool txSuccess1, bytes memory returnData1) = 
-      contracts[4].call(abi.encodeWithSignature("balanceOf(address)", _msgSender())
-    );
-    require(txSuccess1, "Transaction failed to get SDAO token balance of the caller!");
-    (uint256 callerBalance) = abi.decode(returnData1, (uint256));
-
-    require(callerBalance >= requiredBalance, "You don't have enough SDAO tokens to call this function!");
-
-        
-    /// ************************** Create Proposal ************************** ///
-
-            
+    // Create the proposal description
     string memory proposalDescription;
-    if (_setAsExecutor){
+    if (_isAssigning){
       proposalDescription = string(abi.encodePacked(
         "Assigning ", Strings.toHexString(_address), " address as a new executor!"
       ));
@@ -362,34 +372,21 @@ contract StickExecutors is Context, AccessControl {
     } 
 
     // Create a new proposal - DAO (contracts[4])
-    (bool txSuccess2, bytes memory returnData2) = contracts[4].call(
-      abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, functionsProposalTypes[2])
-    );
-    require(txSuccess2, "Transaction failed to make new proposal!");
-
-    // Get the ID
-    (uint256 propID) = abi.decode(returnData2, (uint256));
+    uint256 propID = IDAO(contracts[4]).newProposal(proposalDescription, executorProposalTypeIndex);
 
     // Save data to the proposal
-    proposals[propID].updateCode = 3;
+    proposals[propID].updateCode = 2;
     proposals[propID].newAddress = _address;
-    proposals[propID].newBool = _setAsExecutor;
+    proposals[propID].newBool = _isAssigning;
   }
 
   function executeRoleProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
-    require(proposal.updateCode == 3 && !proposal.isExecuted, "Wrong proposal ID");
-
-    // Get the proposal result from DAO
-    (bool txSuccess, bytes memory returnData) = contracts[4].call(
-      abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
-    );
-    require(txSuccess, "Transaction failed to make new proposal!");
-
-    // Save the result here
-    (uint256 statusNum) = abi.decode(returnData, (uint256));
-    proposal.status = Status(statusNum);
+    require(proposal.updateCode == 2 && !proposal.isExecuted, "Wrong proposal ID");
+  
+    // Get the proposal status from DAO contract
+    proposal.status = Status(IDAO(contracts[4]).proposalResult(_proposalID));
 
     // Check if it is finalized or not
     require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
@@ -398,10 +395,12 @@ contract StickExecutors is Context, AccessControl {
     if (proposal.status == Status.Approved){
       if (proposal.newBool == true){ 
         _grantRole(EXECUTOR_ROLE, proposal.newAddress);
+        isExecutor[proposal.newAddress] = true;
         numOfExecutors++;
       }
       else {
         _revokeRole(EXECUTOR_ROLE, proposal.newAddress);
+        isExecutor[proposal.newAddress] = false;
         numOfExecutors--;
       }
     }

@@ -11,27 +11,33 @@
 <script type="text/javascript">  
   const buf2hex = x => '0x' + x.toString('hex')
 
-  // Mint allowance: 10
-  // Root: 0x4478029e203c0602b2dfef4d3da7a2cd97f24c42a8266352508dd532a258f624 
-  const addressGroup_0 = ['0x0000000000000000000000000000000000000000','0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2']
-  // Proof: ["0x5380c7b7ae81a58eb98d9c78de4a1fd7fd9535fc953ed2be602daaa41767312a"]
+
+
+  // Mint allowance: 
+  // Root:  0x3a9297e43b5a79c496f5ae540183491bea9a1c78232efa996e67d8dca81e2786
+  const addressGroup_0 = ['0x0000000000000000000000000000000000000000','0x9343C3Ac31DB62F6137f1828E5557ec07d11aA83']
+  // Proof_0: ["0x5380c7b7ae81a58eb98d9c78de4a1fd7fd9535fc953ed2be602daaa41767312a"]  
+
+  // Mint allowance: 
+  // Root: 0xa9099c3595668ef14fc96a2003bbac35666e1d502bccb59e1b8e680d2e9249a5
+  const addressGroup_1 = ["0x0000000000000000000000000000000000000000","0x1bC6F80DA87Bdab3C94d7B1b7a513FE4Fc2254f5"]
+  // Proof_1: ["0x5380c7b7ae81a58eb98d9c78de4a1fd7fd9535fc953ed2be602daaa41767312a"]
+
+  // Mint allowance: 
+  // Root: 0x2fb867ee8f161cd1d579596bd89d9d66fd01540f47e6d306e4a43ce595b0c56f
+  const addressGroup_2 = ["0x0000000000000000000000000000000000000000","0x85be25d0Ef53959dB27D42df1f7da57549154D5f", "0x617F2E2fD72FD9D5503197092aC168c91465E7f2"];
+  // Proof_2: ["0x5380c7b7ae81a58eb98d9c78de4a1fd7fd9535fc953ed2be602daaa41767312a","0xf6d82c545c22b72034803633d3dda2b28e89fb704f3c111355ac43e10612aedc"]
+
+
   
-
-  // Mint allowance: 20
-  // Root: 0xa6bd3782ccc3c0be4098789f15060f25e902c825d940003f76e8efeadc390b75
-  const addressGroup_1 = ["0x0000000000000000000000000000000000000000","0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db"]
-  // Proof: ["0x5380c7b7ae81a58eb98d9c78de4a1fd7fd9535fc953ed2be602daaa41767312a"]
-
-  // Mint allowance: 30
-  // Root: 0xabccce5f6348328b5d3a30890dfd2a21173aef03e348995aa6f3752304f17b09
-  const addressGroup_2 = ["0x0000000000000000000000000000000000000000","0x78731D3Ca6b7E34aC0F824c42a7cC18A495cabaB", "0x617F2E2fD72FD9D5503197092aC168c91465E7f2"];
-  // Proof: ["0x5380c7b7ae81a58eb98d9c78de4a1fd7fd9535fc953ed2be602daaa41767312a","0xf6d82c545c22b72034803633d3dda2b28e89fb704f3c111355ac43e10612aedc"]
-  // Proof 2: ["0xd9ab69fbb793c7eebf4d4ef95e553934da29455d18db2fb1fd6ae51f26667f78"]
-
   // Address List input -> ["0x4478029e203c0602b2dfef4d3da7a2cd97f24c42a8266352508dd532a258f624","0xa6bd3782ccc3c0be4098789f15060f25e902c825d940003f76e8efeadc390b75","0xabccce5f6348328b5d3a30890dfd2a21173aef03e348995aa6f3752304f17b09"]
 
-  // Wei: number + 000000000000000000
+  // Ether to Wei: ether + 000000000000000000 (18 zeros)
 
+
+  // ********** Generate Roots ********** //
+
+//#region Root Generation
   const leaves_0 = addressGroup_0.map(x => keccak256(x))
   const tree_0 = new MerkleTree(leaves_0, keccak256, { sortPairs: true })
 
@@ -46,7 +52,9 @@
   const tree_2 = new MerkleTree(leaves_2, keccak256, { sortPairs: true })
 
   console.log("Root_2: " + buf2hex(tree_2.getRoot()))
-  
+//#endregion
+
+
 
   // to lowercase (no need for roots but you might need it for proofs)
 /*
@@ -57,30 +65,78 @@
   console.log(addressToLower)
 */
 
+
+
   // ********** Generate Proof ********** //
 
+//#region  Proof_0 - 0x9343C3Ac31DB62F6137f1828E5557ec07d11aA83
+  const leaf_0 = buf2hex(keccak256("0x9343C3Ac31DB62F6137f1828E5557ec07d11aA83")) // address from wallet using walletconnect/metamask
+  const proof_0 = tree_0.getProof(leaf_0).map(x => buf2hex(x.data))
 
-  const leaf = buf2hex(keccak256("0x617F2E2fD72FD9D5503197092aC168c91465E7f2")) // address from wallet using walletconnect/metamask
-  const proof = tree_2.getProof(leaf).map(x => buf2hex(x.data))
+  //console.log(proof_0)
 
-  console.log(proof)
-
-  stringProof = "[";
-  for (let i = 0; i < proof.length; i++){    
-    stringProof += proof[i];
+  stringProof_0 = "[";
+  for (let i = 0; i < proof_0.length; i++){    
+    stringProof_0 += proof_0[i];
     
-    if ((i+1) == proof.length){
-      stringProof += "]";
+    if ((i+1) == proof_0.length){
+      stringProof_0 += "]";
     }
     else {
-      stringProof += ",";
+      stringProof_0 += ",";
     }
   }
-  console.log("leaf: " + leaf)
+  //console.log("leaf: " + leaf)
 
   //console.log(proof)
-  console.log("proof: " + stringProof)
+  console.log("Proof_0: " + stringProof_0)
+//#endregion
 
+//#region  Proof_1 - 0x1bC6F80DA87Bdab3C94d7B1b7a513FE4Fc2254f5
+  const leaf_1 = buf2hex(keccak256("0x1bC6F80DA87Bdab3C94d7B1b7a513FE4Fc2254f5")) // address from wallet using walletconnect/metamask
+  const proof_1 = tree_1.getProof(leaf_1).map(x => buf2hex(x.data))
+
+  //console.log(proof_1)
+
+  stringProof_1 = "[";
+  for (let i = 0; i < proof_1.length; i++){    
+    stringProof_1 += proof_1[i];
+    
+    if ((i+1) == proof_1.length){
+      stringProof_1 += "]";
+    }
+    else {
+      stringProof_1 += ",";
+    }
+  }
+  //console.log("leaf: " + leaf)
+
+  //console.log(proof)
+  console.log("Proof_1: " + stringProof_1)
+//#endregion
+
+//#region  Proof_2 - 0x85be25d0Ef53959dB27D42df1f7da57549154D5f
+const leaf_2 = buf2hex(keccak256("0x85be25d0Ef53959dB27D42df1f7da57549154D5f")) // address from wallet using walletconnect/metamask
+  const proof_2 = tree_2.getProof(leaf_2).map(x => buf2hex(x.data))
+
+  //console.log(proof_2)
+
+  stringProof_2 = "[";
+  for (let i = 0; i < proof_2.length; i++){    
+    stringProof_2 += proof_2[i];
+    
+    if ((i+1) == proof_2.length){
+      stringProof_2 += "]";
+    }
+    else {
+      stringProof_2 += ",";
+    }
+  }
+  //console.log("leaf: " + leaf)
+
+  //console.log(proof)
+  console.log("Proof_2: " + stringProof_2)
+//#endregion
 
 
 

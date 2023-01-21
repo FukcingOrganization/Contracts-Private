@@ -1,0 +1,81 @@
+My wallets = [
+  0xc6b32E450FB3A70BD8a5EC12D879292BF92F2944  
+  0x9343C3Ac31DB62F6137f1828E5557ec07d11aA83    
+  0x1bC6F80DA87Bdab3C94d7B1b7a513FE4Fc2254f5
+  0x85be25d0Ef53959dB27D42df1f7da57549154D5f
+]                               
+
+Merkle Trees and Proofs Accordingly (Test with my 4 wallets above) = [
+  - First (test) wallet is not used
+  0x3a9297e43b5a79c496f5ae540183491bea9a1c78232efa996e67d8dca81e2786  ["0x5380c7b7ae81a58eb98d9c78de4a1fd7fd9535fc953ed2be602daaa41767312a"]
+
+  0xa9099c3595668ef14fc96a2003bbac35666e1d502bccb59e1b8e680d2e9249a5  ["0x5380c7b7ae81a58eb98d9c78de4a1fd7fd9535fc953ed2be602daaa41767312a"]
+
+  0x2fb867ee8f161cd1d579596bd89d9d66fd01540f47e6d306e4a43ce595b0c56f  ["0x5380c7b7ae81a58eb98d9c78de4a1fd7fd9535fc953ed2be602daaa41767312a","0xf6d82c545c22b72034803633d3dda2b28e89fb704f3c111355ac43e10612aedc"]
+]
+
+Deploy Order = [
+  Executors: Others need Executors to trigger the update
+  DAO: Others need the DAO to update functions
+  Lord: Lord sale to provide liquidity
+  Token: The pool will be open. We’ll deploy other contracts 3 days after the token contract to wait for the price to stabilize.
+  Round
+  Clan Licence
+  Clan
+  Boss
+  Community
+  Items
+  Rent
+]
+
+** Token Contract **
+Mint Per Second = [
+  Alpha-1 560863090538280
+  Alpha-2 280431545269140
+  Alpha-3 140215772634570
+  Beta-1  70107886317285
+  Beta-2  35053943158643
+  Beta-3  17526971579321
+
+  team
+  Bora    26407303846177300
+
+  Allocations
+  Backers     158443823077064000
+  Clans       158443823077064000
+  Community   95066293846238400
+  Staking     63377529230825600
+  SDAO        31688764615412800
+  Dev         79221911538532000
+]
+
+Arguments (, , , , )
+module.exports = [
+  [ // team addresses
+    0xc6b32E450FB3A70BD8a5EC12D879292BF92F2944
+  ],
+  [ // team mint per sec
+    26407303846177300
+  ],
+  [ // testnet Roots
+    0x3a9297e43b5a79c496f5ae540183491bea9a1c78232efa996e67d8dca81e2786,
+    0xa9099c3595668ef14fc96a2003bbac35666e1d502bccb59e1b8e680d2e9249a5,
+    0x2fb867ee8f161cd1d579596bd89d9d66fd01540f47e6d306e4a43ce595b0c56f
+  ],
+  [ // testnet mintPerSecond
+    560863090538280,
+    280431545269140,
+    140215772634570,
+    70107886317285,
+    35053943158643,
+    17526971579321
+  ],
+  [ // totalMintsPerSec (allocations)
+    158443823077064000,
+    158443823077064000,
+    95066293846238400,
+    63377529230825600,
+    31688764615412800,
+    79221911538532000
+  ]
+];
