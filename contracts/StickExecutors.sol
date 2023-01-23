@@ -172,6 +172,21 @@ contract StickExecutors is Context, AccessControl {
     signalCounter.increment();  // Start the counter from 1
   }
 
+  function grantRole(bytes32 role, address account) public virtual override onlyRole(getRoleAdmin(role)) {
+    revert("DAO approval needed to grant a role!");
+  }
+
+  function revokeRole(bytes32 role, address account) public virtual override onlyRole(getRoleAdmin(role)) {
+    revert("DAO approval needed to revoke a role!");
+  }
+
+  function renounceRole(bytes32 role, address account) public virtual override {
+    isExecutor[account] = false;
+    numOfExecutors--;
+    
+    super.renounceRole(role, account);
+  }
+
   /**
    * Signal Tracker IDs
    *

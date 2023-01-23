@@ -12,37 +12,36 @@ import "IERC4907.sol";
 /**
  * @notice
  * -> Executors can propose to change mint cost by SDAO approval.
-  *
+ *
  * -> A Lord can mint maximum of 3 clan licenses. Once a licenses used by a clan leader to create
  * clan, the license burns and lord can mint a new license.
-  *
+ *
  * -> Lords can set custom URI for their licenses
-  *
+ *
  * -> Lords collects taxes from their clans. Initial tax rate is 10%. Which means, 10% of the clan rewards
  * will go to the lord of the clan.
-  *
+ *
  * -> If the clans starts a rebellion and fails, tax rate increases according to formula below.
  * Tax rate formula: tax rate = base tax rate + (tax rate change * number of glories);
  * If the rebellion wins the war, lord dies and clans would be free. No more taxes!
  * War is a simply battle of resources. Lord or rebels should have at least 66% of funding to win.
  * 10% of the total funds in a war burns as war casualties. Remaining funds goes to the winner side.
  * Everyone can support the lord or rebels! Supporters of winner side shares the losers' funds after war!
-  *
+ *
  * -> Lord NFTs are rentable. Lords can rent them out by setting renter address and expire date.
  * An owner can't rent out the NFT until the current expire date passes.
-  *
+ *
  * -> The Lord Tax goes to the renter. If there no renter, tax goes to the owner.
  * The renter can't mint clan licenses but can vote for DAO proposals and collects taxes.
-  *
+ *
  * -> Owner can rent out the Lord without any fee from the contract or another interfaces. Lords who want
  * to get rent fees in STICK tokens can use StickRent contract to rent them out.
  *
- * -> Upper limit of mint cost is 666$.
- */
+*/
 
 /**
  * @author Bora
- */
+*/
 contract StickLord is ERC721, ERC721Burnable {  
   using Counters for Counters.Counter;
 

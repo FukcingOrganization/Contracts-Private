@@ -53,15 +53,13 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
                            .JMML.    .JMML  JMML..JMML.M9mmmP'     .JMML.M9mmmP'             
                                                                                                          
                                                                                                                                                                    
-`7MM"""YMM           `7MM               db                           `7MM"""Yb.      db       .g8""8q.   
-  MM    `7             MM                                              MM    `Yb.   ;MM:    .dP'    `YM. 
-  MM   d `7MM  `7MM    MM  ,MP',p6"bo `7MM  `7MMpMMMb.  .P"Ybmmm       MM     `Mb  ,V^MM.   dM'      `MM 
-  MM""MM   MM    MM    MM ;Y  6M'  OO   MM    MM    MM :MI  I8         MM      MM ,M  `MM   MM        MM 
-  MM   Y   MM    MM    MM;Mm  8M        MM    MM    MM  WmmmP"         MM     ,MP AbmmmqMA  MM.      ,MP 
-  MM       MM    MM    MM `Mb.YM.    ,  MM    MM    MM 8M              MM    ,dP'A'     VML `Mb.    ,dP' 
-.JMML.     `Mbod"YML..JMML. YA.YMbmd' .JMML..JMML  JMML.YMMMMMb      .JMMmmmdP'.AMA.   .AMMA. `"bmmd"'   
-                                                       6'     dP                                         
-                                                       Ybmmmd'                                                                                 
+`7MM"""Yb.      db       .g8""8q.   
+  MM    `Yb.   ;MM:    .dP'    `YM. 
+  MM     `Mb  ,V^MM.   dM'      `MM 
+  MM      MM ,M  `MM   MM        MM 
+  MM     ,MP AbmmmqMA  MM.      ,MP 
+  MM    ,dP'A'     VML `Mb.    ,dP' 
+.JMMmmmdP'.AMA.   .AMMA. `"bmmd"'                                                                                                             
 
 
 */
@@ -208,11 +206,12 @@ contract StickDAO is ERC20 {
          * The contract deployer starts with the smallest balance (0.0000000000000000001 token) 
          * to approve the initial configuration proposals. 
         **/
-        _mint(_msgSender(), 1);
+        _mint(_msgSender(), 100 ether);
 
         // Initial settings
         initializeProposalTypes();
         minBalanceToPropose = 100 ether; // TEST: Change it, the largest team member should be able to propose after 10 minutes
+        contracts[5] = 0x28AD748Dc8a81c43e2EbdFff45408E86454593f3;  // Set the executor contract
 
         // Start with index of 1 to avoid some double propose in state updates
         proposalCounter.increment(); 
@@ -721,12 +720,12 @@ contract StickDAO is ERC20 {
      *  will need higher approval rate to be valid.
      */
     function initializeProposalTypes() internal {        
-        proposalTypes.push(         // 0. type
+        proposalTypes.push(         // 0. type TEST: Default value of all proposal functions, make it test purposed for now
             ProposalType({
-            length : 10 minutes,
-            requiredApprovalRate : 95,
-            requiredTokenAmount : 1000,
-            requiredParticipantAmount : 50
+            length : 1 minutes,
+            requiredApprovalRate : 1,
+            requiredTokenAmount : 1,
+            requiredParticipantAmount : 1
         }));        
         proposalTypes.push(         // 1. type
             ProposalType({
