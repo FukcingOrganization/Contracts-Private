@@ -158,7 +158,8 @@ contract StickLord is ERC721, ERC721Burnable {
   uint256 public victoryRate;     // Adjustable by DAO  | The rate (%) of the funds that is required to declare victory against the lord 
   uint256 public warCasualtyRate; // Adjustable by DAO  | The rate (%) that will burn as a result of the war
 
-  constructor() ERC721("StickLord", "SLORD") {
+  constructor(address[13] memory _contracts) ERC721("StickLord", "SLORD") {
+    contracts = _contracts;  // Set the existing contracts
     teamAndCommunityMint();       // Mint first 50 Lords for team and community allocation
     rebellionCounter.increment(); // Leave first (0) rebellion empty for all lords to start a new one
 

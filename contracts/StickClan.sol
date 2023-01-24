@@ -177,7 +177,8 @@ contract StickClan is Context, ReentrancyGuard {
   uint256 public roundNumber;             // Tracking the round number
   uint256 public minBalanceToProposeClanPointChange;  // Amount of tokens without decimals
 
-  constructor(){
+  constructor(address[13] memory _contracts){
+    contracts = _contracts;  // Set the existing contracts
     clanCounter.increment();  // clan ID's should start from 1
     maxPointToChange = 666;
     cooldownTime = 3 days;

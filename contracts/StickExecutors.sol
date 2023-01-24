@@ -66,7 +66,19 @@ interface IDAO {
     uint256 _newRequiredApprovalRate, 
     uint256 _newRequiredTokenAmount, 
     uint256 _newRequiredParticipantAmount
-  ) external;  
+  ) external;
+  function proposeNewTokenSpending(
+    address _tokenContractAddress, 
+    bytes32[] memory _merkleRoots, 
+    uint256[] memory _allowances, 
+    uint256 _totalSpending
+  ) 
+  external;
+  function proposeNewCoinSpending(
+    bytes32[] memory _merkleRoots, 
+    uint256[] memory _allowances, 
+    uint256 _totalSpending) 
+  external;
 }
 
 interface IItems {
@@ -123,7 +135,7 @@ contract StickExecutors is Context, AccessControl {
     address propAddress;
     address[] propAddresses;
     uint256 propUint;
-    uint256[] propUints;
+    uint256[] propUintArray;
     uint256 propUint1;
     uint256 propUint2;
     uint256 propUint3;
@@ -214,6 +226,8 @@ contract StickExecutors is Context, AccessControl {
    * Creating Lord: Victory Rate Update Proposal: 22
    * Creating Lord: War Casualty Rate Update Proposal: 23
    * Creating Token: Mint Per Second Update Proposal: 24
+   * Creating DAO: New Token Spending Proposal: 25
+   * Creating DAO: New Coin Spending Proposal: 26
    */
   function updateContractAddress(uint256 _contractIndex, address _newAddress) public onlyRole(EXECUTOR_ROLE) {
     // Get the current signal
@@ -511,7 +525,7 @@ contract StickExecutors is Context, AccessControl {
       // Save data
       newSignal.expires = block.timestamp + signalTime;
       newSignal.propAddresses = _receivers;
-      newSignal.propUints = _rewards;
+      newSignal.propUintArray = _rewards;
 
       newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
       newSignal.numOfSignals++;
@@ -530,7 +544,7 @@ contract StickExecutors is Context, AccessControl {
 
     // Execute proposal if the half of the executors signaled
     if (currentSignal.numOfSignals >= (numOfExecutors / 2)){
-      ICommunity(contracts[3]).proposeReward(currentSignal.propAddresses, currentSignal.propUints);
+      ICommunity(contracts[3]).proposeReward(currentSignal.propAddresses, currentSignal.propUintArray);
       signalTrackerID[8] = 0; // To avoid further executions
     }       
   }
@@ -553,7 +567,7 @@ contract StickExecutors is Context, AccessControl {
       // Save data
       newSignal.expires = block.timestamp + signalTime;
       newSignal.propBytes32Array = _roots;
-      newSignal.propUints = _rewards;
+      newSignal.propUintArray = _rewards;
       newSignal.propUint = _totalReward;
 
       newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
@@ -574,7 +588,7 @@ contract StickExecutors is Context, AccessControl {
     // Execute proposal if the half of the executors signaled
     if (currentSignal.numOfSignals >= (numOfExecutors / 2)){
       ICommunity(contracts[3]).proposeMerkleReward(
-        currentSignal.propBytes32Array, currentSignal.propUints, currentSignal.propUint
+        currentSignal.propBytes32Array, currentSignal.propUintArray, currentSignal.propUint
       );
       signalTrackerID[9] = 0; // To avoid further executions
     }       
@@ -688,6 +702,103 @@ contract StickExecutors is Context, AccessControl {
     if (currentSignal.numOfSignals >= (numOfExecutors / 2)){
       IDAO(contracts[4]).proposeMinBalanceToPropUpdate(currentSignal.propUint);   
       signalTrackerID[12] = 0; // To avoid further executions
+    }       
+  }
+
+  function createDAONewTokenSpendingProposal(
+    address _tokenContractAddress, 
+    bytes32[] memory _merkleRoots, 
+    uint256[] memory _allowances, 
+    uint256 _totalSpending
+  ) public onlyRole(EXECUTOR_ROLE) {
+    // Get the current signal
+    Signal storage currentSignal = signals[signalTrackerID[25]];
+
+    // If current signal date passed, then start a new signal
+    if (block.timestamp > currentSignal.expires) {
+
+      signalTrackerID[25] = signalCounter.current();           // Save the current signal ID to the tracker
+      Signal storage newSignal = signals[signalTrackerID[25]]; // Get the signal
+      signalCounter.increment();  // Increment the counter for other signals
+
+      // Save data
+      newSignal.expires = block.timestamp + signalTime;
+      newSignal.propAddress = _tokenContractAddress;
+      newSignal.propBytes32Array = _merkleRoots;
+      newSignal.propUintArray = _allowances;
+      newSignal.propUint = _totalSpending;
+
+      newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
+      newSignal.numOfSignals++;
+      return; // finish the function
+    }   
+
+    // If there is not enough signals, count this one as well. Then continue to check it again.
+    if (currentSignal.numOfSignals < (numOfExecutors / 2)){      
+      // If we are in the signal time, check caller's signal status
+      require(!currentSignal.isSignaled[_msgSender()], "You already signaled for this proposal");
+
+      // If not signaled, save it and increase the number of signals
+      currentSignal.isSignaled[_msgSender()] = true;
+      currentSignal.numOfSignals++;
+    }
+
+    // Execute proposal if the half of the executors signaled
+    if (currentSignal.numOfSignals >= (numOfExecutors / 2)){
+      IDAO(contracts[4]).proposeNewTokenSpending(
+        currentSignal.propAddress,
+        currentSignal.propBytes32Array,
+        currentSignal.propUintArray,
+        currentSignal.propUint
+      );   
+      signalTrackerID[25] = 0; // To avoid further executions
+    }       
+  }
+
+  function createDAONewCoinSpendingProposal(
+    bytes32[] memory _merkleRoots, 
+    uint256[] memory _allowances, 
+    uint256 _totalSpending
+  ) public onlyRole(EXECUTOR_ROLE) {
+    // Get the current signal
+    Signal storage currentSignal = signals[signalTrackerID[26]];
+
+    // If current signal date passed, then start a new signal
+    if (block.timestamp > currentSignal.expires) {
+
+      signalTrackerID[26] = signalCounter.current();           // Save the current signal ID to the tracker
+      Signal storage newSignal = signals[signalTrackerID[26]]; // Get the signal
+      signalCounter.increment();  // Increment the counter for other signals
+
+      // Save data
+      newSignal.expires = block.timestamp + signalTime;
+      newSignal.propBytes32Array = _merkleRoots;
+      newSignal.propUintArray = _allowances;
+      newSignal.propUint = _totalSpending;
+
+      newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
+      newSignal.numOfSignals++;
+      return; // finish the function
+    }   
+
+    // If there is not enough signals, count this one as well. Then continue to check it again.
+    if (currentSignal.numOfSignals < (numOfExecutors / 2)){      
+      // If we are in the signal time, check caller's signal status
+      require(!currentSignal.isSignaled[_msgSender()], "You already signaled for this proposal");
+
+      // If not signaled, save it and increase the number of signals
+      currentSignal.isSignaled[_msgSender()] = true;
+      currentSignal.numOfSignals++;
+    }
+
+    // Execute proposal if the half of the executors signaled
+    if (currentSignal.numOfSignals >= (numOfExecutors / 2)){
+      IDAO(contracts[4]).proposeNewCoinSpending(
+        currentSignal.propBytes32Array,
+        currentSignal.propUintArray,
+        currentSignal.propUint
+      );  
+      signalTrackerID[26] = 0; // To avoid further executions
     }       
   }
   

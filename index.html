@@ -14,19 +14,19 @@
 
 
   // Mint allowance: 
-  // Root:  0x3a9297e43b5a79c496f5ae540183491bea9a1c78232efa996e67d8dca81e2786
-  const addressGroup_0 = ['0x0000000000000000000000000000000000000000','0x9343C3Ac31DB62F6137f1828E5557ec07d11aA83']
-  // Proof_0: ["0x5380c7b7ae81a58eb98d9c78de4a1fd7fd9535fc953ed2be602daaa41767312a"]  
+  // Root: 0x0d9361aed72bd9365ae719944695e6c13b7a1df85c1218f2675740b5af0d2d1c
+  const addressGroup_0 = ['0x0000000000000000000000000000000000000000','0x9343C3Ac31DB62F6137f1828E5557ec07d11aA83', '0x5B38Da6a701c568545dCfcB03FcB875f56beddC4', '0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2', '0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db']
+  // Proof_0: [0x5380c7b7ae81a58eb98d9c78de4a1fd7fd9535fc953ed2be602daaa41767312a,0x9d997719c0a5b5f6db9b8ac69a988be57cf324cb9fffd51dc2c37544bb520d65,0x04a10bfd00977f54cc3450c9b25c9b3a502a089eba0097ba35fc33c4ea5fcb54] 
 
   // Mint allowance: 
-  // Root: 0xa9099c3595668ef14fc96a2003bbac35666e1d502bccb59e1b8e680d2e9249a5
-  const addressGroup_1 = ["0x0000000000000000000000000000000000000000","0x1bC6F80DA87Bdab3C94d7B1b7a513FE4Fc2254f5"]
-  // Proof_1: ["0x5380c7b7ae81a58eb98d9c78de4a1fd7fd9535fc953ed2be602daaa41767312a"]
+  // Root: 0x92b5cca0cf98e7502acee0dfb324fc68a8090a729622027d0019fdb1c11b69a7
+  const addressGroup_1 = ["0x0000000000000000000000000000000000000000","0x1bC6F80DA87Bdab3C94d7B1b7a513FE4Fc2254f5","0x78731D3Ca6b7E34aC0F824c42a7cC18A495cabaB","0x617F2E2fD72FD9D5503197092aC168c91465E7f2","0x17F6AD8Ef982297579C203069C1DbfFE4348c372"]
+  // Proof_1: [0x5380c7b7ae81a58eb98d9c78de4a1fd7fd9535fc953ed2be602daaa41767312a,0xda2a605bdf59a3b18e24cd0b2d9110b6ffa2340f6f67bc48214ac70e49d12770,0xc23d89d4ba0f8b56a459710de4b44820d73e93736cfc0667f35cdd5142b70f0d]
 
   // Mint allowance: 
-  // Root: 0x2fb867ee8f161cd1d579596bd89d9d66fd01540f47e6d306e4a43ce595b0c56f
-  const addressGroup_2 = ["0x0000000000000000000000000000000000000000","0x85be25d0Ef53959dB27D42df1f7da57549154D5f", "0x617F2E2fD72FD9D5503197092aC168c91465E7f2"];
-  // Proof_2: ["0x5380c7b7ae81a58eb98d9c78de4a1fd7fd9535fc953ed2be602daaa41767312a","0xf6d82c545c22b72034803633d3dda2b28e89fb704f3c111355ac43e10612aedc"]
+  // Root: 0x5835a39d2ef2424be1ac10cc79cb88d8329d6d600480d7b47dc3b492d0cea1d1
+  const addressGroup_2 = ["0x0000000000000000000000000000000000000000","0x85be25d0Ef53959dB27D42df1f7da57549154D5f", "0x5c6B0f7Bf3E7ce046039Bd8FABdfD3f9F5021678", "0x03C6FcED478cBbC9a4FAB34eF9f40767739D1Ff7", "0x1aE0EA34a72D944a8C7603FfB3eC30a6669E454C", "0x0A098Eda01Ce92ff4A4CCb7A4fFFb5A43EBC70DC", "0xCA35b7d915458EF540aDe6068dFe2F44E8fa733c"];
+  // Proof_2: [0x5380c7b7ae81a58eb98d9c78de4a1fd7fd9535fc953ed2be602daaa41767312a,0xeff686dda3c1034cbd62ed93a5b51b88d232822bbd71ad4fd83919fd9238b1a6,0x72c263694c9110f734560f0bd85eb26f1a1f63b883c443541662e5644e30fbf0]
 
 
   
@@ -69,8 +69,8 @@
 
   // ********** Generate Proof ********** //
 
-//#region  Proof_0 - 0x9343C3Ac31DB62F6137f1828E5557ec07d11aA83
-  const leaf_0 = buf2hex(keccak256("0x9343C3Ac31DB62F6137f1828E5557ec07d11aA83")) // address from wallet using walletconnect/metamask
+//#region  Proof_0 - 0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2
+  const leaf_0 = buf2hex(keccak256("0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2")) // address from wallet using walletconnect/metamask
   const proof_0 = tree_0.getProof(leaf_0).map(x => buf2hex(x.data))
 
   //console.log(proof_0)
@@ -92,8 +92,8 @@
   console.log("Proof_0: " + stringProof_0)
 //#endregion
 
-//#region  Proof_1 - 0x1bC6F80DA87Bdab3C94d7B1b7a513FE4Fc2254f5
-  const leaf_1 = buf2hex(keccak256("0x1bC6F80DA87Bdab3C94d7B1b7a513FE4Fc2254f5")) // address from wallet using walletconnect/metamask
+//#region  Proof_1 - 0x78731D3Ca6b7E34aC0F824c42a7cC18A495cabaB
+  const leaf_1 = buf2hex(keccak256("0x78731D3Ca6b7E34aC0F824c42a7cC18A495cabaB")) // address from wallet using walletconnect/metamask
   const proof_1 = tree_1.getProof(leaf_1).map(x => buf2hex(x.data))
 
   //console.log(proof_1)
@@ -115,8 +115,8 @@
   console.log("Proof_1: " + stringProof_1)
 //#endregion
 
-//#region  Proof_2 - 0x85be25d0Ef53959dB27D42df1f7da57549154D5f
-const leaf_2 = buf2hex(keccak256("0x85be25d0Ef53959dB27D42df1f7da57549154D5f")) // address from wallet using walletconnect/metamask
+//#region  Proof_2 - 0x03C6FcED478cBbC9a4FAB34eF9f40767739D1Ff7
+const leaf_2 = buf2hex(keccak256("0x03C6FcED478cBbC9a4FAB34eF9f40767739D1Ff7")) // address from wallet using walletconnect/metamask
   const proof_2 = tree_2.getProof(leaf_2).map(x => buf2hex(x.data))
 
   //console.log(proof_2)

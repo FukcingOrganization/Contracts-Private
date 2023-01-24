@@ -102,7 +102,8 @@ contract StickCommunity is Context {
   uint256 public highRewardLimit;
   uint256 public extremeRewardLimit;
 
-  constructor() {
+  constructor(address[13] memory _contracts) {
+    contracts = _contracts;  // Set the existing contracts
     highRewardLimit = 66666 ether;     // 66k token
     extremeRewardLimit = 666666 ether; // 666k token
   }

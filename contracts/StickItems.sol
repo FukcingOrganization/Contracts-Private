@@ -79,12 +79,12 @@ contract StickItems is ERC1155, ERC1155Burnable {
   mapping(uint256 => Proposal) public proposals;// Proposal ID => Proposal
   mapping(uint256 => Item) public items;
 
-  constructor() ERC1155("link/{id}.json") { // TEST
+  constructor(address[13] memory _contracts) ERC1155("link/{id}.json") { // TEST
     items[0].isActive = true;       // TEST
     items[0].uri = "test0";         // TEST
     items[0].mintCost = 5 ether;    // TEST
 
-    contracts[11] = 0x93f8dddd876c7dBE3323723500e83E202A7C96CC; // TEST token addr
+    contracts = _contracts;  // Set the existing contracts
   }
 
   function uri(uint256 tokenID) public view virtual override returns (string memory) {

@@ -74,7 +74,8 @@ contract StickClanLicense is ERC1155, ERC1155Burnable {
 
   uint256 public mintCost;
 
-  constructor() ERC1155("link/{id}.json") { // TEST 
+  constructor(address[13] memory _contracts) ERC1155("link/{id}.json") { // TEST 
+    contracts = _contracts;  // Set the existing contracts
     mintCost = 5555 ether;
   }
 

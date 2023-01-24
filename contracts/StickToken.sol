@@ -135,14 +135,16 @@ contract StickToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
     uint256 public teamAndTestnetCap = 3542878 ether; // ~3.5 million for both team and testnet allocation
     
     constructor(
+        address[13] memory _contracts,
         address[] memory _teamAddress,          // TEST -> Add the size here as well
         uint256[] memory _teamMintPerSecond,
         bytes32[6] memory _testnetRoots,
         uint256[6] memory _testnetMintPerSecond,
-        uint256[8] memory _totalMints
+        uint256[6] memory _mintPerSecond
     ) 
         ERC20("StickToken", "STICK") 
     {
+        contracts = _contracts;  // Set the existing contracts
         deploymentTime = block.timestamp;   // Test -> Make it a first monday 00:00
         oneYearLater = deploymentTime + 31556926;   // Add 1 year
         twoYearsLater = oneYearLater + 31556926;    // Add 1 more year
@@ -150,7 +152,8 @@ contract StickToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
         teamMintPerSecond = _teamMintPerSecond;
         testnetRoots = _testnetRoots;
         testnetMintPerSecond = _testnetMintPerSecond;
-        totalMints = _totalMints;
+        mintPerSecond = _mintPerSecond;
+        _mint(_msgSender(), 5000000 ether); // Mint 5m LP token
     }
 
     function snapshot() public {

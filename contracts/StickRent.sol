@@ -69,7 +69,8 @@ contract StickRent is Context {
   mapping(uint256 => Proposal) public proposals;  // Proposal ID => Proposal
   mapping(uint256 => Listing) public listings;    // Lord ID => Listing
 
-  constructor (address _lordContract, address _tokenContract) {
+  constructor (constructor(address[13] memory _contracts)) {
+    contracts = _contracts;  // Set the existing contracts
     contracts[7] = _lordContract;
     contracts[11] = _tokenContract;
   }

@@ -87,7 +87,8 @@ contract StickBoss is ERC721, ERC721URIStorage, ERC721Burnable {
   uint256 public totalSupply;
   uint256 public mintCost;
 
-  constructor() ERC721("StickBoss", "SBOSS") {
+  constructor(address[13] memory _contracts) ERC721("StickBoss", "SBOSS") {
+    contracts = _contracts;  // Set the existing contracts
     mintCost = 66666 ether; // TEST -> Change it with final value
   }
     

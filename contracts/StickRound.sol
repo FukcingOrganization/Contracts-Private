@@ -112,7 +112,8 @@ contract StickRound is Context, ReentrancyGuard {
 
   uint256 public roundLenght;
 
-  constructor(uint256 _endOfTheFirstRound) {
+  constructor(address[13] memory _contracts, uint256 _endOfTheFirstRound) {
+    contracts = _contracts;  // Set the existing contracts
     rounds[roundCounter.current()].endingTime = _endOfTheFirstRound; // TEST -> Change it with unix value of Monday 00.00
     roundLenght = 7 days;
     getBackerRewards(rounds[roundCounter.current()]);     

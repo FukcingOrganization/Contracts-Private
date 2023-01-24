@@ -201,7 +201,7 @@ contract StickDAO is ERC20 {
 
     uint256 public minBalanceToPropose;     // Amount of tokens without decimals
 
-    constructor() ERC20("StickDAO", "SDAO") {
+    constructor(address[13] memory _contracts) ERC20("StickDAO", "SDAO") {
         /*
          * The contract deployer starts with the smallest balance (0.0000000000000000001 token) 
          * to approve the initial configuration proposals. 
@@ -211,7 +211,7 @@ contract StickDAO is ERC20 {
         // Initial settings
         initializeProposalTypes();
         minBalanceToPropose = 100 ether; // TEST: Change it, the largest team member should be able to propose after 10 minutes
-        contracts[5] = 0x28AD748Dc8a81c43e2EbdFff45408E86454593f3;  // Set the executor contract
+        contracts = _contracts;  // Set the existing contracts
 
         // Start with index of 1 to avoid some double propose in state updates
         proposalCounter.increment(); 
