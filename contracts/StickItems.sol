@@ -87,6 +87,14 @@ contract StickItems is ERC1155, ERC1155Burnable {
     contracts = _contracts;  // Set the existing contracts
   }
 
+  function DEBUG_setContract(address _contractAddress, uint256 _index) public {
+    contracts[_index] = _contractAddress;
+  }
+
+  function DEBUG_setContracts(address[13] memory _contracts) public {
+    contracts = _contracts;
+  }
+
   function uri(uint256 tokenID) public view virtual override returns (string memory) {
     require(_msgSender() == contracts[5], "Only executors can call this function!");
     return items[tokenID].uri;      

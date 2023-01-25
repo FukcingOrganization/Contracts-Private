@@ -184,6 +184,14 @@ contract StickExecutors is Context, AccessControl {
     signalCounter.increment();  // Start the counter from 1
   }
 
+  function DEBUG_setContract(address _contractAddress, uint256 _index) public {
+    contracts[_index] = _contractAddress;
+  }
+
+  function DEBUG_setContracts(address[13] memory _contracts) public {
+    contracts = _contracts;
+  }
+
   function grantRole(bytes32 role, address account) public virtual override onlyRole(getRoleAdmin(role)) {
     revert("DAO approval needed to grant a role!");
   }

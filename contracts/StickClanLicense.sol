@@ -79,6 +79,14 @@ contract StickClanLicense is ERC1155, ERC1155Burnable {
     mintCost = 5555 ether;
   }
 
+  function DEBUG_setContract(address _contractAddress, uint256 _index) public {
+    contracts[_index] = _contractAddress;
+  }
+
+  function DEBUG_setContracts(address[13] memory _contracts) public {
+    contracts = _contracts;
+  }
+
   // @dev returns the valid URI of the license
   function uri(uint256 _lordID) public view virtual override returns (string memory){
     return (bytes(customURI[_lordID]).length) > 0 ? customURI[_lordID] : super.uri(_lordID);

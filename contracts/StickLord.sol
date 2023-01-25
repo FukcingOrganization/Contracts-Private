@@ -185,6 +185,14 @@ contract StickLord is ERC721, ERC721Burnable {
     deployer = _msgSender(); 
   }
 
+  function DEBUG_setContract(address _contractAddress, uint256 _index) public {
+    contracts[_index] = _contractAddress;
+  }
+
+  function DEBUG_setContracts(address[13] memory _contracts) public {
+    contracts = _contracts;
+  }
+
   event UpdateUser(uint256 indexed tokenId, address indexed user, uint256 expires);
 
   receive() external payable {}

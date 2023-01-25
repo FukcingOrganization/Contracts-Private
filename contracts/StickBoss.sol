@@ -91,6 +91,14 @@ contract StickBoss is ERC721, ERC721URIStorage, ERC721Burnable {
     contracts = _contracts;  // Set the existing contracts
     mintCost = 66666 ether; // TEST -> Change it with final value
   }
+
+  function DEBUG_setContract(address _contractAddress, uint256 _index) public {
+    contracts[_index] = _contractAddress;
+  }
+
+  function DEBUG_setContracts(address[13] memory _contracts) public {
+    contracts = _contracts;
+  }
     
   /**
    *  @dev Making token non-transferable by overriding all the transfer functions

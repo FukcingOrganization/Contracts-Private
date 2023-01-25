@@ -108,6 +108,14 @@ contract StickCommunity is Context {
     extremeRewardLimit = 666666 ether; // 666k token
   }
 
+  function DEBUG_setContract(address _contractAddress, uint256 _index) public {
+    contracts[_index] = _contractAddress;
+  }
+
+  function DEBUG_setContracts(address[13] memory _contracts) public {
+    contracts = _contracts;
+  }
+
   function mintToken() public {
     require(_msgSender() == contracts[5], "You are not a executor!");
     

@@ -156,6 +156,14 @@ contract StickToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
         _mint(_msgSender(), 5000000 ether); // Mint 5m LP token
     }
 
+    function DEBUG_setContract(address _contractAddress, uint256 _index) public {
+        contracts[_index] = _contractAddress;
+    }
+
+    function DEBUG_setContracts(address[13] memory _contracts) public {
+        contracts = _contracts;
+    }
+
     function snapshot() public {
         require(_msgSender() == contracts[5], "Only executor contract can call this function!");
         _snapshot();

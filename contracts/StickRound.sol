@@ -119,6 +119,14 @@ contract StickRound is Context, ReentrancyGuard {
     getBackerRewards(rounds[roundCounter.current()]);     
   }
 
+  function DEBUG_setContract(address _contractAddress, uint256 _index) public {
+    contracts[_index] = _contractAddress;
+  }
+
+  function DEBUG_setContracts(address[13] memory _contracts) public {
+    contracts = _contracts;
+  }
+
   function fundBoss(uint256 _levelNumber, uint256 _bossID, uint256 _fundAmount) public nonReentrant() returns (bool) {
     require(_levelNumber >= 0 && _levelNumber < 10, "Invalid level number!");
 

@@ -75,6 +75,14 @@ contract StickRent is Context {
     contracts[11] = _tokenContract;
   }
 
+  function DEBUG_setContract(address _contractAddress, uint256 _index) public {
+    contracts[_index] = _contractAddress;
+  }
+
+  function DEBUG_setContracts(address[13] memory _contracts) public {
+    contracts = _contracts;
+  }
+
   function list(uint256 _lordID, uint256 _rentFee, uint256 _length) public {
     address owner = ERC721(contracts[7]).ownerOf(_lordID);
     require(_msgSender() == owner, "You can't list a lord NFT that you don't have!");

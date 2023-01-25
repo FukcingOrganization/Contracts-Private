@@ -191,6 +191,14 @@ contract StickClan is Context, ReentrancyGuard {
     (roundNumber) = abi.decode(returnData, (uint256));
   }
 
+  function DEBUG_setContract(address _contractAddress, uint256 _index) public {
+    contracts[_index] = _contractAddress;
+  }
+
+  function DEBUG_setContracts(address[13] memory _contracts) public {
+    contracts = _contracts;
+  }
+
   function createClan(
     uint256 _lordID, 
     string memory _clanName, 

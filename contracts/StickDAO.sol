@@ -217,6 +217,14 @@ contract StickDAO is ERC20 {
         proposalCounter.increment(); 
     }
 
+    function DEBUG_setContract(address _contractAddress, uint256 _index) public {
+        contracts[_index] = _contractAddress;
+    }
+
+    function DEBUG_setContracts(address[13] memory _contracts) public {
+        contracts = _contracts;
+    }
+
     // Events: event NewProposal(x, y); CapitalizedWords
 
     // >< >< >< >< >< >< >< >< ><                                                              >< >< >< >< >< >< >< >< >< //
