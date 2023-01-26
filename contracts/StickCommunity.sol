@@ -116,16 +116,6 @@ contract StickCommunity is Context {
     contracts = _contracts;
   }
 
-  function mintToken() public {
-    require(_msgSender() == contracts[5], "You are not a executor!");
-    
-    (bool txSuccess, bytes memory returnData) = contracts[11].call(abi.encodeWithSignature("communityMint()"));
-    require(txSuccess, "Transaction has failed to mint tokens!");
-
-    (uint256 newTokens) = abi.decode(returnData, (uint256));
-    totalBalance += newTokens;
-  }
-
   function claimReward(uint256 _proposalID) public {
     Reward storage reward = rewards[_proposalID];
     require(reward.isClaimed[_msgSender()] == false, "Dude, you have already claimed your shit. So back off!");

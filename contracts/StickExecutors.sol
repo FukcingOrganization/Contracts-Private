@@ -93,10 +93,18 @@ interface ILord {
   function proposeSignalLenghtUpdate(uint256 _newSignalLenght) external;
   function proposeVictoryRateUpdate(uint256 _newVictoryRate) external;
   function proposeWarCasualtyRateUpdate(uint256 _newWarCasualtyRate) external;
+  function setBaseURI(string memory _newURI) external;
 }
 
 interface IToken {
   function proposeMintPerSecondUpdate(uint256 _mintIndex, uint256 _newMintPerSecond) external;
+  function snapshot() external;
+  function pause() external;
+  function unpause() external;
+  function stakingMint() external returns (uint256);
+  function daoMint(uint256 _amount) external returns (bool);
+  function developmentMint(uint256 _amount) external returns (bool);
+  function communityMint(uint256 _amount) external returns (bool);
 }
 
 contract StickExecutors is Context, AccessControl {
@@ -131,6 +139,7 @@ contract StickExecutors is Context, AccessControl {
 
     bytes32 propBytes32;
     bytes32[] propBytes32Array;
+    string propString;
     bool propBool;
     address propAddress;
     address[] propAddresses;
@@ -236,6 +245,14 @@ contract StickExecutors is Context, AccessControl {
    * Creating Token: Mint Per Second Update Proposal: 24
    * Creating DAO: New Token Spending Proposal: 25
    * Creating DAO: New Coin Spending Proposal: 26
+   * Creating Token: Snapshot: 27
+   * Creating Token: Pause: 28
+   * Creating Token: Unpause: 29
+   * Creating Token: Staking Mint: 30
+   * Creating Token: Dao Mint: 31
+   * Creating Token: Development Mint: 32
+   * Creating Token: Mint Token: 33
+   * Creating Lord: Set Base URI: 34
    */
   function updateContractAddress(uint256 _contractIndex, address _newAddress) public onlyRole(EXECUTOR_ROLE) {
     // Get the current signal
@@ -810,44 +827,7 @@ contract StickExecutors is Context, AccessControl {
     }       
   }
   
-  function createClanMinBalanceToPropClanPointUpdateProposal(uint256 _newAmount) public onlyRole(EXECUTOR_ROLE) {
-    // Get the current signal
-    Signal storage currentSignal = signals[signalTrackerID[13]];
-
-    // If current signal date passed, then start a new signal
-    if (block.timestamp > currentSignal.expires) {
-
-      signalTrackerID[13] = signalCounter.current();           // Save the current signal ID to the tracker
-      Signal storage newSignal = signals[signalTrackerID[13]]; // Get the signal
-      signalCounter.increment();  // Increment the counter for other signals
-
-      // Save data
-      newSignal.expires = block.timestamp + signalTime;
-      newSignal.propUint = _newAmount;
-
-      newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
-      newSignal.numOfSignals++;
-      return; // finish the function
-    }   
-
-    // If there is not enough signals, count this one as well. Then continue to check it again.
-    if (currentSignal.numOfSignals < (numOfExecutors / 2)){      
-      // If we are in the signal time, check caller's signal status
-      require(!currentSignal.isSignaled[_msgSender()], "You already signaled for this proposal");
-
-      // If not signaled, save it and increase the number of signals
-      currentSignal.isSignaled[_msgSender()] = true;
-      currentSignal.numOfSignals++;
-    }
-
-    // Execute proposal if the half of the executors signaled
-    if (currentSignal.numOfSignals >= (numOfExecutors / 2)){
-      IClan(contracts[1]).proposeMinBalanceToPropClanPointUpdate(currentSignal.propUint);   
-      signalTrackerID[13] = 0; // To avoid further executions
-    }       
-  }
-  
-  function createNewProposalTypeProposal(
+  function createDAONewProposalTypeProposal(
     uint256 _length, 
     uint256 _requiredApprovalRate, 
     uint256 _requiredTokenAmount, 
@@ -897,7 +877,7 @@ contract StickExecutors is Context, AccessControl {
     }       
   }
   
-  function createProposalTypeUpdateProposal(
+  function createDAOProposalTypeUpdateProposal(
     uint256 _proposalTypeNumber, 
     uint256 _newLength, 
     uint256 _newRequiredApprovalRate, 
@@ -947,6 +927,43 @@ contract StickExecutors is Context, AccessControl {
         currentSignal.propUint4
       );
       signalTrackerID[15] = 0;  // To avoid further executions
+    }       
+  }
+  
+  function createClanMinBalanceToPropClanPointUpdateProposal(uint256 _newAmount) public onlyRole(EXECUTOR_ROLE) {
+    // Get the current signal
+    Signal storage currentSignal = signals[signalTrackerID[13]];
+
+    // If current signal date passed, then start a new signal
+    if (block.timestamp > currentSignal.expires) {
+
+      signalTrackerID[13] = signalCounter.current();           // Save the current signal ID to the tracker
+      Signal storage newSignal = signals[signalTrackerID[13]]; // Get the signal
+      signalCounter.increment();  // Increment the counter for other signals
+
+      // Save data
+      newSignal.expires = block.timestamp + signalTime;
+      newSignal.propUint = _newAmount;
+
+      newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
+      newSignal.numOfSignals++;
+      return; // finish the function
+    }   
+
+    // If there is not enough signals, count this one as well. Then continue to check it again.
+    if (currentSignal.numOfSignals < (numOfExecutors / 2)){      
+      // If we are in the signal time, check caller's signal status
+      require(!currentSignal.isSignaled[_msgSender()], "You already signaled for this proposal");
+
+      // If not signaled, save it and increase the number of signals
+      currentSignal.isSignaled[_msgSender()] = true;
+      currentSignal.numOfSignals++;
+    }
+
+    // Execute proposal if the half of the executors signaled
+    if (currentSignal.numOfSignals >= (numOfExecutors / 2)){
+      IClan(contracts[1]).proposeMinBalanceToPropClanPointUpdate(currentSignal.propUint);   
+      signalTrackerID[13] = 0; // To avoid further executions
     }       
   }
   
@@ -1026,7 +1043,7 @@ contract StickExecutors is Context, AccessControl {
     }       
   }
   
-  function createBaseTaxRateUpdateProposal(uint256 _newBaseTaxRate) public onlyRole(EXECUTOR_ROLE) {
+  function createLordBaseTaxRateUpdateProposal(uint256 _newBaseTaxRate) public onlyRole(EXECUTOR_ROLE) {
     // Get the current signal
     Signal storage currentSignal = signals[signalTrackerID[18]];
 
@@ -1063,7 +1080,7 @@ contract StickExecutors is Context, AccessControl {
     }       
   }
   
-  function createTaxChangeRateUpdateProposal(uint256 _newTaxChangeRate) public onlyRole(EXECUTOR_ROLE) {
+  function createLordTaxChangeRateUpdateProposal(uint256 _newTaxChangeRate) public onlyRole(EXECUTOR_ROLE) {
     // Get the current signal
     Signal storage currentSignal = signals[signalTrackerID[19]];
 
@@ -1100,7 +1117,7 @@ contract StickExecutors is Context, AccessControl {
     }       
   }
   
-  function createRebellionLenghtUpdateProposal(uint256 _newRebellionLenght) public onlyRole(EXECUTOR_ROLE) {
+  function createLordRebellionLenghtUpdateProposal(uint256 _newRebellionLenght) public onlyRole(EXECUTOR_ROLE) {
     // Get the current signal
     Signal storage currentSignal = signals[signalTrackerID[20]];
 
@@ -1137,7 +1154,7 @@ contract StickExecutors is Context, AccessControl {
     }       
   }
   
-  function createSignalLenghtUpdateProposal(uint256 _newSignalLenght) public onlyRole(EXECUTOR_ROLE) {
+  function createLordSignalLenghtUpdateProposal(uint256 _newSignalLenght) public onlyRole(EXECUTOR_ROLE) {
     // Get the current signal
     Signal storage currentSignal = signals[signalTrackerID[21]];
 
@@ -1174,7 +1191,7 @@ contract StickExecutors is Context, AccessControl {
     }       
   }
   
-  function createVictoryRateUpdateProposal(uint256 _newVictoryRate) public onlyRole(EXECUTOR_ROLE) {
+  function createLordVictoryRateUpdateProposal(uint256 _newVictoryRate) public onlyRole(EXECUTOR_ROLE) {
     // Get the current signal
     Signal storage currentSignal = signals[signalTrackerID[22]];
 
@@ -1211,7 +1228,7 @@ contract StickExecutors is Context, AccessControl {
     }       
   }
   
-  function createWarCasualtyRateUpdateProposal(uint256 _newWarCasualtyRate) public onlyRole(EXECUTOR_ROLE) {
+  function createWarLordCasualtyRateUpdateProposal(uint256 _newWarCasualtyRate) public onlyRole(EXECUTOR_ROLE) {
     // Get the current signal
     Signal storage currentSignal = signals[signalTrackerID[23]];
 
@@ -1248,7 +1265,7 @@ contract StickExecutors is Context, AccessControl {
     }       
   }
   
-  function createMintPerSecondUpdateProposal(uint256 _mintIndex, uint256 _newMintPerSecond) public onlyRole(EXECUTOR_ROLE) {
+  function createTokenMintPerSecondUpdateProposal(uint256 _mintIndex, uint256 _newMintPerSecond) public onlyRole(EXECUTOR_ROLE) {
     // Get the current signal
     Signal storage currentSignal = signals[signalTrackerID[24]];
 
@@ -1283,6 +1300,302 @@ contract StickExecutors is Context, AccessControl {
     if (currentSignal.numOfSignals >= (numOfExecutors / 2)){
       IToken(contracts[11]).proposeMintPerSecondUpdate(currentSignal.propUint, currentSignal.propUint1);
       signalTrackerID[24] = 0; // To avoid further executions
+    }       
+  }
+
+  function createTokenSnapshot() public onlyRole(EXECUTOR_ROLE) {
+    // Get the current signal
+    Signal storage currentSignal = signals[signalTrackerID[27]];
+
+    // If current signal date passed, then start a new signal
+    if (block.timestamp > currentSignal.expires) {
+
+      signalTrackerID[27] = signalCounter.current();           // Save the current signal ID to the tracker
+      Signal storage newSignal = signals[signalTrackerID[27]]; // Get the signal
+      signalCounter.increment();  // Increment the counter for other signals
+
+      // Save data
+      newSignal.expires = block.timestamp + signalTime;
+
+      newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
+      newSignal.numOfSignals++;
+      return; // finish the function
+    }   
+
+    // If there is not enough signals, count this one as well. Then continue to check it again.
+    if (currentSignal.numOfSignals < (numOfExecutors / 2)){      
+      // If we are in the signal time, check caller's signal status
+      require(!currentSignal.isSignaled[_msgSender()], "You already signaled for this proposal");
+
+      // If not signaled, save it and increase the number of signals
+      currentSignal.isSignaled[_msgSender()] = true;
+      currentSignal.numOfSignals++;
+    }
+
+    // Execute proposal if the half of the executors signaled
+    if (currentSignal.numOfSignals >= (numOfExecutors / 2)){
+      IToken(contracts[11]).snapshot();
+      signalTrackerID[27] = 0; // To avoid further executions
+    }       
+  }
+
+  function createTokenPause() public onlyRole(EXECUTOR_ROLE) {
+    // Get the current signal
+    Signal storage currentSignal = signals[signalTrackerID[28]];
+
+    // If current signal date passed, then start a new signal
+    if (block.timestamp > currentSignal.expires) {
+
+      signalTrackerID[28] = signalCounter.current();           // Save the current signal ID to the tracker
+      Signal storage newSignal = signals[signalTrackerID[28]]; // Get the signal
+      signalCounter.increment();  // Increment the counter for other signals
+
+      // Save data
+      newSignal.expires = block.timestamp + signalTime;
+
+      newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
+      newSignal.numOfSignals++;
+      return; // finish the function
+    }   
+
+    // If there is not enough signals, count this one as well. Then continue to check it again.
+    if (currentSignal.numOfSignals < (numOfExecutors / 2)){      
+      // If we are in the signal time, check caller's signal status
+      require(!currentSignal.isSignaled[_msgSender()], "You already signaled for this proposal");
+
+      // If not signaled, save it and increase the number of signals
+      currentSignal.isSignaled[_msgSender()] = true;
+      currentSignal.numOfSignals++;
+    }
+
+    // Execute proposal if the half of the executors signaled
+    if (currentSignal.numOfSignals >= (numOfExecutors / 2)){
+      IToken(contracts[11]).pause();
+      signalTrackerID[28] = 0; // To avoid further executions
+    }       
+  }
+
+  function createTokenUnpause() public onlyRole(EXECUTOR_ROLE) {
+    // Get the current signal
+    Signal storage currentSignal = signals[signalTrackerID[29]];
+
+    // If current signal date passed, then start a new signal
+    if (block.timestamp > currentSignal.expires) {
+
+      signalTrackerID[29] = signalCounter.current();           // Save the current signal ID to the tracker
+      Signal storage newSignal = signals[signalTrackerID[29]]; // Get the signal
+      signalCounter.increment();  // Increment the counter for other signals
+
+      // Save data
+      newSignal.expires = block.timestamp + signalTime;
+
+      newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
+      newSignal.numOfSignals++;
+      return; // finish the function
+    }   
+
+    // If there is not enough signals, count this one as well. Then continue to check it again.
+    if (currentSignal.numOfSignals < (numOfExecutors / 2)){      
+      // If we are in the signal time, check caller's signal status
+      require(!currentSignal.isSignaled[_msgSender()], "You already signaled for this proposal");
+
+      // If not signaled, save it and increase the number of signals
+      currentSignal.isSignaled[_msgSender()] = true;
+      currentSignal.numOfSignals++;
+    }
+
+    // Execute proposal if the half of the executors signaled
+    if (currentSignal.numOfSignals >= (numOfExecutors / 2)){
+      IToken(contracts[11]).unpause();
+      signalTrackerID[29] = 0; // To avoid further executions
+    }       
+  }
+
+  function createTokenStakingMint() public onlyRole(EXECUTOR_ROLE) {
+    // Get the current signal
+    Signal storage currentSignal = signals[signalTrackerID[30]];
+
+    // If current signal date passed, then start a new signal
+    if (block.timestamp > currentSignal.expires) {
+
+      signalTrackerID[30] = signalCounter.current();           // Save the current signal ID to the tracker
+      Signal storage newSignal = signals[signalTrackerID[30]]; // Get the signal
+      signalCounter.increment();  // Increment the counter for other signals
+
+      // Save data
+      newSignal.expires = block.timestamp + signalTime;
+
+      newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
+      newSignal.numOfSignals++;
+      return; // finish the function
+    }   
+
+    // If there is not enough signals, count this one as well. Then continue to check it again.
+    if (currentSignal.numOfSignals < (numOfExecutors / 2)){      
+      // If we are in the signal time, check caller's signal status
+      require(!currentSignal.isSignaled[_msgSender()], "You already signaled for this proposal");
+
+      // If not signaled, save it and increase the number of signals
+      currentSignal.isSignaled[_msgSender()] = true;
+      currentSignal.numOfSignals++;
+    }
+
+    // Execute proposal if the half of the executors signaled
+    if (currentSignal.numOfSignals >= (numOfExecutors / 2)){
+      IToken(contracts[11]).stakingMint();
+      signalTrackerID[30] = 0; // To avoid further executions
+    }       
+  }
+
+  function createTokenDAOMint(uint256 _amount) public onlyRole(EXECUTOR_ROLE) {
+    // Get the current signal
+    Signal storage currentSignal = signals[signalTrackerID[31]];
+
+    // If current signal date passed, then start a new signal
+    if (block.timestamp > currentSignal.expires) {
+
+      signalTrackerID[31] = signalCounter.current();           // Save the current signal ID to the tracker
+      Signal storage newSignal = signals[signalTrackerID[31]]; // Get the signal
+      signalCounter.increment();  // Increment the counter for other signals
+
+      // Save data
+      newSignal.expires = block.timestamp + signalTime;
+
+      newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
+      newSignal.propUint = _amount;
+      newSignal.numOfSignals++;
+      return; // finish the function
+    }   
+
+    // If there is not enough signals, count this one as well. Then continue to check it again.
+    if (currentSignal.numOfSignals < (numOfExecutors / 2)){      
+      // If we are in the signal time, check caller's signal status
+      require(!currentSignal.isSignaled[_msgSender()], "You already signaled for this proposal");
+
+      // If not signaled, save it and increase the number of signals
+      currentSignal.isSignaled[_msgSender()] = true;
+      currentSignal.numOfSignals++;
+    }
+
+    // Execute proposal if the half of the executors signaled
+    if (currentSignal.numOfSignals >= (numOfExecutors / 2)){
+      IToken(contracts[11]).daoMint(currentSignal.propUint
+      );
+      signalTrackerID[31] = 0; // To avoid further executions
+    }       
+  }
+
+  function createTokenCommunityMint(uint256 _amount) public onlyRole(EXECUTOR_ROLE) {
+    // Get the current signal
+    Signal storage currentSignal = signals[signalTrackerID[33]];
+
+    // If current signal date passed, then start a new signal
+    if (block.timestamp > currentSignal.expires) {
+
+      signalTrackerID[33] = signalCounter.current();           // Save the current signal ID to the tracker
+      Signal storage newSignal = signals[signalTrackerID[33]]; // Get the signal
+      signalCounter.increment();  // Increment the counter for other signals
+
+      // Save data
+      newSignal.expires = block.timestamp + signalTime;
+
+      newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
+      newSignal.propUint = _amount;
+      newSignal.numOfSignals++;
+      return; // finish the function
+    }   
+
+    // If there is not enough signals, count this one as well. Then continue to check it again.
+    if (currentSignal.numOfSignals < (numOfExecutors / 2)){      
+      // If we are in the signal time, check caller's signal status
+      require(!currentSignal.isSignaled[_msgSender()], "You already signaled for this proposal");
+
+      // If not signaled, save it and increase the number of signals
+      currentSignal.isSignaled[_msgSender()] = true;
+      currentSignal.numOfSignals++;
+    }
+
+    // Execute proposal if the half of the executors signaled
+    if (currentSignal.numOfSignals >= (numOfExecutors / 2)){
+      IToken(contracts[11]).communityMint(currentSignal.propUint
+      );
+      signalTrackerID[33] = 0; // To avoid further executions
+    }       
+  }
+
+  function createTokenDevelopmentMint(uint256 _amount) public onlyRole(EXECUTOR_ROLE) {
+    // Get the current signal
+    Signal storage currentSignal = signals[signalTrackerID[32]];
+
+    // If current signal date passed, then start a new signal
+    if (block.timestamp > currentSignal.expires) {
+
+      signalTrackerID[32] = signalCounter.current();           // Save the current signal ID to the tracker
+      Signal storage newSignal = signals[signalTrackerID[32]]; // Get the signal
+      signalCounter.increment();  // Increment the counter for other signals
+
+      // Save data
+      newSignal.expires = block.timestamp + signalTime;
+
+      newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
+      newSignal.propUint = _amount;
+      newSignal.numOfSignals++;
+      return; // finish the function
+    }   
+
+    // If there is not enough signals, count this one as well. Then continue to check it again.
+    if (currentSignal.numOfSignals < (numOfExecutors / 2)){      
+      // If we are in the signal time, check caller's signal status
+      require(!currentSignal.isSignaled[_msgSender()], "You already signaled for this proposal");
+
+      // If not signaled, save it and increase the number of signals
+      currentSignal.isSignaled[_msgSender()] = true;
+      currentSignal.numOfSignals++;
+    }
+
+    // Execute proposal if the half of the executors signaled
+    if (currentSignal.numOfSignals >= (numOfExecutors / 2)){
+      IToken(contracts[11]).developmentMint(currentSignal.propUint
+      );
+      signalTrackerID[32] = 0; // To avoid further executions
+    }       
+  }
+
+  function createLordSetBaseURI(string memory _newURI) public onlyRole(EXECUTOR_ROLE) {
+    // Get the current signal
+    Signal storage currentSignal = signals[signalTrackerID[34]];
+
+    // If current signal date passed, then start a new signal
+    if (block.timestamp > currentSignal.expires) {
+
+      signalTrackerID[34] = signalCounter.current();           // Save the current signal ID to the tracker
+      Signal storage newSignal = signals[signalTrackerID[34]]; // Get the signal
+      signalCounter.increment();  // Increment the counter for other signals
+
+      // Save data
+      newSignal.expires = block.timestamp + signalTime;
+
+      newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
+      newSignal.propString = _newURI;
+      newSignal.numOfSignals++;
+      return; // finish the function
+    }   
+
+    // If there is not enough signals, count this one as well. Then continue to check it again.
+    if (currentSignal.numOfSignals < (numOfExecutors / 2)){      
+      // If we are in the signal time, check caller's signal status
+      require(!currentSignal.isSignaled[_msgSender()], "You already signaled for this proposal");
+
+      // If not signaled, save it and increase the number of signals
+      currentSignal.isSignaled[_msgSender()] = true;
+      currentSignal.numOfSignals++;
+    }
+
+    // Execute proposal if the half of the executors signaled
+    if (currentSignal.numOfSignals >= (numOfExecutors / 2)){
+      ILord(contracts[7]).setBaseURI(currentSignal.propString
+      );
+      signalTrackerID[34] = 0; // To avoid further executions
     }       
   }
 

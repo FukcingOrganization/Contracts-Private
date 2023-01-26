@@ -136,10 +136,10 @@ contract StickToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
     
     constructor(
         address[13] memory _contracts,
-        address[] memory _teamAddress,          // TEST -> Add the size here as well
-        uint256[] memory _teamMintPerSecond,
-        bytes32[6] memory _testnetRoots,
-        uint256[6] memory _testnetMintPerSecond,
+        //address[] memory _teamAddress,          // TEST -> Add the size here as well
+        //uint256[] memory _teamMintPerSecond,
+        //bytes32[6] memory _testnetRoots,
+        //uint256[6] memory _testnetMintPerSecond,
         uint256[6] memory _mintPerSecond
     ) 
         ERC20("StickToken", "STICK") 
@@ -148,10 +148,10 @@ contract StickToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
         deploymentTime = block.timestamp;   // Test -> Make it a first monday 00:00
         oneYearLater = deploymentTime + 31556926;   // Add 1 year
         twoYearsLater = oneYearLater + 31556926;    // Add 1 more year
-        teamAddress = _teamAddress;
-        teamMintPerSecond = _teamMintPerSecond;
-        testnetRoots = _testnetRoots;
-        testnetMintPerSecond = _testnetMintPerSecond;
+        //teamAddress = _teamAddress;
+        //teamMintPerSecond = _teamMintPerSecond;
+        //testnetRoots = _testnetRoots;   
+        //testnetMintPerSecond = _testnetMintPerSecond;
         mintPerSecond = _mintPerSecond;
         _mint(_msgSender(), 5000000 ether); // Mint 5m LP token
     }
@@ -162,6 +162,10 @@ contract StickToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
 
     function DEBUG_setContracts(address[13] memory _contracts) public {
         contracts = _contracts;
+    }
+
+    function DEBUG_mintTestToken(uint256 _amountInEther) public {
+        _mint(_msgSender(), _amountInEther * 1 ether);
     }
 
     function snapshot() public {
@@ -231,11 +235,10 @@ contract StickToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
     }
 
     function communityMint(uint256 _amount) public returns (bool){
-        require(_msgSender() == contracts[3], "Only the Community can call this function!");
+        require(_msgSender() == contracts[5], "Only the Executors can call this function!");
         require(totalSupply() <= maxSupply, "Max supply has been reached!");
-        
-        uint256 totalReward = (block.timestamp - (deploymentTime - communityTGErelease)) * mintPerSecond[2];
-        uint256 currentReward = totalReward - totalMints[2];
+
+        uint256 currentReward = availableCommunityMint();
 
         require(currentReward >= _amount, "Not enough available reward!");
 
@@ -310,9 +313,8 @@ contract StickToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
     function developmentMint(uint256 _amount) public returns (bool){        
         require(_msgSender() == contracts[5], "Only the Executors can call this function!");
         require(block.timestamp <= oneYearLater, "Development vesting period ended!");
-        
-        uint256 totalReward = (block.timestamp - deploymentTime) * mintPerSecond[5];
-        uint256 currentReward = totalReward - totalMints[5];
+
+        uint256 currentReward = availableDevelopmentMint();
 
         require(currentReward >= _amount, "Not enough available reward!");
 
@@ -335,8 +337,7 @@ contract StickToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
         require(block.timestamp <= oneYearLater, "Team vesting period ended!");
         require(totalMints[7] <= teamAndTestnetCap, "The team members minted all of their allocation!");
 
-        uint256 totalReward = (block.timestamp - deploymentTime) * teamMintPerSecond[_index];
-        uint256 currentReward = totalReward - claimedAllowance[teamAddress[_index]];
+        uint256 currentReward = availableTeamMint(_index);
 
         require(currentReward >= _amount, "Not enough available reward!");
 

@@ -142,7 +142,6 @@ contract StickLord is ERC721, ERC721Burnable {
   mapping(uint256 => UserInfo) internal _users;       // People who rents
   
   mapping(uint256 => string) private customLordURI;   // Lord ID => Custom Lord URIs
-  mapping(uint256 => bool) public useCustomLordURI;   // Lord ID => Enabled Custom URI?
 
   string baseURI;
   address deployer;
@@ -205,11 +204,8 @@ contract StickLord is ERC721, ERC721Burnable {
 
   function tokenURI(uint256 _lordId) public view override returns(string memory) {
     _requireMinted(_lordId);
-    
-    if (useCustomLordURI[_lordId])
-      return customLordURI[_lordId];
-    else
-      return baseURI;
+
+    return (bytes(customLordURI[_lordId]).length) > 0 ? customLordURI[_lordId] : baseURI;
   }
 
   function setCustomLordURI(uint256 _lordId, string memory _customURI) public {
@@ -255,7 +251,9 @@ contract StickLord is ERC721, ERC721Burnable {
     return baseURI;
   }
 
-  function setBaseURI(string memory _newURI) public { // TEST make it with DAO approval
+  function setBaseURI(string memory _newURI) public {
+    require(_msgSender() == contracts[5], "Only the executors can call this function!");
+    
     baseURI = _newURI;
   }
 
