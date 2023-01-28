@@ -84,6 +84,7 @@ interface IDAO {
 interface IItems {
   function proposeMintCostUpdate(uint256 _itemID, uint256 _newCost) external;
   function proposeItemActivationUpdate(uint256 _itemID, bool _activationStatus) external;
+  function setTokenURI(uint256 tokenID, string memory tokenURI) external;
 }
 
 interface ILord {
@@ -131,6 +132,7 @@ contract StickExecutors is Context, AccessControl {
 
   struct Signal {
     uint256 expires;
+    uint256 signalTrackerID;
     uint256 numOfSignals;
     mapping(address => bool) isSignaled;
 
@@ -189,7 +191,7 @@ contract StickExecutors is Context, AccessControl {
     numOfExecutors++;  
 
     // At least half of the executor should signal within (initially) 1 day to execute a new proposal 
-    signalTime = 1 days;        
+    signalTime = 5 minutes; // TEST: make it 1 days;        
     signalCounter.increment();  // Start the counter from 1
   }
 
@@ -251,8 +253,9 @@ contract StickExecutors is Context, AccessControl {
    * Creating Token: Staking Mint: 30
    * Creating Token: Dao Mint: 31
    * Creating Token: Development Mint: 32
-   * Creating Token: Mint Token: 33
+   * Creating Token: Community Mint: 33
    * Creating Lord: Set Base URI: 34
+   * Creating Item: Set Token URI: 35
    */
   function updateContractAddress(uint256 _contractIndex, address _newAddress) public onlyRole(EXECUTOR_ROLE) {
     // Get the current signal
@@ -268,6 +271,7 @@ contract StickExecutors is Context, AccessControl {
 
       // Save data
       newSignal.expires = block.timestamp + signalTime;
+      newSignal.signalTrackerID = 1;
       newSignal.contractIndex = _contractIndex;
       newSignal.propAddress = _newAddress;
 
@@ -311,6 +315,7 @@ contract StickExecutors is Context, AccessControl {
 
       // Save data
       newSignal.expires = block.timestamp + signalTime;
+      newSignal.signalTrackerID = 2;
       newSignal.contractIndex = _contractIndex;
       newSignal.subjectIndex = _subjectIndex;
       newSignal.propAddress = _newAddress;
@@ -356,6 +361,7 @@ contract StickExecutors is Context, AccessControl {
 
       // Save data
       newSignal.expires = block.timestamp + signalTime;
+      newSignal.signalTrackerID = 3;
       newSignal.contractIndex = _contractIndex;
       newSignal.subjectIndex = _subjectIndex;
       newSignal.propUint = _newIndex;
@@ -398,6 +404,7 @@ contract StickExecutors is Context, AccessControl {
 
       // Save data
       newSignal.expires = block.timestamp + signalTime;
+      newSignal.signalTrackerID = 4;
       newSignal.propUint = _newCost;
 
       newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
@@ -435,6 +442,7 @@ contract StickExecutors is Context, AccessControl {
 
       // Save data
       newSignal.expires = block.timestamp + signalTime;
+      newSignal.signalTrackerID = 5;
       newSignal.propUint = _newMaxPoint;
 
       newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
@@ -472,6 +480,7 @@ contract StickExecutors is Context, AccessControl {
 
       // Save data
       newSignal.expires = block.timestamp + signalTime;
+      newSignal.signalTrackerID = 6;
       newSignal.propUint = _newCoolDownTime;
 
       newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
@@ -509,6 +518,7 @@ contract StickExecutors is Context, AccessControl {
 
       // Save data
       newSignal.expires = block.timestamp + signalTime;
+      newSignal.signalTrackerID = 7;
       newSignal.propUint = _newCost;
 
       newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
@@ -549,6 +559,7 @@ contract StickExecutors is Context, AccessControl {
 
       // Save data
       newSignal.expires = block.timestamp + signalTime;
+      newSignal.signalTrackerID = 8;
       newSignal.propAddresses = _receivers;
       newSignal.propUintArray = _rewards;
 
@@ -591,6 +602,7 @@ contract StickExecutors is Context, AccessControl {
 
       // Save data
       newSignal.expires = block.timestamp + signalTime;
+      newSignal.signalTrackerID = 9;
       newSignal.propBytes32Array = _roots;
       newSignal.propUintArray = _rewards;
       newSignal.propUint = _totalReward;
@@ -632,6 +644,7 @@ contract StickExecutors is Context, AccessControl {
 
       // Save data
       newSignal.expires = block.timestamp + signalTime;
+      newSignal.signalTrackerID = 10;
       newSignal.propUint = _newLimit;
 
       newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
@@ -669,6 +682,7 @@ contract StickExecutors is Context, AccessControl {
 
       // Save data
       newSignal.expires = block.timestamp + signalTime;
+      newSignal.signalTrackerID = 11;
       newSignal.propUint = _newLimit;
 
       newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
@@ -706,6 +720,7 @@ contract StickExecutors is Context, AccessControl {
 
       // Save data
       newSignal.expires = block.timestamp + signalTime;
+      newSignal.signalTrackerID = 12;
       newSignal.propUint = _newAmount;
 
       newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
@@ -748,6 +763,7 @@ contract StickExecutors is Context, AccessControl {
 
       // Save data
       newSignal.expires = block.timestamp + signalTime;
+      newSignal.signalTrackerID = 25;
       newSignal.propAddress = _tokenContractAddress;
       newSignal.propBytes32Array = _merkleRoots;
       newSignal.propUintArray = _allowances;
@@ -797,6 +813,7 @@ contract StickExecutors is Context, AccessControl {
 
       // Save data
       newSignal.expires = block.timestamp + signalTime;
+      newSignal.signalTrackerID = 26;
       newSignal.propBytes32Array = _merkleRoots;
       newSignal.propUintArray = _allowances;
       newSignal.propUint = _totalSpending;
@@ -845,6 +862,7 @@ contract StickExecutors is Context, AccessControl {
 
       // Save data
       newSignal.expires = block.timestamp + signalTime;
+      newSignal.signalTrackerID = 14;
       newSignal.propUint1 = _length;
       newSignal.propUint2 = _requiredApprovalRate;
       newSignal.propUint3 = _requiredTokenAmount;
@@ -896,6 +914,7 @@ contract StickExecutors is Context, AccessControl {
 
       // Save data
       newSignal.expires = block.timestamp + signalTime;
+      newSignal.signalTrackerID = 15;
       newSignal.propUint = _proposalTypeNumber;
       newSignal.propUint1 = _newLength;
       newSignal.propUint2 = _newRequiredApprovalRate;
@@ -943,6 +962,7 @@ contract StickExecutors is Context, AccessControl {
 
       // Save data
       newSignal.expires = block.timestamp + signalTime;
+      newSignal.signalTrackerID = 13;
       newSignal.propUint = _newAmount;
 
       newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
@@ -980,6 +1000,7 @@ contract StickExecutors is Context, AccessControl {
 
       // Save data
       newSignal.expires = block.timestamp + signalTime;
+      newSignal.signalTrackerID = 16;
       newSignal.propUint = _itemID;
       newSignal.propUint1 = _newCost;
 
@@ -1018,6 +1039,7 @@ contract StickExecutors is Context, AccessControl {
 
       // Save data
       newSignal.expires = block.timestamp + signalTime;
+      newSignal.signalTrackerID = 17;
       newSignal.propUint = _itemID;
       newSignal.propBool = _activationStatus;
 
@@ -1056,6 +1078,7 @@ contract StickExecutors is Context, AccessControl {
 
       // Save data
       newSignal.expires = block.timestamp + signalTime;
+      newSignal.signalTrackerID = 18;
       newSignal.propUint = _newBaseTaxRate;
 
       newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
@@ -1093,6 +1116,7 @@ contract StickExecutors is Context, AccessControl {
 
       // Save data
       newSignal.expires = block.timestamp + signalTime;
+      newSignal.signalTrackerID = 19;
       newSignal.propUint = _newTaxChangeRate;
 
       newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
@@ -1130,6 +1154,7 @@ contract StickExecutors is Context, AccessControl {
 
       // Save data
       newSignal.expires = block.timestamp + signalTime;
+      newSignal.signalTrackerID = 20;
       newSignal.propUint = _newRebellionLenght;
 
       newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
@@ -1167,6 +1192,7 @@ contract StickExecutors is Context, AccessControl {
 
       // Save data
       newSignal.expires = block.timestamp + signalTime;
+      newSignal.signalTrackerID = 21;
       newSignal.propUint = _newSignalLenght;
 
       newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
@@ -1204,6 +1230,7 @@ contract StickExecutors is Context, AccessControl {
 
       // Save data
       newSignal.expires = block.timestamp + signalTime;
+      newSignal.signalTrackerID = 22;
       newSignal.propUint = _newVictoryRate;
 
       newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
@@ -1241,6 +1268,7 @@ contract StickExecutors is Context, AccessControl {
 
       // Save data
       newSignal.expires = block.timestamp + signalTime;
+      newSignal.signalTrackerID = 23;
       newSignal.propUint = _newWarCasualtyRate;
 
       newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
@@ -1278,6 +1306,7 @@ contract StickExecutors is Context, AccessControl {
 
       // Save data
       newSignal.expires = block.timestamp + signalTime;
+      newSignal.signalTrackerID = 24;
       newSignal.propUint = _mintIndex;
       newSignal.propUint1 = _newMintPerSecond;
 
@@ -1316,6 +1345,7 @@ contract StickExecutors is Context, AccessControl {
 
       // Save data
       newSignal.expires = block.timestamp + signalTime;
+      newSignal.signalTrackerID = 27;
 
       newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
       newSignal.numOfSignals++;
@@ -1352,6 +1382,7 @@ contract StickExecutors is Context, AccessControl {
 
       // Save data
       newSignal.expires = block.timestamp + signalTime;
+      newSignal.signalTrackerID = 28;
 
       newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
       newSignal.numOfSignals++;
@@ -1388,6 +1419,7 @@ contract StickExecutors is Context, AccessControl {
 
       // Save data
       newSignal.expires = block.timestamp + signalTime;
+      newSignal.signalTrackerID = 29;
 
       newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
       newSignal.numOfSignals++;
@@ -1424,6 +1456,7 @@ contract StickExecutors is Context, AccessControl {
 
       // Save data
       newSignal.expires = block.timestamp + signalTime;
+      newSignal.signalTrackerID = 30;
 
       newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
       newSignal.numOfSignals++;
@@ -1460,6 +1493,7 @@ contract StickExecutors is Context, AccessControl {
 
       // Save data
       newSignal.expires = block.timestamp + signalTime;
+      newSignal.signalTrackerID = 31;
 
       newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
       newSignal.propUint = _amount;
@@ -1498,6 +1532,7 @@ contract StickExecutors is Context, AccessControl {
 
       // Save data
       newSignal.expires = block.timestamp + signalTime;
+      newSignal.signalTrackerID = 33;
 
       newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
       newSignal.propUint = _amount;
@@ -1536,6 +1571,7 @@ contract StickExecutors is Context, AccessControl {
 
       // Save data
       newSignal.expires = block.timestamp + signalTime;
+      newSignal.signalTrackerID = 32;
 
       newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
       newSignal.propUint = _amount;
@@ -1574,6 +1610,7 @@ contract StickExecutors is Context, AccessControl {
 
       // Save data
       newSignal.expires = block.timestamp + signalTime;
+      newSignal.signalTrackerID = 34;
 
       newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
       newSignal.propString = _newURI;
@@ -1599,6 +1636,44 @@ contract StickExecutors is Context, AccessControl {
     }       
   }
 
+  function createItemSetNewTokenURI(uint256 _tokenID, string memory _newURI) public onlyRole(EXECUTOR_ROLE) {
+    // Get the current signal
+    Signal storage currentSignal = signals[signalTrackerID[35]];
+
+    // If current signal date passed, then start a new signal
+    if (block.timestamp > currentSignal.expires) {
+
+      signalTrackerID[35] = signalCounter.current();           // Save the current signal ID to the tracker
+      Signal storage newSignal = signals[signalTrackerID[35]]; // Get the signal
+      signalCounter.increment();  // Increment the counter for other signals
+
+      // Save data
+      newSignal.expires = block.timestamp + signalTime;
+      newSignal.signalTrackerID = 30;
+      newSignal.propUint = _tokenID;
+      newSignal.propString = _newURI;
+
+      newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
+      newSignal.numOfSignals++;
+      return; // finish the function
+    }   
+
+    // If there is not enough signals, count this one as well. Then continue to check it again.
+    if (currentSignal.numOfSignals < (numOfExecutors / 2)){      
+      // If we are in the signal time, check caller's signal status
+      require(!currentSignal.isSignaled[_msgSender()], "You already signaled for this proposal");
+
+      // If not signaled, save it and increase the number of signals
+      currentSignal.isSignaled[_msgSender()] = true;
+      currentSignal.numOfSignals++;
+    }
+
+    // Execute proposal if the half of the executors signaled
+    if (currentSignal.numOfSignals >= (numOfExecutors / 2)){
+      IItems(contracts[11]).setTokenURI(currentSignal.propUint, currentSignal.propString);
+      signalTrackerID[35] = 0; // To avoid further executions
+    }       
+  }
   /// @dev returns the time remeaning until the end of the singalling period
   function getSignalTiming(uint256 _signalIndex) public view returns (uint256) {
     return signals[_signalIndex].expires > block.timestamp ? signals[_signalIndex].expires - block.timestamp : 0;

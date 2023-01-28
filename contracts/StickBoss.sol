@@ -89,7 +89,7 @@ contract StickBoss is ERC721, ERC721URIStorage, ERC721Burnable {
 
   constructor(address[13] memory _contracts) ERC721("StickBoss", "SBOSS") {
     contracts = _contracts;  // Set the existing contracts
-    mintCost = 66666 ether; // TEST -> Change it with final value
+    mintCost = 10 ether; // TEST -> Change it with final value
   }
 
   function DEBUG_setContract(address _contractAddress, uint256 _index) public {
@@ -135,7 +135,7 @@ contract StickBoss is ERC721, ERC721URIStorage, ERC721Burnable {
   }
 
   function safeMint(address to, string memory uri) public {
-    // Burn the mist cost to mint
+    // Burn the mint cost to mint
     ERC20Burnable(contracts[11]).burnFrom(_msgSender(), mintCost);
 
     uint256 tokenId = _tokenIdCounter.current();

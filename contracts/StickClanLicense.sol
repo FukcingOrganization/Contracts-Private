@@ -74,9 +74,12 @@ contract StickClanLicense is ERC1155, ERC1155Burnable {
 
   uint256 public mintCost;
 
+  string baseURI;
+
   constructor(address[13] memory _contracts) ERC1155("link/{id}.json") { // TEST 
     contracts = _contracts;  // Set the existing contracts
-    mintCost = 5555 ether;
+    mintCost = 10 ether;
+    baseURI = "test01";
   }
 
   function DEBUG_setContract(address _contractAddress, uint256 _index) public {
@@ -89,7 +92,7 @@ contract StickClanLicense is ERC1155, ERC1155Burnable {
 
   // @dev returns the valid URI of the license
   function uri(uint256 _lordID) public view virtual override returns (string memory){
-    return (bytes(customURI[_lordID]).length) > 0 ? customURI[_lordID] : super.uri(_lordID);
+    return (bytes(customURI[_lordID]).length) > 0 ? customURI[_lordID] : baseURI;
   }
 
   function burn(

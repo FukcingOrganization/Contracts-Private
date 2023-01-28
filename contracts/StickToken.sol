@@ -40,6 +40,10 @@ import "@openzeppelin/contracts/utils/Counters.sol";
  * @author Bora
  */
 
+interface ICommunity {
+  function increaseReceivedBalance(uint256 _amount) external;
+}
+
 contract StickToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
 
     enum Status{
@@ -136,10 +140,10 @@ contract StickToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
     
     constructor(
         address[13] memory _contracts,
-        //address[] memory _teamAddress,          // TEST -> Add the size here as well
-        //uint256[] memory _teamMintPerSecond,
-        //bytes32[6] memory _testnetRoots,
-        //uint256[6] memory _testnetMintPerSecond,
+        address[] memory _teamAddress,          // TEST -> Add the size here as well
+        uint256[] memory _teamMintPerSecond,
+        bytes32[6] memory _testnetRoots,
+        uint256[6] memory _testnetMintPerSecond,
         uint256[6] memory _mintPerSecond
     ) 
         ERC20("StickToken", "STICK") 
@@ -148,10 +152,10 @@ contract StickToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
         deploymentTime = block.timestamp;   // Test -> Make it a first monday 00:00
         oneYearLater = deploymentTime + 31556926;   // Add 1 year
         twoYearsLater = oneYearLater + 31556926;    // Add 1 more year
-        //teamAddress = _teamAddress;
-        //teamMintPerSecond = _teamMintPerSecond;
-        //testnetRoots = _testnetRoots;   
-        //testnetMintPerSecond = _testnetMintPerSecond;
+        teamAddress = _teamAddress;
+        teamMintPerSecond = _teamMintPerSecond;
+        testnetRoots = _testnetRoots;   
+        testnetMintPerSecond = _testnetMintPerSecond;
         mintPerSecond = _mintPerSecond;
         _mint(_msgSender(), 5000000 ether); // Mint 5m LP token
     }
@@ -245,7 +249,7 @@ contract StickToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
         totalMints[2] += _amount;
 
         _mint(contracts[3], _amount);
-
+        ICommunity(contracts[3]).increaseReceivedBalance(_amount);
         return true;
     }
 

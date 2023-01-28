@@ -97,8 +97,8 @@ contract StickCommunity is Context {
   */
   uint256[7] public functionsProposalTypes;
 
-  uint256 public totalBalance;
-  uint256 public rewardBalance;
+  uint256 public receivedBalance;
+  uint256 public reservedBalance;
   uint256 public highRewardLimit;
   uint256 public extremeRewardLimit;
 
@@ -114,6 +114,11 @@ contract StickCommunity is Context {
 
   function DEBUG_setContracts(address[13] memory _contracts) public {
     contracts = _contracts;
+  }
+
+  function increaseReceivedBalance(uint256 _amount) public {
+    require(_msgSender() == contracts[11], "This function can only be called by the Token contract");
+    receivedBalance += _amount;
   }
 
   function claimReward(uint256 _proposalID) public {
@@ -137,8 +142,9 @@ contract StickCommunity is Context {
 
     // If the caller has reward, save it and send it - contracts[11] is the token contract
     reward.isClaimed[_msgSender()] = true;
-    reward.totalReward -= receiverReward;   // Keep track how much left
     ERC20(contracts[11]).transfer(_msgSender(), receiverReward);
+    reward.totalReward -= receiverReward;   // Keep track how much left
+    reservedBalance -= receiverReward;
   }
 
   // totalReward variable makes sure no more than approved reward can be claimed since merkletree doesn't provide it natively.
@@ -160,8 +166,9 @@ contract StickCommunity is Context {
 
     // If the caller has reward, save it and send it - contracts[11] is the token contract
     mReward.isClaimed[_msgSender()] = true;
-    mReward.totalReward -= receiverReward;   // Keep track how much left
     ERC20(contracts[11]).transfer(_msgSender(), receiverReward);
+    mReward.totalReward -= receiverReward;   // Keep track how much left
+    reservedBalance -= receiverReward;
   }
 
   function getMerkleReward(bytes32[] calldata _merkleProof, MerkleReward storage mReward) internal view returns (uint256) {
@@ -183,7 +190,7 @@ contract StickCommunity is Context {
   
   // updateCode helps to avoid random approved proposals to approve actual proposal!
   function updateRewardStatus(uint256 _proposalID) public {
-    // Substract the claimed reward from rewardBalance
+    // Substract the claimed reward from reservedBalance
     Proposal storage proposal = proposals[_proposalID];
 
     require(proposal.updateCode == 3, "Wrong proposal ID");
@@ -210,8 +217,8 @@ contract StickCommunity is Context {
     }
     // If the proposal denied, then release the funds. One of the mappings will have 0 totalReward. No panic!
     else {
-      rewardBalance -= rewards[_proposalID].totalReward;
-      rewardBalance -= merkleRewards[_proposalID].totalReward;
+      reservedBalance -= rewards[_proposalID].totalReward;
+      reservedBalance -= merkleRewards[_proposalID].totalReward;
     }
 
     proposal.isExecuted = true;
@@ -335,9 +342,9 @@ contract StickCommunity is Context {
       totalReward += _rewards[i];
     }
 
-    require(totalReward <= totalBalance - rewardBalance, "You have exceeded the avaliable balance to spend!");
+    require(totalReward <= receivedBalance - reservedBalance, "You have exceeded the avaliable balance to spend!");
     // Reserve the reward balance so we can't propose to spend more
-    rewardBalance += totalReward;
+    reservedBalance += totalReward;
 
     string memory proposalDescription = string(abi.encodePacked(
         "A total of ", Strings.toHexString(totalReward), " community reward to ", 
@@ -369,10 +376,10 @@ contract StickCommunity is Context {
 
   function proposeMerkleReward(bytes32[] memory _roots, uint256[] memory _rewards, uint256 _totalReward) public {
     require(_msgSender() == contracts[5], "Only executors can call this function!");
-    require(_totalReward <= totalBalance - rewardBalance, "You have exceeded the avaliable balance to spend!");
+    require(_totalReward <= receivedBalance - reservedBalance, "You have exceeded the avaliable balance to spend!");
 
     // Reserve the reward balance so we can't propose to spend more
-    rewardBalance += _totalReward;
+    reservedBalance += _totalReward;
 
     string memory proposalDescription = string(abi.encodePacked(
         "A total of ", Strings.toHexString(_totalReward), " community reward to ", 
