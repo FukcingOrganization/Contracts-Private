@@ -54,14 +54,11 @@ interface IDAO {
 contract StickClan is Context, ReentrancyGuard {
   using Counters for Counters.Counter;
 
-  struct ClanMember {
-    uint256 memberID;
-    address memberAddress;
+  struct MemberInfo {
     bool isMember;
     bool isExecutor;
     bool isMod;
-    uint256 currentPoint;
-    mapping(uint256 => uint256) point;   // Round Number => the last point recorded
+    mapping(uint256 => uint256) point;   // Round Number => point
   }
 
   struct ClanInfo {
@@ -87,14 +84,11 @@ contract StickClan is Context, ReentrancyGuard {
 
     // Clan point and balance
     uint256 proposal_ID;
-    uint256 currentPoint;
-    uint256 currentTotalMemberPoint;
     uint256 firstRound;
     uint256 balance;        
-    mapping(uint256 => ClanMember) members;
-    mapping(address => uint256) memberIdOf;
+    address[] members;
+    mapping(address => MemberInfo) member;
     Counters.Counter memberCounter;
-    uint256 lastMemberID;
 
     // Round Number => value
     mapping(uint256 => uint256) point;   // Keep clan point for clan to claim
@@ -167,11 +161,10 @@ contract StickClan is Context, ReentrancyGuard {
   mapping(uint256 => Proposal) public proposals;  // Proposal ID => Proposal
   mapping(uint256 => Round) public rounds;      // Proposal Number => Round
   mapping(uint256 => Clan) public clans;          // Clan ID => Clan info
-  mapping(address => uint256) public clanOf;      // ID of the clan of an address
+  mapping(address => uint256) public declaredClan;      // ID of the clan of an address
   mapping(uint256 => uint256) public clanCooldownTime;  // Cooldown time for each clan | Clan ID => Cooldown time
   mapping(address => mapping(uint256 => uint256)) public collectedTaxes;  // Receiver => Lord ID => Amount
 
-  uint256 public currentTotalClanPoint;  
   uint256 public maxPointToChange;        // Maximum point that can be given in a propsal
   uint256 public cooldownTime;            // Cool down time to give clan point by executors
   uint256 public roundNumber;             // Tracking the round number
@@ -183,6 +176,7 @@ contract StickClan is Context, ReentrancyGuard {
     maxPointToChange = 666;
     cooldownTime = 3 days;
     minBalanceToProposeClanPointChange = 100 ether;
+    roundNumber = 1;      // Start the round number from 1 as it is on the round contract
 
     // Set the round contract address and get the current round number from it
     contracts[9] = 0x0000000000000000000000000000000000000000;
@@ -228,33 +222,32 @@ contract StickClan is Context, ReentrancyGuard {
     clan.info.description = _clanDescription;
     clan.info.motto = _clanMotto;
     clan.info.logoURI = _clanLogoURI;
-    clan.memberIdOf[_msgSender()] = 0; // Assign the first ID to the leader
+    clan.members.push(_msgSender());
 
     // Sign the leader as a member of the clan as well and give full authority
-    clan.members[0].isMember = true;
-    clan.members[0].isExecutor = true;
-    clan.members[0].isMod = true;
-    clan.members[0].memberAddress = _msgSender();
+    clan.member[_msgSender()].isMember = true;
+    clan.member[_msgSender()].isExecutor = true;
+    clan.member[_msgSender()].isMod = true;
 
     clan.memberCounter.increment(); // Increament the counter to 1 from 0
   }
 
   function declareClan(uint256 _clanID) public {
     require(clans[_clanID].info.leader != address(0), "There is no such clan with that ID!");
-    require(clans[_clanID].info.isDisbanded == false, "This clan is disbanded!");
+    require(!clans[_clanID].info.isDisbanded, "This clan is disbanded!");
     
     address sender = _msgSender();
-    Clan storage currClan = clans[clanOf[sender]];
-    uint256 memberID = currClan.memberIdOf[sender];
+    Clan storage currClan = clans[declaredClan[sender]];
 
     // Erase data from the current clan
-    currClan.members[memberID].isMember = false;
-    currClan.members[memberID].isExecutor = false;
-    currClan.members[memberID].isMod = false;
+    currClan.member[sender].isMember = false;
+    currClan.member[sender].isExecutor = false;
+    currClan.member[sender].isMod = false;
+    currClan.memberCounter.decrement();
 
     // Keep record of the new clan ID of the address
     // Note: By default, everyone a member of all clans. Being a true member requires at least 1 point.
-    clanOf[sender] = _clanID; 
+    declaredClan[sender] = _clanID; 
   }
 
   /**
@@ -265,52 +258,39 @@ contract StickClan is Context, ReentrancyGuard {
   function giveClanPoint(uint256 _clanID, uint256 _point, bool _isDecreasing) public {
     require(_msgSender() == contracts[5], "Only Executors can call this function!"); 
     require(_point <= maxPointToChange, "Maximum amount of point exceeded!");
-    require(clans[_clanID].info.isDisbanded == false, "This clan is disbanded!");
+    require(!clans[_clanID].info.isDisbanded, "This clan is disbanded!");
     
     // Wait if the cooldown time is not passed. Avoids executors to change point as they wish!
     require(block.timestamp > clanCooldownTime[_clanID], "Wait for the cooldown time!");
     clanCooldownTime[_clanID] = block.timestamp + cooldownTime; // set a new cooldown time
 
-    // If the are in the new round
-    checkAndUpdateRound();
+    // Update clan point before interact with them. Not member (0)
+    updatePointAndRound(_clanID, address(0));
 
     Clan storage clan = clans[_clanID];
 
-    // Update clan point before interact with them. Not member (0)
-    updatePoint(_clanID, address(0));
     
     if (_isDecreasing){
       clan.point[roundNumber] -= _point;
-      clan.currentPoint -= _point;
       rounds[roundNumber].totalClanPoint -= _point;
-      currentTotalClanPoint -= _point;
     }
     else {
       clan.point[roundNumber] += _point;
-      clan.currentPoint += _point;
       rounds[roundNumber].totalClanPoint += _point;
-      currentTotalClanPoint += _point;
     }
 
     // If this was the first time of this clan, record the first round
     if (clan.firstRound == 0) { clan.firstRound = roundNumber; }
   }
 
-  function clanRewardClaim(uint256 _clanID, uint256 _roundNumber) public {    
-    require(clans[_clanID].info.leader != address(0), "There is no such clan with that ID!");
-
-    // If the are in the new round
-    checkAndUpdateRound();
-
-    // TEST: Set the final value: Now, you can only claim clan rewards after 3 rounds to ensure your earnings!
-    require(_roundNumber < roundNumber - 3, "You can't claim the reward until it finalizes. Rewards are getting finalized after 3 rounds!");
+  function clanRewardClaim(uint256 _clanID, uint256 _roundNumber) internal {    
     require(rounds[_roundNumber].isClanClaimed[_clanID] == false, "Your clan already claimed its reward for this round!");
     rounds[_roundNumber].isClanClaimed[_clanID] == true;  // If not claimed yet, mark it claimed.
 
     Clan storage clan = clans[_clanID];
 
     // Update clan point before interact with them. Not member (0)
-    updatePoint(_clanID, address(0));  
+    updatePointAndRound(_clanID, address(0));  
 
     // total clan reward * clan Point * 100 / total clan point
     uint256 reward = rounds[_roundNumber].clanRewards * (clan.point[_roundNumber] * 100 / rounds[_roundNumber].totalClanPoint);
@@ -321,7 +301,7 @@ contract StickClan is Context, ReentrancyGuard {
     require(txSuccess1, "Failed to get the address of the lord!");
     (address lordAddress, uint256 taxRate) = abi.decode(returnData1, (address, uint256));
 
-    // Get the lord tax and update the reward after tax //["0xd9145CCE52D386f254917e481eB44e9943F39138", "0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8"]
+    // Get the lord tax and update the reward after tax //
     uint256 lordTax = reward * taxRate / 100;
     reward -= lordTax;
 
@@ -335,27 +315,26 @@ contract StickClan is Context, ReentrancyGuard {
   }
 
   function memberRewardClaim(uint256 _clanID, uint256 _roundNumber) public {
-    // If the are in the new round
-    checkAndUpdateRound();
+    address sender = _msgSender();
+
+    // Update clan point and round before interact with them.
+    updatePointAndRound(_clanID, sender);  
 
     Clan storage clan = clans[_clanID];
-    address sender = _msgSender();
-    uint256 memberID = clan.memberIdOf[sender];
     
-    require(clan.members[memberID].isMember, "You are not a member of this clan!");
+    require(clan.member[sender].isMember, "You are not a member of this clan!");
+    // TEST: Set the final value: Now, you can only claim clan rewards after 3 rounds to ensure your earnings! 
     require(_roundNumber < roundNumber - 3, "You can't claim the reward until it finalizes. Rewards are getting finalized after 3 rounds!");
     require(clan.isMemberClaimed[_roundNumber][sender] == false, "You already claimed your reward for this round!");
     clan.isMemberClaimed[_roundNumber][sender] == true;  // If not claimed yet, mark it claimed.
 
-    // Update clan point before interact with them.
-    updatePoint(_clanID, sender);  
 
     // if clan reward is not claimed by clan executors or the leader, claim it.
     if (clan.rewards[_roundNumber] == 0) { clanRewardClaim(_clanID, _roundNumber); }      
 
     // calculate the reward and send it to the member!
     uint256 reward = // total reward of the clan * member Point * 100 / total member point of the clan
-      clan.rewards[_roundNumber] * (clan.members[memberID].point[_roundNumber] * 100 / clan.totalMemberPoint[_roundNumber]);
+      clan.rewards[_roundNumber] * (clan.member[sender].point[_roundNumber] * 100 / clan.totalMemberPoint[_roundNumber]);
 
     IERC20(contracts[11]).transfer(sender, reward);
     clan.balance -= reward; // Update the balance of the clan
@@ -381,17 +360,16 @@ contract StickClan is Context, ReentrancyGuard {
       // Save the reward to the round
       (rounds[roundNumber].clanRewards) = abi.decode(returnData0, (uint256));
 
-      // Keep the total clan point to pass on to the next round
-      uint256 currentTotalClanPoint = rounds[roundNumber].totalClanPoint;
-
       // Pass on the current total clan point to the next round
-      rounds[currentRound].totalClanPoint = currentTotalClanPoint;
+      rounds[currentRound].totalClanPoint = rounds[roundNumber].totalClanPoint;
 
       roundNumber = currentRound; // Save the new round number
     }
   }
 
-  function updatePoint(uint256 _clanID, address _member) internal { 
+  function updatePointAndRound(uint256 _clanID, address _memberAddress) public { 
+    checkAndUpdateRound();
+
     Clan storage clan = clans[_clanID];
     
     // Update clan point
@@ -405,39 +383,28 @@ contract StickClan is Context, ReentrancyGuard {
     clan.totalMemberPoint[roundNumber] = clan.totalMemberPoint[index];
     
     // Member point of the clan
-    if (_member == address(0)) { return; }  // If the member address is null, then skip it
-    uint256 memberID = clan.memberIdOf[_member];
+    if (_memberAddress == address(0)) { return; }  // If the member address is null, then skip it
     index = roundNumber;
-    while (clan.members[memberID].point[index] == 0 && index > clan.firstRound) { index--; }
-    clan.members[memberID].point[roundNumber] = clan.members[memberID].point[index];
+    while (clan.member[_memberAddress].point[index] == 0 && index > clan.firstRound) { index--; }
+    clan.member[_memberAddress].point[roundNumber] = clan.member[_memberAddress].point[index];
   }
 
   // Governance Functions
-  function setClanMember(uint256 _clanID, address _address, bool _isMember) public {
+  function setMemberInfo(uint256 _clanID, address _address, bool _isMember) public {
     Clan storage clan = clans[_clanID];
-    ClanMember storage member = clans[_clanID].members[clan.memberIdOf[_address]];
+    MemberInfo storage member = clan.member[_address];
 
-    require(clanOf[_address] == _clanID, "The member should join the clan first!");
     require(clan.info.isDisbanded == false, "This clan is disbanded!");
-    require(clan.members[clan.memberIdOf[_msgSender()]].isMod, "You have no authority to moderate memberships for this clan!");
-    require(clan.info.leader != _address, "You can't set the leader as a member!");
+    require(clan.member[_msgSender()].isMod, "You have no authority to moderate memberships for this clan!");
+    require(clan.info.leader != _address, "You can't change the membership status of the leader!");
 
     if (_isMember) {
-      require(_clanID == clanOf[_address], "The address you wish to set as member should declare its clan first!");
+      require(!member.isMember, "The address is already a member!");
+      require(_clanID == declaredClan[_address], "The address you wish to set as member should declare its clan first!");
       member.isMember = true;
-
-      uint256 currentID = clan.memberCounter.current();
-      // if the member doesn't have any previous id
-      if (member.memberID == 0) { 
-        member.memberID = currentID;
-        member.memberAddress = _msgSender();
-
-        clan.memberIdOf[_msgSender()] = currentID; 
-        clan.lastMemberID = currentID;     
-        clan.memberCounter.increment();
-      }
+      clan.memberCounter.increment();
     }
-    else { 
+    else if (member.isMember) { 
       member.isMember = false; 
       clan.memberCounter.decrement();
       // Keeps the member ID with it
@@ -446,7 +413,7 @@ contract StickClan is Context, ReentrancyGuard {
 
   function setClanExecutor(uint256 _clanID, address _address, bool _isExecutor) public  {
     Clan storage clan = clans[_clanID];
-    ClanMember storage member = clans[_clanID].members[clan.memberIdOf[_address]];
+    MemberInfo storage member = clans[_clanID].member[_address];
 
     require(clan.info.isDisbanded == false, "This clan is disbanded!");
     require(_msgSender() == clan.info.leader, "You have no authority to give Executor Role for this clan!");
@@ -457,7 +424,7 @@ contract StickClan is Context, ReentrancyGuard {
 
   function setClanMod(uint256 _clanID, address _address, bool _isMod) public  {
     Clan storage clan = clans[_clanID];
-    ClanMember storage member = clans[_clanID].members[clan.memberIdOf[_address]];
+    MemberInfo storage member = clans[_clanID].member[_address];
 
     require(clan.info.isDisbanded == false, "This clan is disbanded!");
     require(_msgSender() == clan.info.leader, "You have no authority to give Executor Role for this clan!");
@@ -468,29 +435,23 @@ contract StickClan is Context, ReentrancyGuard {
 
   function giveMemberPoint(uint256 _clanID, address _memberAddress, uint256 _point, bool _isDecreasing) public nonReentrant() {
     Clan storage clan = clans[_clanID];
-    ClanMember storage member = clans[_clanID].members[clan.memberIdOf[_memberAddress]];
-    
-    checkAndUpdateRound();
+    MemberInfo storage member = clans[_clanID].member[_memberAddress];
 
     require(clan.info.isDisbanded == false, "This clan is disbanded!");
-    require(clan.members[clan.memberIdOf[_msgSender()]].isExecutor, "You have no authority to give point for this clan!");
-    require(clan.members[clan.memberIdOf[_memberAddress]].isMember, "The address is not a member!");
-
-    // Update clan point before interact with them.
-    updatePoint(_clanID, _memberAddress);  
+    require(clan.member[_msgSender()].isExecutor, "You have no authority to give point for this clan!");
+    require(clan.member[_memberAddress].isMember, "The address is not a member!");
+    
+    // Update clan and round point before interact with them.
+    updatePointAndRound(_clanID, _memberAddress);  
 
     // Update member point and total member point of the clan
     if (_isDecreasing) {
       member.point[roundNumber] -= _point;
-      member.currentPoint -= _point;
       clan.totalMemberPoint[roundNumber] -= _point;
-      clan.currentTotalMemberPoint -= _point;
     }
     else {
       member.point[roundNumber] += _point;
-      member.currentPoint += _point;
       clan.totalMemberPoint[roundNumber] += _point;
-      clan.currentTotalMemberPoint += _point;
     }
   }
 
@@ -498,7 +459,7 @@ contract StickClan is Context, ReentrancyGuard {
     Clan storage clan = clans[_clanID];
 
     require(clan.info.isDisbanded == false, "This clan is disbanded!");    
-    require(clan.members[clan.memberIdOf[_msgSender()]].isExecutor, "You have no authority to signal a rebellion for this clan!");
+    require(clan.member[_msgSender()].isExecutor, "You have no authority to signal a rebellion for this clan!");
 
     // Signal a rebellion,
     (bool txSuccess, ) = contracts[7].call(abi.encodeWithSignature(
@@ -541,63 +502,57 @@ contract StickClan is Context, ReentrancyGuard {
   
   // Returns the real clan of an address. Only members with point are real members, others are default
   function getClan(address _address) public view returns (uint256) {
-    Clan storage clan = clans[clanOf[_address]];
-    return clan.members[clan.memberIdOf[_address]].isMember ? clanOf[_address] : 0;
+    Clan storage clan = clans[declaredClan[_address]];
+    return clan.member[_address].isMember ? declaredClan[_address] : 0;
   }
 
   // Returns true if the member is an executor in its clan
   function isMemberExecutor(address _memberAddress) public view returns (bool) {
-    Clan storage clan = clans[clanOf[_memberAddress]];
-    return clan.members[clan.memberIdOf[_memberAddress]].isExecutor;
+    Clan storage clan = clans[declaredClan[_memberAddress]];
+    return clan.member[_memberAddress].isExecutor;
   }
 
   // Returns true if the member is an executor in its clan
   function isMemberMod(address _memberAddress) public view returns (bool) {
-    Clan storage clan = clans[clanOf[_memberAddress]];
-    return clan.members[clan.memberIdOf[_memberAddress]].isMod;
+    Clan storage clan = clans[declaredClan[_memberAddress]];
+    return clan.member[_memberAddress].isMod;
   }
 
   // Returns the member's point
   function getMemberPoint(address _memberAddress) public returns (uint256) {
-    Clan storage clan = clans[clanOf[_memberAddress]];
-    uint256 clanID = clanOf[_memberAddress];
-    ClanMember storage member = clans[clanOf[_memberAddress]].members[clan.memberIdOf[_memberAddress]];
+    Clan storage clan = clans[declaredClan[_memberAddress]];
+    uint256 clanID = declaredClan[_memberAddress];
+    MemberInfo storage member = clans[declaredClan[_memberAddress]].member[_memberAddress];
 
     // Update clan point before interact with them.
-    checkAndUpdateRound();
-    updatePoint(clanID, _memberAddress); 
+    updatePointAndRound(clanID, _memberAddress); 
 
     return member.point[roundNumber];
   }
 
   // returns all the members' point along with IDs
   function getPointsOf(uint256 _clanID) public view returns 
-    (uint256, uint256, uint256, address[] memory, uint256[] memory, uint256[] memory) 
+    (uint256, uint256, uint256, bool[] memory, bool[] memory, bool[] memory, uint256[] memory) 
   {
     Clan storage clan = clans[_clanID];
-    //ClanMember storage member = clans[_clanID].members[_address];
+    //MemberInfo storage member = clans[_clanID].members[_address];
 
-    uint256 lastID = clan.lastMemberID;
     uint256 memberCount = clan.memberCounter.current();
-    uint256[] memory ids = new uint[](memberCount);
-    uint256[] memory points  = new uint[](memberCount);
-    address[] memory addresses  = new address[](memberCount);
+    bool[] memory isMemberActive  = new bool[](memberCount);
+    bool[] memory isMemberExecutor  = new bool[](memberCount);
+    bool[] memory isMemberMod  = new bool[](memberCount);
+    uint256[] memory memberPoints  = new uint[](memberCount);
 
-    uint256 skipped;
-    for (uint256 id = 0; id < lastID; id++) {
+    for (uint256 count = 0; count < memberCount; count++) {
+      MemberInfo storage member = clan.member[clan.members[count]]; // Get each registered member
 
-      // skip the non-members
-      if (!clan.members[id].isMember) {
-        skipped++;
-        continue;
-      } 
-
-      ids[id - skipped] = id;
-      points[id - skipped] = clan.members[id].currentPoint;
-      addresses[id - skipped] = clan.members[id].memberAddress;
+      isMemberActive[count] = member.isMember;
+      isMemberExecutor[count] = member.isExecutor;
+      isMemberMod[count] = member.isMod;
+      memberPoints[count] = member.point[roundNumber];
     }
 
-    return (currentTotalClanPoint, clan.currentPoint, clan.currentTotalMemberPoint, addresses, ids, points);
+    return (rounds[roundNumber].totalClanPoint, clan.point[roundNumber], clan.totalMemberPoint[roundNumber], isMemberActive, isMemberExecutor,  isMemberMod, memberPoints);
   }
 
   /**
@@ -918,11 +873,8 @@ contract StickClan is Context, ReentrancyGuard {
     
     Clan storage clan = clans[proposal.index]; // Proposal index is the Clan ID
 
-    // Check round update
-    checkAndUpdateRound();
-
     // Update clan point before interact with them. Not member (0)
-    updatePoint(proposal.index, address(0));
+    updatePointAndRound(proposal.index, address(0));
 
 
     // if approved, apply the update the state

@@ -34,6 +34,7 @@ interface IClan {
   function proposeMaxPointToChangeUpdate(uint256 _newMaxPoint) external;
   function proposeCooldownTimeUpdate(uint256 _newCooldownTime) external;
   function proposeMinBalanceToPropClanPointUpdate(uint256 _newAmount) external;
+  function giveClanPoint(uint256 _clanID, uint256 _point, bool _isDecreasing) external;
 }
 
 interface IClanLicense {
@@ -106,6 +107,10 @@ interface IToken {
   function daoMint(uint256 _amount) external returns (bool);
   function developmentMint(uint256 _amount) external returns (bool);
   function communityMint(uint256 _amount) external returns (bool);
+}
+
+interface IRound {
+  function setPlayerMerkleRoot(uint256 _round, uint256 _level, bytes32 _root) external;
 }
 
 contract StickExecutors is Context, AccessControl {
@@ -256,6 +261,8 @@ contract StickExecutors is Context, AccessControl {
    * Creating Token: Community Mint: 33
    * Creating Lord: Set Base URI: 34
    * Creating Item: Set Token URI: 35
+   * Creating Round: Set Players Root: 36
+   * Creating Clan: Give Clan Points: 37
    */
   function updateContractAddress(uint256 _contractIndex, address _newAddress) public onlyRole(EXECUTOR_ROLE) {
     // Get the current signal
@@ -1674,6 +1681,87 @@ contract StickExecutors is Context, AccessControl {
       signalTrackerID[35] = 0; // To avoid further executions
     }       
   }
+  
+  function createRoundSetPlayerRoot(uint256 _round, uint256 _level, bytes32 _root) public onlyRole(EXECUTOR_ROLE) {
+    // Get the current signal
+    Signal storage currentSignal = signals[signalTrackerID[36]];
+
+    // If current signal date passed, then start a new signal
+    if (block.timestamp > currentSignal.expires) {
+
+      signalTrackerID[36] = signalCounter.current();           // Save the current signal ID to the tracker
+      Signal storage newSignal = signals[signalTrackerID[36]]; // Get the signal
+      signalCounter.increment();  // Increment the counter for other signals
+
+      // Save data
+      newSignal.expires = block.timestamp + signalTime;
+      newSignal.signalTrackerID = 36;
+      newSignal.propUint = _round;
+      newSignal.propUint1 = _level;
+      newSignal.propBytes32 = _root;
+
+      newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
+      newSignal.numOfSignals++;
+      return; // finish the function
+    }   
+
+    // If there is not enough signals, count this one as well. Then continue to check it again.
+    if (currentSignal.numOfSignals < (numOfExecutors / 2)){      
+      // If we are in the signal time, check caller's signal status
+      require(!currentSignal.isSignaled[_msgSender()], "You already signaled for this proposal");
+
+      // If not signaled, save it and increase the number of signals
+      currentSignal.isSignaled[_msgSender()] = true;
+      currentSignal.numOfSignals++;
+    }
+
+    // Execute proposal if the half of the executors signaled
+    if (currentSignal.numOfSignals >= (numOfExecutors / 2)){
+      IRound(contracts[11]).setPlayerMerkleRoot(currentSignal.propUint, currentSignal.propUint1, currentSignal.propBytes32);
+      signalTrackerID[36] = 0; // To avoid further executions
+    }       
+  }
+  
+  function createGiveClanPoint(uint256 _clanID, uint256 _point, bool _isDecreasing) public onlyRole(EXECUTOR_ROLE) {
+    // Get the current signal
+    Signal storage currentSignal = signals[signalTrackerID[37]];
+
+    // If current signal date passed, then start a new signal
+    if (block.timestamp > currentSignal.expires) {
+
+      signalTrackerID[37] = signalCounter.current();           // Save the current signal ID to the tracker
+      Signal storage newSignal = signals[signalTrackerID[37]]; // Get the signal
+      signalCounter.increment();  // Increment the counter for other signals
+
+      // Save data
+      newSignal.expires = block.timestamp + signalTime;
+      newSignal.signalTrackerID = 37;
+      newSignal.propUint = _clanID;
+      newSignal.propUint1 = _point;
+      newSignal.propBool = _isDecreasing;
+
+      newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
+      newSignal.numOfSignals++;
+      return; // finish the function
+    }   
+
+    // If there is not enough signals, count this one as well. Then continue to check it again.
+    if (currentSignal.numOfSignals < (numOfExecutors / 2)){      
+      // If we are in the signal time, check caller's signal status
+      require(!currentSignal.isSignaled[_msgSender()], "You already signaled for this proposal");
+
+      // If not signaled, save it and increase the number of signals
+      currentSignal.isSignaled[_msgSender()] = true;
+      currentSignal.numOfSignals++;
+    }
+
+    // Execute proposal if the half of the executors signaled
+    if (currentSignal.numOfSignals >= (numOfExecutors / 2)){
+      IClan(contracts[11]).giveClanPoint(currentSignal.propUint, currentSignal.propUint1, currentSignal.propBool);
+      signalTrackerID[37] = 0; // To avoid further executions
+    }       
+  }
+
   /// @dev returns the time remeaning until the end of the singalling period
   function getSignalTiming(uint256 _signalIndex) public view returns (uint256) {
     return signals[_signalIndex].expires > block.timestamp ? signals[_signalIndex].expires - block.timestamp : 0;

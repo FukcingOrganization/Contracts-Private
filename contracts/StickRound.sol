@@ -115,7 +115,8 @@ contract StickRound is Context, ReentrancyGuard {
   constructor(address[13] memory _contracts, uint256 _endOfTheFirstRound) {
     contracts = _contracts;  // Set the existing contracts
     rounds[roundCounter.current()].endingTime = _endOfTheFirstRound; // TEST -> Change it with unix value of Monday 00.00
-    roundLenght = 7 days;
+    roundLenght = 1 hours; // TEST: 7 days;
+    roundCounter.increment(); // Start the rounds from 1
     getBackerRewards(rounds[roundCounter.current()]);     
   }
 
@@ -358,6 +359,12 @@ contract StickRound is Context, ReentrancyGuard {
     }
 
     return roundCounter.current();
+  }
+
+  function setPlayerMerkleRoot(uint256 _round, uint256 _level, bytes32 _root) public {    
+    require(_msgSender() == contracts[5], "Only executors can call this function!");
+
+    rounds[_round].levels[_level].merkleRoot = _root;
   }
 
   /**

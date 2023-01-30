@@ -15,12 +15,12 @@
 
   // Mint allowance: 
   // Root: 0x0d9361aed72bd9365ae719944695e6c13b7a1df85c1218f2675740b5af0d2d1c
-  const addressGroup_0 = ['0x0000000000000000000000000000000000000000','0x9343C3Ac31DB62F6137f1828E5557ec07d11aA83', '0x5B38Da6a701c568545dCfcB03FcB875f56beddC4', '0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2', '0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db']
+  const addressGroup_0 = ['0x0000000000000000000000000000000000000000','0x9343C3Ac31DB62F6137f1828E5557ec07d11aA83', '0x85be25d0Ef53959dB27D42df1f7da57549154D5f', '0x1bC6F80DA87Bdab3C94d7B1b7a513FE4Fc2254f5', '0x022993d3edaB7056b48E1417224d340E7a3Eae6b']
   // Proof_0: [0x5380c7b7ae81a58eb98d9c78de4a1fd7fd9535fc953ed2be602daaa41767312a,0x9d997719c0a5b5f6db9b8ac69a988be57cf324cb9fffd51dc2c37544bb520d65,0x04a10bfd00977f54cc3450c9b25c9b3a502a089eba0097ba35fc33c4ea5fcb54] 
 
   // Mint allowance: 
   // Root: 0x92b5cca0cf98e7502acee0dfb324fc68a8090a729622027d0019fdb1c11b69a7
-  const addressGroup_1 = ["0x0000000000000000000000000000000000000000","0x1bC6F80DA87Bdab3C94d7B1b7a513FE4Fc2254f5","0x78731D3Ca6b7E34aC0F824c42a7cC18A495cabaB","0x617F2E2fD72FD9D5503197092aC168c91465E7f2","0x17F6AD8Ef982297579C203069C1DbfFE4348c372"]
+  const addressGroup_1 = ["0x0000000000000000000000000000000000000000","0x1bC6F80DA87Bdab3C94d7B1b7a513FE4Fc2254f5","0x9343C3Ac31DB62F6137f1828E5557ec07d11aA83","0x617F2E2fD72FD9D5503197092aC168c91465E7f2","0x17F6AD8Ef982297579C203069C1DbfFE4348c372"]
   // Proof_1: [0x5380c7b7ae81a58eb98d9c78de4a1fd7fd9535fc953ed2be602daaa41767312a,0xda2a605bdf59a3b18e24cd0b2d9110b6ffa2340f6f67bc48214ac70e49d12770,0xc23d89d4ba0f8b56a459710de4b44820d73e93736cfc0667f35cdd5142b70f0d]
 
   // Mint allowance: 
@@ -70,7 +70,7 @@
   // ********** Generate Proof ********** //
 
 //#region  Proof_0 - 0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2
-  const leaf_0 = buf2hex(keccak256("0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2")) // address from wallet using walletconnect/metamask
+  const leaf_0 = buf2hex(keccak256("0x022993d3edaB7056b48E1417224d340E7a3Eae6b")) // address from wallet using walletconnect/metamask
   const proof_0 = tree_0.getProof(leaf_0).map(x => buf2hex(x.data))
 
   //console.log(proof_0)
@@ -93,7 +93,7 @@
 //#endregion
 
 //#region  Proof_1 - 0x78731D3Ca6b7E34aC0F824c42a7cC18A495cabaB
-  const leaf_1 = buf2hex(keccak256("0x78731D3Ca6b7E34aC0F824c42a7cC18A495cabaB")) // address from wallet using walletconnect/metamask
+  const leaf_1 = buf2hex(keccak256("0x1bC6F80DA87Bdab3C94d7B1b7a513FE4Fc2254f5")) // address from wallet using walletconnect/metamask
   const proof_1 = tree_1.getProof(leaf_1).map(x => buf2hex(x.data))
 
   //console.log(proof_1)
