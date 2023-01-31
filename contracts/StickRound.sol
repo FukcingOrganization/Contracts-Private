@@ -115,7 +115,7 @@ contract StickRound is Context, ReentrancyGuard {
   constructor(address[13] memory _contracts, uint256 _endOfTheFirstRound) {
     contracts = _contracts;  // Set the existing contracts
     rounds[roundCounter.current()].endingTime = _endOfTheFirstRound; // TEST -> Change it with unix value of Monday 00.00
-    roundLenght = 1 hours; // TEST: 7 days;
+    roundLenght = 2 hours; // TEST: 7 days;
     roundCounter.increment(); // Start the rounds from 1
     getBackerRewards(rounds[roundCounter.current()]);     
   }
@@ -129,8 +129,6 @@ contract StickRound is Context, ReentrancyGuard {
   }
 
   function fundBoss(uint256 _levelNumber, uint256 _bossID, uint256 _fundAmount) public nonReentrant() returns (bool) {
-    require(_levelNumber >= 0 && _levelNumber < 10, "Invalid level number!");
-
     Round storage round = rounds[roundCounter.current()];
 
     // If current round has ended, start the new one before funding
@@ -138,10 +136,11 @@ contract StickRound is Context, ReentrancyGuard {
       startNextRound(round);
     }
 
-    // Close funding in the last day of the round
-    require(round.endingTime - 1 minutes  > block.timestamp, // TEST -> Change it with 1 day
+    // Close funding in the last day of the round to avoid mistakenly funding
+    require(round.endingTime - 10 minutes  > block.timestamp, // TEST -> Change it with 1 day
       "The funding round is closed for this round. Maybe next time sweetie!"
     );
+    require(_levelNumber < 10, "Invalid level number!");  // 0 to 9
     // Check if the boss if it exists - If it has an owner, than it exists
     require(IERC721(contracts[0]).ownerOf(_bossID) != address(0), "This Boss doesn't even exist!");
     // Get the funds!
@@ -166,7 +165,13 @@ contract StickRound is Context, ReentrancyGuard {
     
     Round storage round = rounds[roundCounter.current()];
 
-    require(round.endingTime - 1 minutes  > block.timestamp, // TEST -> Change it with 1 day
+    // If current round has ended, start the new one before funding
+    if (block.timestamp > round.endingTime){
+      startNextRound(round);
+    }
+    
+    // Close funding in the last day of the round to avoid mistakenly funding
+    require(round.endingTime - 10 minutes  > block.timestamp, // TEST -> Change it with 1 day
       "The funding round is closed for this round. Too late sweetie!"
     );
 

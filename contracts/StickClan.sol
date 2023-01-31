@@ -268,7 +268,6 @@ contract StickClan is Context, ReentrancyGuard {
     updatePointAndRound(_clanID, address(0));
 
     Clan storage clan = clans[_clanID];
-
     
     if (_isDecreasing){
       clan.point[roundNumber] -= _point;
@@ -289,11 +288,8 @@ contract StickClan is Context, ReentrancyGuard {
 
     Clan storage clan = clans[_clanID];
 
-    // Update clan point before interact with them. Not member (0)
-    updatePointAndRound(_clanID, address(0));  
-
-    // total clan reward * clan Point * 100 / total clan point
-    uint256 reward = rounds[_roundNumber].clanRewards * (clan.point[_roundNumber] * 100 / rounds[_roundNumber].totalClanPoint);
+    // total clan reward * (clan Point * 100 / total clan point) / 100
+    uint256 reward = rounds[_roundNumber].clanRewards * (clan.point[_roundNumber] * 100 / rounds[_roundNumber].totalClanPoint) / 100;
     rounds[_roundNumber].claimedRewards += reward;  // Keep record of the claimed rewards
 
     // Get the address and the tax rate of the lord
@@ -310,7 +306,7 @@ contract StickClan is Context, ReentrancyGuard {
       IERC20(contracts[11]).transfer(lordAddress, lordTax);
 
     // Then keep the remaining for the clan
-    clan.rewards[roundNumber] = reward;
+    clan.rewards[_roundNumber] = reward;
     clan.balance += reward;
   }
 
@@ -323,8 +319,8 @@ contract StickClan is Context, ReentrancyGuard {
     Clan storage clan = clans[_clanID];
     
     require(clan.member[sender].isMember, "You are not a member of this clan!");
-    // TEST: Set the final value: Now, you can only claim clan rewards after 3 rounds to ensure your earnings! 
-    require(_roundNumber < roundNumber - 3, "You can't claim the reward until it finalizes. Rewards are getting finalized after 3 rounds!");
+    // TEST: Set the final value: Now, you can only claim clan rewards after 2 rounds to ensure your earnings! 
+    require(_roundNumber < roundNumber - 0/** 2 */, "You can't claim the reward until it finalizes. Rewards are getting finalized after 3 rounds!");
     require(clan.isMemberClaimed[_roundNumber][sender] == false, "You already claimed your reward for this round!");
     clan.isMemberClaimed[_roundNumber][sender] == true;  // If not claimed yet, mark it claimed.
 
@@ -333,8 +329,8 @@ contract StickClan is Context, ReentrancyGuard {
     if (clan.rewards[_roundNumber] == 0) { clanRewardClaim(_clanID, _roundNumber); }      
 
     // calculate the reward and send it to the member!
-    uint256 reward = // total reward of the clan * member Point * 100 / total member point of the clan
-      clan.rewards[_roundNumber] * (clan.member[sender].point[_roundNumber] * 100 / clan.totalMemberPoint[_roundNumber]);
+    uint256 reward = // total reward of the clan * (member Point * 100 / total member point of the clan) / 100
+      clan.rewards[_roundNumber] * (clan.member[sender].point[_roundNumber] * 100 / clan.totalMemberPoint[_roundNumber]) / 100;
 
     IERC20(contracts[11]).transfer(sender, reward);
     clan.balance -= reward; // Update the balance of the clan
@@ -520,7 +516,6 @@ contract StickClan is Context, ReentrancyGuard {
 
   // Returns the member's point
   function getMemberPoint(address _memberAddress) public returns (uint256) {
-    Clan storage clan = clans[declaredClan[_memberAddress]];
     uint256 clanID = declaredClan[_memberAddress];
     MemberInfo storage member = clans[declaredClan[_memberAddress]].member[_memberAddress];
 
@@ -799,7 +794,7 @@ contract StickClan is Context, ReentrancyGuard {
    */ 
   function proposeClanPointAdjustment(uint256 _roundNumber, uint256 _clanID, uint256 _pointToChange, bool _isDecreasing) public {
     require(_pointToChange <= maxPointToChange, "Maximum amount of point exceeded!");
-    require(clans[_clanID].info.isDisbanded == false, "This clan is disbanded!");
+    require(!clans[_clanID].info.isDisbanded, "This clan is disbanded!");
     require(IDAO(contracts[4]).balanceOf(_msgSender()) >= minBalanceToProposeClanPointChange,
       "You don't have enough SDAO balance to make this proposal!"
     );
@@ -810,7 +805,9 @@ contract StickClan is Context, ReentrancyGuard {
     Clan storage clan = clans[_clanID];
 
     // After end of the round but until the end of the second round TEST: Check the numbers      Eg. RN:5, Allowed:4-3, Too late:2
-    require(_roundNumber < roundNumber && _roundNumber > roundNumber - 3, "Invalid round number!");
+    require(_roundNumber < roundNumber && _roundNumber > roundNumber - 2,
+      "Invalid round number! You can make this proposal right after the round you want to complain about!"
+    );
 
     // Wait for the proposal to finish or execute it.
     require(proposals[clan.proposal_ID].isExecuted, "Current proposal is not executed yet!");
