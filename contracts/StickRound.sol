@@ -112,12 +112,21 @@ contract StickRound is Context, ReentrancyGuard {
 
   uint256 public roundLenght;
 
-  constructor(address[13] memory _contracts, uint256 _endOfTheFirstRound) {
+  bool isGenesisCallExecuted;
+
+  constructor(address[13] memory _contracts, uint256 _endOfTheFirstRound, uint256[10] memory _levelWeights, uint256 _totalWeight) {
     contracts = _contracts;  // Set the existing contracts
     rounds[roundCounter.current()].endingTime = _endOfTheFirstRound; // TEST -> Change it with unix value of Monday 00.00
     roundLenght = 2 hours; // TEST: 7 days;
     roundCounter.increment(); // Start the rounds from 1
-    getBackerRewards(rounds[roundCounter.current()]);     
+    levelRewardWeights = _levelWeights;
+    totalRewardWeight = _totalWeight;
+  }
+
+  function genesisCall() public {
+    require(!isGenesisCallExecuted, "The Genesis Call is already executed once!");
+    isGenesisCallExecuted = true;
+    getBackerRewards(rounds[roundCounter.current()]);
   }
 
   function DEBUG_setContract(address _contractAddress, uint256 _index) public {
@@ -169,7 +178,7 @@ contract StickRound is Context, ReentrancyGuard {
     if (block.timestamp > round.endingTime){
       startNextRound(round);
     }
-    
+
     // Close funding in the last day of the round to avoid mistakenly funding
     require(round.endingTime - 10 minutes  > block.timestamp, // TEST -> Change it with 1 day
       "The funding round is closed for this round. Too late sweetie!"
@@ -341,18 +350,11 @@ contract StickRound is Context, ReentrancyGuard {
     }
   }
 
-  function updateLevelRewardRates(uint256 _level, uint256 _newWeight) public {
+  function updateLevelRewardRates(uint256[10] memory _newLevelWeights, uint256 _newTotalWeight) public {
     require(_msgSender() == contracts[5], "Only the Executors can update the level reward rates!!");
-    require(_level >= 0 && _level < 10, "Dude! Check the level number! It can be 0 to 12!");
 
-    // Update total weight
-    if (levelRewardWeights[_level] > _newWeight)
-      totalRewardWeight -= levelRewardWeights[_level] - _newWeight;
-    else
-      totalRewardWeight += _newWeight - levelRewardWeights[_level];
-    
-    // Update level weight
-    levelRewardWeights[_level] = _newWeight;
+    levelRewardWeights = _newLevelWeights;
+    totalRewardWeight = _newTotalWeight;
   }
 
   function getCurrentRoundNumber() public returns (uint256) {

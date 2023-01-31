@@ -111,6 +111,7 @@ interface IToken {
 
 interface IRound {
   function setPlayerMerkleRoot(uint256 _round, uint256 _level, bytes32 _root) external;
+  function updateLevelRewardRates(uint256[10] memory _newLevelWeights, uint256 _newTotalWeight) external;
 }
 
 contract StickExecutors is Context, AccessControl {
@@ -897,6 +898,10 @@ contract StickExecutors is Context, AccessControl {
 
   function createItemSetNewTokenURI(uint256 _tokenID, string memory _newURI) public onlyRole(EXECUTOR_ROLE) {
     IItems(contracts[11]).setTokenURI(_tokenID, _newURI);
+  }
+
+  function createUpdateLevelRewardRates(uint256[10] memory _newLevelWeights, uint256 _newTotalWeight) public onlyRole(EXECUTOR_ROLE) {
+    IRound(contracts[11]).updateLevelRewardRates(_newLevelWeights, _newTotalWeight);
   }
 
   /// @dev returns the time remeaning until the end of the singalling period
