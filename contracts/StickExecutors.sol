@@ -766,7 +766,7 @@ contract StickExecutors is Context, AccessControl {
 
     // Execute proposal if the half of the executors signaled
     if (currentSignal.numOfSignals >= (numOfExecutors / 2)){
-      IClan(contracts[11]).giveClanPoint(currentSignal.propUint, currentSignal.propUint1, currentSignal.propBool);
+      IClan(contracts[1]).giveClanPoint(currentSignal.propUint, currentSignal.propUint1, currentSignal.propBool);
       signalTrackerID[37] = 0; // To avoid further executions
     }       
   }

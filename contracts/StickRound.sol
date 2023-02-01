@@ -116,9 +116,9 @@ contract StickRound is Context, ReentrancyGuard {
 
   constructor(address[13] memory _contracts, uint256 _endOfTheFirstRound, uint256[10] memory _levelWeights, uint256 _totalWeight) {
     contracts = _contracts;  // Set the existing contracts
+    roundCounter.increment(); // Start the rounds from 1
     rounds[roundCounter.current()].endingTime = _endOfTheFirstRound; // TEST -> Change it with unix value of Monday 00.00
     roundLenght = 2 hours; // TEST: 7 days;
-    roundCounter.increment(); // Start the rounds from 1
     levelRewardWeights = _levelWeights;
     totalRewardWeight = _totalWeight;
   }
@@ -365,6 +365,10 @@ contract StickRound is Context, ReentrancyGuard {
       startNextRound(round);
     }
 
+    return roundCounter.current();
+  }
+
+  function viewRoundNumber() public view returns (uint256) {
     return roundCounter.current();
   }
 

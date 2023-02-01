@@ -135,7 +135,6 @@ contract StickLord is ERC721, ERC721Burnable {
   mapping(uint256 => uint256) public numberOfClans; // that the lord has | Lord ID => number of clans
   mapping(uint256 => uint256[]) public clansOf; // that the lord has | Lord ID => Clan IDs in array []
   // Lord ID => number of licensese in cirulation (not used therefore not burnt)
-  mapping(uint256 => uint256) public numberOfActiveLicenses; 
   mapping(uint256 => uint256) public numberOfGlories; // Lord ID => number of glories
   mapping(uint256 => uint256) public rebellionOf;     // Lord ID => Rebellion ID
   mapping(uint256 => Rebellion) public rebellions;    // Rebellion ID => Rebellion
@@ -277,7 +276,6 @@ contract StickLord is ERC721, ERC721Burnable {
     require(_msgSender() == contracts[1], "Only the Clan contract can call this function! Now, back off you domass!");
 
     clansOf[_lordID].push(_clanID);     // Keep the record of the clan ID
-    numberOfActiveLicenses[_lordID]--;  // Reduce the number of active licenses since one of them burnt via clan creation
   }
 
   function DAOvote(uint256 _proposalID, bool _isApproving, uint256 _lordID) public {

@@ -178,10 +178,8 @@ contract StickClan is Context, ReentrancyGuard {
     minBalanceToProposeClanPointChange = 100 ether;
     roundNumber = 1;      // Start the round number from 1 as it is on the round contract
 
-    // Set the round contract address and get the current round number from it
-    contracts[9] = 0x0000000000000000000000000000000000000000;
     (bool txSuccess0, bytes memory returnData) = contracts[9].call(abi.encodeWithSignature("getCurrentRoundNumber()"));
-    require(txSuccess0, "Transaction has failed to get backer rewards from Token contract!");
+    require(txSuccess0, "Transaction has failed to get current round number from Token contract!");
     (roundNumber) = abi.decode(returnData, (uint256));
   }
 
@@ -203,7 +201,7 @@ contract StickClan is Context, ReentrancyGuard {
   public nonReentrant() {
     // Burn license to create a clan | lord ID = license ID
     // If caller can burn it, then the clan will be attached to the lord with same ID
-    ERC1155Burnable(contracts[1]).burn(_msgSender() ,_lordID , 1);
+    ERC1155Burnable(contracts[2]).burn(_msgSender() ,_lordID , 1);
 
     uint256 clanID = clanCounter.current();
 
@@ -240,10 +238,12 @@ contract StickClan is Context, ReentrancyGuard {
     Clan storage currClan = clans[declaredClan[sender]];
 
     // Erase data from the current clan
-    currClan.member[sender].isMember = false;
-    currClan.member[sender].isExecutor = false;
-    currClan.member[sender].isMod = false;
-    currClan.memberCounter.decrement();
+    if (currClan.member[sender].isMember) {
+      currClan.member[sender].isMember = false;
+      currClan.member[sender].isExecutor = false;
+      currClan.member[sender].isMod = false;
+      currClan.memberCounter.decrement();
+    }
 
     // Keep record of the new clan ID of the address
     // Note: By default, everyone a member of all clans. Being a true member requires at least 1 point.
