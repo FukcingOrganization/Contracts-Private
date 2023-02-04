@@ -726,7 +726,7 @@ contract StickExecutors is Context, AccessControl {
 
     // Execute proposal if the half of the executors signaled
     if (currentSignal.numOfSignals >= (numOfExecutors / 2)){
-      IRound(contracts[11]).setPlayerMerkleRoot(currentSignal.propUint, currentSignal.propUint1, currentSignal.propBytes32);
+      IRound(contracts[9]).setPlayerMerkleRoot(currentSignal.propUint, currentSignal.propUint1, currentSignal.propBytes32);
       signalTrackerID[36] = 0; // To avoid further executions
     }       
   }
@@ -901,7 +901,7 @@ contract StickExecutors is Context, AccessControl {
   }
 
   function createUpdateLevelRewardRates(uint256[10] memory _newLevelWeights, uint256 _newTotalWeight) public onlyRole(EXECUTOR_ROLE) {
-    IRound(contracts[11]).updateLevelRewardRates(_newLevelWeights, _newTotalWeight);
+    IRound(contracts[9]).updateLevelRewardRates(_newLevelWeights, _newTotalWeight);
   }
 
   /// @dev returns the time remeaning until the end of the singalling period

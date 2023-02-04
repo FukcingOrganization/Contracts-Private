@@ -174,9 +174,8 @@ contract StickClan is Context, ReentrancyGuard {
     contracts = _contracts;  // Set the existing contracts
     clanCounter.increment();  // clan ID's should start from 1
     maxPointToChange = 666;
-    cooldownTime = 3 days;
+    cooldownTime = 10 minutes; // TEST -> (7 days / 2);
     minBalanceToProposeClanPointChange = 100 ether;
-    roundNumber = 1;      // Start the round number from 1 as it is on the round contract
 
     (bool txSuccess0, bytes memory returnData) = contracts[9].call(abi.encodeWithSignature("getCurrentRoundNumber()"));
     require(txSuccess0, "Transaction has failed to get current round number from Token contract!");
@@ -221,6 +220,7 @@ contract StickClan is Context, ReentrancyGuard {
     clan.info.motto = _clanMotto;
     clan.info.logoURI = _clanLogoURI;
     clan.members.push(_msgSender());
+    clan.firstRound = roundNumber;
 
     // Sign the leader as a member of the clan as well and give full authority
     clan.member[_msgSender()].isMember = true;
@@ -397,8 +397,9 @@ contract StickClan is Context, ReentrancyGuard {
     if (_isMember) {
       require(!member.isMember, "The address is already a member!");
       require(_clanID == declaredClan[_address], "The address you wish to set as member should declare its clan first!");
-      member.isMember = true;
+      clan.members.push(_msgSender());
       clan.memberCounter.increment();
+      member.isMember = true;
     }
     else if (member.isMember) { 
       member.isMember = false; 

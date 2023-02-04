@@ -202,30 +202,38 @@ contract StickRound is Context, ReentrancyGuard {
     for (uint i = 0; i < 10; i++){
       Election storage election = _currentRound.levels[i].election;
 
-      // Find Winner Boss
-      election.winnerID = election.candidateIDs[0];
-      for (uint j = 1; j <= election.candidateIDs.length; j++){  // all candidates
-        if (election.candidateFunds[election.candidateIDs[j]] > election.candidateFunds[election.candidateIDs[election.winnerID]])
-          election.winnerID = election.candidateIDs[j];
+      // If there is only 1 candidate, take it as the winner
+      if (election.candidateIDs.length == 1){        
+        election.winnerID = election.candidateIDs[0];
+        _currentRound.levels[i].playerReward = election.candidateFunds[election.candidateIDs[0]];
       }
+      // But if there is more than 1 candidate, find the Winner
+      else if (election.candidateIDs.length > 1) {
+        election.winnerID = election.candidateIDs[0];
 
-      uint256 burnAmount;
-      // Keep the winner's fund for player reward and burn the losers' funds!
-      for (uint k = 0; k < election.candidateIDs.length; k++){  // all candidates
-        if (election.candidateIDs[k] == election.winnerID){
-          _currentRound.levels[i].playerReward = election.candidateFunds[election.candidateIDs[k]];
+        for (uint j = 1; j <= election.candidateIDs.length; j++){  // all candidates
+          if (election.candidateFunds[election.candidateIDs[j]] > election.candidateFunds[election.candidateIDs[election.winnerID]])
+            election.winnerID = election.candidateIDs[j];
         }
-        else{          
-          burnAmount += election.candidateFunds[election.candidateIDs[k]];
-        } 
-      }
-      // Burn them all!
-      (bool txSuccess0, ) = address(contracts[11]).call(abi.encodeWithSignature("burn(uint256)", burnAmount));
-      require(txSuccess0, "Burn tx has failed!");  
 
-      // Record the Rekt
-      (bool txSuccess1, ) = address(contracts[0]).call(abi.encodeWithSignature("bossRekt(uint256)", election.winnerID));
-      require(txSuccess1, "Rekt record tx has failed!");
+        uint256 burnAmount;
+        // Keep the winner's fund for player reward and burn the losers' funds!
+        for (uint k = 0; k < election.candidateIDs.length; k++){  // all candidates
+          if (election.candidateIDs[k] == election.winnerID){
+            _currentRound.levels[i].playerReward = election.candidateFunds[election.candidateIDs[k]];
+          }
+          else{          
+            burnAmount += election.candidateFunds[election.candidateIDs[k]];
+          } 
+        }
+        // Burn them all!
+        (bool txSuccess0, ) = address(contracts[11]).call(abi.encodeWithSignature("burn(uint256)", burnAmount));
+        require(txSuccess0, "Burn tx has failed!");  
+
+        // Record the Rekt
+        (bool txSuccess1, ) = address(contracts[0]).call(abi.encodeWithSignature("bossRekt(uint256)", election.winnerID));
+        require(txSuccess1, "Rekt record tx has failed!");
+      }
     }
 
     // Now we have burnt the losers' funds and save the winner's balance. Time to start next Round!
@@ -312,7 +320,6 @@ contract StickRound is Context, ReentrancyGuard {
   }
 
   function getBackerRewards(uint256 _roundNumber) public view returns (uint256[10] memory) {
-    require(block.timestamp > rounds[_roundNumber].endingTime, "Wait for the end of the round!");
     require(rounds[_roundNumber].endingTime != 0, "Invalied round number!"); // If there is no end time
 
     uint256[10] memory rewards;
