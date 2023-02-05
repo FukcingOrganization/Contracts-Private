@@ -123,6 +123,30 @@ contract StickRound is Context, ReentrancyGuard {
     totalRewardWeight = _totalWeight;
   }
 
+  function viewLevel(uint256 _roundNumber, uint256 _levelNumber) public view returns(uint256, uint256, uint256, bytes32){
+    Level storage level = rounds[_roundNumber].levels[_levelNumber];
+
+    return (level.playerReward, level.backerReward, level.totalNumberOfPlayer, level.merkleRoot); 
+  }
+
+  function viewElection(uint256 _roundNumber, uint256 _levelNumber) public view returns(uint256[] memory, uint256){
+    Level storage level = rounds[_roundNumber].levels[_levelNumber];
+
+    return (level.election.candidateIDs, level.election.winnerID); 
+  }
+
+  function isCandidate(uint256 _roundNumber, uint256 _levelNumber, uint256 _candidateID) public view returns(bool){
+    return rounds[_roundNumber].levels[_levelNumber].election.isCandidate[_candidateID];
+  }
+
+  function viewCandidateFunds(uint256 _roundNumber, uint256 _levelNumber, uint256 _candidateID) public view returns(uint256){
+    return rounds[_roundNumber].levels[_levelNumber].election.candidateFunds[_candidateID];
+  }
+
+  function viewBackerFunds(uint256 _roundNumber, uint256 _levelNumber, uint256 _candidateID, address _backer) public view returns(uint256){
+    return rounds[_roundNumber].levels[_levelNumber].election.backerFunds[_candidateID][_backer];
+  }
+
   function genesisCall() public {
     require(!isGenesisCallExecuted, "The Genesis Call is already executed once!");
     isGenesisCallExecuted = true;
@@ -146,7 +170,7 @@ contract StickRound is Context, ReentrancyGuard {
     }
 
     // Close funding in the last day of the round to avoid mistakenly funding
-    require(round.endingTime - 10 minutes  > block.timestamp, // TEST -> Change it with 1 day
+    require(round.endingTime - 1 minutes  > block.timestamp, // TEST -> Change it with 1 day
       "The funding round is closed for this round. Maybe next time sweetie!"
     );
     require(_levelNumber < 10, "Invalid level number!");  // 0 to 9
@@ -180,7 +204,7 @@ contract StickRound is Context, ReentrancyGuard {
     }
 
     // Close funding in the last day of the round to avoid mistakenly funding
-    require(round.endingTime - 10 minutes  > block.timestamp, // TEST -> Change it with 1 day
+    require(round.endingTime - 1 minutes  > block.timestamp, // TEST -> Change it with 1 day
       "The funding round is closed for this round. Too late sweetie!"
     );
 
@@ -211,7 +235,7 @@ contract StickRound is Context, ReentrancyGuard {
       else if (election.candidateIDs.length > 1) {
         election.winnerID = election.candidateIDs[0];
 
-        for (uint j = 1; j <= election.candidateIDs.length; j++){  // all candidates
+        for (uint j = 1; j < election.candidateIDs.length; j++){  // all candidates
           if (election.candidateFunds[election.candidateIDs[j]] > election.candidateFunds[election.candidateIDs[election.winnerID]])
             election.winnerID = election.candidateIDs[j];
         }
@@ -283,15 +307,17 @@ contract StickRound is Context, ReentrancyGuard {
     // Check all the levels and sum up the rewards if any
     uint256 reward;
 
-    for (uint i = 0; i < 10; i++){
+    for (uint256 i = 0; i < 10; i++){
       Level storage level = round.levels[i];     // Get the level
       Election storage election = level.election; // Get the election
 
       // Collect the reward from this level's election
       // Formula: rewardAmount = backerReward * backerfund(sender's on the winner Boss) / total fund (on the winner Boss)
-      reward += level.backerReward * 
-        election.backerFunds[election.winnerID][sender] / election.candidateFunds[election.winnerID]
-      ;
+      if (election.backerFunds[election.winnerID][sender] > 0) { // If there the sender has backed the winner
+        reward += level.backerReward * 
+          election.backerFunds[election.winnerID][sender] / election.candidateFunds[election.winnerID]
+        ;
+      }
     }
 
     require(IERC20(contracts[11]).transfer(sender, reward), "Something went wrong while you're trying to get your reward!");
