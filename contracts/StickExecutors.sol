@@ -110,7 +110,7 @@ interface IToken {
 }
 
 interface IRound {
-  function setPlayerMerkleRoot(uint256 _round, uint256 _level, bytes32 _root) external;
+  function setPlayerMerkleRootAndNumber(uint256 _round, uint256 _level, bytes32 _root, uint256 _numberOfPlayers) external;
   function updateLevelRewardRates(uint256[10] memory _newLevelWeights, uint256 _newTotalWeight) external;
 }
 
@@ -691,7 +691,7 @@ contract StickExecutors is Context, AccessControl {
     }       
   }
   
-  function createRoundSetPlayerRoot(uint256 _round, uint256 _level, bytes32 _root) public onlyRole(EXECUTOR_ROLE) {
+  function createRoundSetPlayerRootAndNumber(uint256 _round, uint256 _level, bytes32 _root, uint256 _playerNumber) public onlyRole(EXECUTOR_ROLE) {
     // Get the current signal
     Signal storage currentSignal = signals[signalTrackerID[36]];
 
@@ -708,6 +708,7 @@ contract StickExecutors is Context, AccessControl {
       newSignal.propUint = _round;
       newSignal.propUint1 = _level;
       newSignal.propBytes32 = _root;
+      newSignal.propUint2 = _playerNumber;
 
       newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
       newSignal.numOfSignals++;
@@ -726,7 +727,7 @@ contract StickExecutors is Context, AccessControl {
 
     // Execute proposal if the half of the executors signaled
     if (currentSignal.numOfSignals >= (numOfExecutors / 2)){
-      IRound(contracts[9]).setPlayerMerkleRoot(currentSignal.propUint, currentSignal.propUint1, currentSignal.propBytes32);
+      IRound(contracts[9]).setPlayerMerkleRootAndNumber(currentSignal.propUint, currentSignal.propUint1, currentSignal.propBytes32, currentSignal.propUint2);
       signalTrackerID[36] = 0; // To avoid further executions
     }       
   }

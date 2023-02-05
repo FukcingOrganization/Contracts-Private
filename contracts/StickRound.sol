@@ -50,7 +50,7 @@ contract StickRound is Context, ReentrancyGuard {
     Election election;
     uint256 playerReward;
     uint256 backerReward;
-    uint256 totalNumberOfPlayer;
+    uint256 numberOfPlayers;
     bytes32 merkleRoot;
   }
 
@@ -126,7 +126,7 @@ contract StickRound is Context, ReentrancyGuard {
   function viewLevel(uint256 _roundNumber, uint256 _levelNumber) public view returns(uint256, uint256, uint256, bytes32){
     Level storage level = rounds[_roundNumber].levels[_levelNumber];
 
-    return (level.playerReward, level.backerReward, level.totalNumberOfPlayer, level.merkleRoot); 
+    return (level.playerReward, level.backerReward, level.numberOfPlayers, level.merkleRoot); 
   }
 
   function viewElection(uint256 _roundNumber, uint256 _levelNumber) public view returns(uint256[] memory, uint256){
@@ -286,7 +286,7 @@ contract StickRound is Context, ReentrancyGuard {
       // Check the merkle tree to validate the sender has played this level
       bytes32 leaf = keccak256(abi.encodePacked(sender));
       if (MerkleProof.verify(_merkleProof, level.merkleRoot, leaf)){  // if played, collect the reward
-        reward += level.playerReward / level.totalNumberOfPlayer;
+        reward += level.playerReward / level.numberOfPlayers;
       }
     }
 
@@ -338,7 +338,7 @@ contract StickRound is Context, ReentrancyGuard {
       // Check the merkle tree to validate the sender has played this level
       bytes32 leaf = keccak256(abi.encodePacked(sender));
       if (MerkleProof.verify(_merkleProof, level.merkleRoot, leaf)){  // if played, get the reward
-        rewards[i] = level.playerReward / level.totalNumberOfPlayer;
+        rewards[i] = level.playerReward / level.numberOfPlayers;
       }
     }
 
@@ -405,10 +405,11 @@ contract StickRound is Context, ReentrancyGuard {
     return roundCounter.current();
   }
 
-  function setPlayerMerkleRoot(uint256 _round, uint256 _level, bytes32 _root) public {    
+  function setPlayerMerkleRootAndNumber(uint256 _round, uint256 _level,  bytes32 _root, uint256 _numberOfPlayers) public {    
     require(_msgSender() == contracts[5], "Only executors can call this function!");
 
     rounds[_round].levels[_level].merkleRoot = _root;
+    rounds[_round].levels[_level].numberOfPlayers = _numberOfPlayers;
   }
 
   /**
