@@ -302,8 +302,13 @@ contract StickClan is Context, ReentrancyGuard {
     reward -= lordTax;
 
     // Then transfer the taxes if there lord address exist. (which means lord is alive)
-    if (lordAddress != address(0))
+    if (lordAddress != address(0)){      
       IERC20(contracts[11]).transfer(lordAddress, lordTax);
+
+      // Mint SDAO tokens as much as the lord tax reward
+      (bool txSuccess,) = contracts[4].call(abi.encodeWithSignature("mintTokens(address,uint256)", lordAddress, lordTax));
+      require(txSuccess, "Transaction failed to mint new SDAO tokens!");
+    }
 
     // Then keep the remaining for the clan
     clan.rewards[_roundNumber] = reward;
@@ -344,14 +349,14 @@ contract StickClan is Context, ReentrancyGuard {
   /// @dev Starts the new round if the time is up
   function checkAndUpdateRound() public {
     (bool txSuccess0, bytes memory returnData) = contracts[9].call(abi.encodeWithSignature("getCurrentRoundNumber()"));
-    require(txSuccess0, "Transaction has failed to get backer rewards from Token contract!");
+    require(txSuccess0, "Transaction has failed to get current round number from Round contract!");
     (uint256 currentRound) = abi.decode(returnData, (uint256));
 
     // If the new round has started, get rewards from StickToken contract first
     if (currentRound > roundNumber){ 
       // Get the clans rewards from token
       (bool txSuccess0, bytes memory returnData0) = contracts[11].call(abi.encodeWithSignature("clanMint()"));
-      require(txSuccess0, "Transaction has failed to get backer rewards from Token contract!");
+      require(txSuccess0, "Transaction has failed to get clan rewards from Token contract!");
 
       // Save the reward to the round
       (rounds[roundNumber].clanRewards) = abi.decode(returnData0, (uint256));

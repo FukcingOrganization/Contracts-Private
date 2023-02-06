@@ -219,10 +219,6 @@ contract StickToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
         uint256 totalReward = (block.timestamp - deploymentTime) * mintPerSecond[1];
         uint256 currentReward = totalReward - totalMints[1];
 
-        // DAO token supply should be equal or greater than the total clan reward 
-        // to encourage DAO members to approve new mint proposals.
-        require(ERC20(contracts[4]).totalSupply() >= totalReward, "Not enough DAO tokens! DAO should approve new token mints!");
-
         totalMints[1] += currentReward;
 
         _mint(contracts[1], currentReward);
