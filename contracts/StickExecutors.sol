@@ -92,8 +92,8 @@ interface IItems {
 interface ILord {
   function proposeBaseTaxRateUpdate(uint256 _newBaseTaxRate) external;
   function proposeTaxChangeRateUpdate(uint256 _newTaxChangeRate) external;
-  function proposeRebellionLenghtUpdate(uint256 _newRebellionLenght) external;
-  function proposeSignalLenghtUpdate(uint256 _newSignalLenght) external;
+  function proposeRebellionLengthUpdate(uint256 _newRebellionLength) external;
+  function proposeSignalLengthUpdate(uint256 _newSignalLength) external;
   function proposeVictoryRateUpdate(uint256 _newVictoryRate) external;
   function proposeWarCasualtyRateUpdate(uint256 _newWarCasualtyRate) external;
   function setBaseURI(string memory _newURI) external;
@@ -233,7 +233,7 @@ contract StickExecutors is Context, AccessControl {
    * Creating DAO: Proposal Type Update Proposal: 15
    * Creating Lord: Base Tax Rate Update Proposal: 18
    * Creating Lord: Tax Change Rate Update Proposal: 19
-   * Creating Lord: Rebellion Lenght Update Proposal: 20
+   * Creating Lord: Rebellion Length Update Proposal: 20
    * Creating Lord: Victory Rate Update Proposal: 22
    * Creating Token: Mint Per Second Update Proposal: 24
    * Creating Token: Pause: 28
@@ -504,7 +504,7 @@ contract StickExecutors is Context, AccessControl {
     }       
   }
   
-  function createLordRebellionLenghtUpdateProposal(uint256 _newRebellionLenght) public onlyRole(EXECUTOR_ROLE) {
+  function createLordRebellionLengthUpdateProposal(uint256 _newRebellionLength) public onlyRole(EXECUTOR_ROLE) {
     // Get the current signal
     Signal storage currentSignal = signals[signalTrackerID[20]];
 
@@ -518,7 +518,7 @@ contract StickExecutors is Context, AccessControl {
       // Save data
       newSignal.expires = block.timestamp + signalTime;
       newSignal.signalTrackerID = 20;
-      newSignal.propUint = _newRebellionLenght;
+      newSignal.propUint = _newRebellionLength;
 
       newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
       newSignal.numOfSignals++;
@@ -910,8 +910,8 @@ contract StickExecutors is Context, AccessControl {
     IItems(contracts[6]).proposeItemActivationUpdate(_itemID, _activationStatus);
   }
   
-  function createLordSignalLenghtUpdateProposal(uint256 _newSignalLenght) public onlyRole(EXECUTOR_ROLE) {
-    ILord(contracts[7]).proposeBaseTaxRateUpdate(_newSignalLenght);
+  function createLordSignalLengthUpdateProposal(uint256 _newSignalLength) public onlyRole(EXECUTOR_ROLE) {
+    ILord(contracts[7]).proposeBaseTaxRateUpdate(_newSignalLength);
   }
   
   function createLordWarLordCasualtyRateUpdateProposal(uint256 _newWarCasualtyRate) public onlyRole(EXECUTOR_ROLE) {

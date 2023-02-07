@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 /**
  * @notice
  * -> Renting contract using STICK token as a medium of exchange.
- * -> Lord owner can list and delist its NFT for a specific lenght and fee.
+ * -> Lord owner can list and delist its NFT for a specific length and fee.
  * -> Everyone can rent a listed lord NFT except the owner of the lord.
  */
 

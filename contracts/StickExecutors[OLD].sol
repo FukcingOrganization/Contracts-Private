@@ -91,8 +91,8 @@ interface IItems {
 interface ILord {
   function proposeBaseTaxRateUpdate(uint256 _newBaseTaxRate) external;
   function proposeTaxChangeRateUpdate(uint256 _newTaxChangeRate) external;
-  function proposeRebellionLenghtUpdate(uint256 _newRebellionLenght) external;
-  function proposeSignalLenghtUpdate(uint256 _newSignalLenght) external;
+  function proposeRebellionLengthUpdate(uint256 _newRebellionLength) external;
+  function proposeSignalLengthUpdate(uint256 _newSignalLength) external;
   function proposeVictoryRateUpdate(uint256 _newVictoryRate) external;
   function proposeWarCasualtyRateUpdate(uint256 _newWarCasualtyRate) external;
   function setBaseURI(string memory _newURI) external;
@@ -235,7 +235,7 @@ contract StickExecutors is Context, AccessControl {
    * Creating DAO: Proposal Type Update Proposal: 15
    * Creating Lord: Base Tax Rate Update Proposal: 18
    * Creating Lord: Tax Change Rate Update Proposal: 19
-   * Creating Lord: Rebellion Lenght Update Proposal: 20
+   * Creating Lord: Rebellion Length Update Proposal: 20
    * Creating Lord: Victory Rate Update Proposal: 22
    * Creating Token: Mint Per Second Update Proposal: 24
    * Creating Token: Pause: 28
@@ -265,7 +265,7 @@ contract StickExecutors is Context, AccessControl {
    * Creating DAO: New Proposal Type Proposal: 14
    * Creating Item: Mint Cost Update Proposal: 16
    * Creating Item: Item Activation Update Proposal: 17
-   * Creating Lord: Signal Lenght Update Proposal: 21
+   * Creating Lord: Signal Length Update Proposal: 21
    * Creating Lord: War Casualty Rate Update Proposal: 23
    * Creating Token: Snapshot: 27
    * Creating Token: Staking Mint: 30
@@ -1159,7 +1159,7 @@ contract StickExecutors is Context, AccessControl {
     }       
   }
   
-  function createLordRebellionLenghtUpdateProposal(uint256 _newRebellionLenght) public onlyRole(EXECUTOR_ROLE) {
+  function createLordRebellionLengthUpdateProposal(uint256 _newRebellionLength) public onlyRole(EXECUTOR_ROLE) {
     // Get the current signal
     Signal storage currentSignal = signals[signalTrackerID[20]];
 
@@ -1173,7 +1173,7 @@ contract StickExecutors is Context, AccessControl {
       // Save data
       newSignal.expires = block.timestamp + signalTime;
       newSignal.signalTrackerID = 20;
-      newSignal.propUint = _newRebellionLenght;
+      newSignal.propUint = _newRebellionLength;
 
       newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
       newSignal.numOfSignals++;
@@ -1197,7 +1197,7 @@ contract StickExecutors is Context, AccessControl {
     }       
   }
   
-  function createLordSignalLenghtUpdateProposal(uint256 _newSignalLenght) public onlyRole(EXECUTOR_ROLE) {
+  function createLordSignalLengthUpdateProposal(uint256 _newSignalLength) public onlyRole(EXECUTOR_ROLE) {
     // Get the current signal
     Signal storage currentSignal = signals[signalTrackerID[21]];
 
@@ -1211,7 +1211,7 @@ contract StickExecutors is Context, AccessControl {
       // Save data
       newSignal.expires = block.timestamp + signalTime;
       newSignal.signalTrackerID = 21;
-      newSignal.propUint = _newSignalLenght;
+      newSignal.propUint = _newSignalLength;
 
       newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
       newSignal.numOfSignals++;

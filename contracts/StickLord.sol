@@ -104,8 +104,8 @@ contract StickLord is ERC721, ERC721Burnable {
     1: Functions Proposal Types update
     2: Base tax rate update
     3: Tax rate change update
-    4: Rebellion lenght update
-    5: Signal lenght update
+    4: Rebellion length update
+    5: Signal length update
     6: Victory rate update
     7: War casualties rate update
   */
@@ -151,8 +151,8 @@ contract StickLord is ERC721, ERC721Burnable {
   uint256 public mintCostIncrement;
   uint256 public baseTaxRate;     // Adjustable by DAO
   uint256 public taxChangeRate;   // Adjustable by DAO
-  uint256 public rebellionLenght; // Adjustable by DAO
-  uint256 public signalLenght;    // Adjustable by DAO
+  uint256 public rebellionLength; // Adjustable by DAO
+  uint256 public signalLength;    // Adjustable by DAO
   uint256 public victoryRate;     // Adjustable by DAO  | The rate (%) of the funds that is required to declare victory against the lord 
   uint256 public warCasualtyRate; // Adjustable by DAO  | The rate (%) that will burn as a result of the war
 
@@ -169,8 +169,8 @@ contract StickLord is ERC721, ERC721Burnable {
     baseTaxRate = 10;     // TEST -> Change it with the final value
     taxChangeRate = 5;    // TEST -> Change it with the final value
 
-    rebellionLenght = 7 days;     // TEST -> Change it with the final value
-    signalLenght = 3 days;        // TEST -> Change it with the final value
+    rebellionLength = 7 days;     // TEST -> Change it with the final value
+    signalLength = 3 days;        // TEST -> Change it with the final value
     victoryRate = 66;             // TEST -> Change it with the final value
     warCasualtyRate = 10;         // TEST -> Change it with the final value
 
@@ -365,8 +365,8 @@ contract StickLord is ERC721, ERC721Burnable {
   
   function updateRebellionStatus(Rebellion storage _reb, uint256 _lordID) internal {
     // Determine timing status
-    bool isSingalPhase = _reb.startDate + signalLenght > block.timestamp;
-    bool isRebelPhase = _reb.startDate + rebellionLenght > block.timestamp;
+    bool isSingalPhase = _reb.startDate + signalLength > block.timestamp;
+    bool isRebelPhase = _reb.startDate + rebellionLength > block.timestamp;
 
     // If the status NotStarted or is finalized (Success or Fail, 2 < index) start the rebellion
     if (_reb.status == RebellionStatus.NotStarted || uint256(_reb.status) > 2) {
@@ -481,8 +481,8 @@ contract StickLord is ERC721, ERC721Burnable {
    * Proposal Type Change -> Code: 2
    * baseTaxRate -> Code: 3
    * taxChangeRate -> Code: 4
-   * rebellionLenght -> Code: 5
-   * signalLenght -> Code: 6
+   * rebellionLength -> Code: 5
+   * signalLength -> Code: 6
    * victoryRate -> Code: 7
    * warCasualtyRate -> Code: 8
    * 
@@ -681,12 +681,12 @@ contract StickLord is ERC721, ERC721Burnable {
     proposal.isExecuted = true;
   }
 
-  function proposeRebellionLenghtUpdate(uint256 _newRebellionLenght) public {
+  function proposeRebellionLengthUpdate(uint256 _newRebellionLength) public {
     require(_msgSender() == contracts[5], "Only executors can call this function!");
 
     string memory proposalDescription = string(abi.encodePacked(
-      "In Lord contract, updating Rebellion Lenght to ", 
-      Strings.toHexString(_newRebellionLenght), " from ", Strings.toHexString(rebellionLenght), "."
+      "In Lord contract, updating Rebellion Length to ", 
+      Strings.toHexString(_newRebellionLength), " from ", Strings.toHexString(rebellionLength), "."
     )); 
 
     // Create a new proposal - DAO (contracts[4])
@@ -700,10 +700,10 @@ contract StickLord is ERC721, ERC721Burnable {
 
     // Save data to the local proposal
     proposals[propID].updateCode = 5;
-    proposals[propID].newUint = _newRebellionLenght;
+    proposals[propID].newUint = _newRebellionLength;
   }
 
-  function executeRebellionLenghtProposal(uint256 _proposalID) public {
+  function executeRebellionLengthProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
     require(proposal.updateCode == 5 && !proposal.isExecuted, "Wrong proposal ID");
@@ -723,17 +723,17 @@ contract StickLord is ERC721, ERC721Burnable {
 
     // if the proposal is approved, apply the update the state
     if (proposal.status == Status.Approved)
-      rebellionLenght = proposal.newUint;
+      rebellionLength = proposal.newUint;
 
     proposal.isExecuted = true;
   }
 
-  function proposeSignalLenghtUpdate(uint256 _newSignalLenght) public {
+  function proposeSignalLengthUpdate(uint256 _newSignalLength) public {
     require(_msgSender() == contracts[5], "Only executors can call this function!");
 
     string memory proposalDescription = string(abi.encodePacked(
-      "In Lord contract, updating Signal Lenght to ", 
-      Strings.toHexString(_newSignalLenght), " from ", Strings.toHexString(signalLenght), "."
+      "In Lord contract, updating Signal Length to ", 
+      Strings.toHexString(_newSignalLength), " from ", Strings.toHexString(signalLength), "."
     )); 
 
     // Create a new proposal - DAO (contracts[4])
@@ -747,10 +747,10 @@ contract StickLord is ERC721, ERC721Burnable {
 
     // Save data to the local proposal
     proposals[propID].updateCode = 6;
-    proposals[propID].newUint = _newSignalLenght;
+    proposals[propID].newUint = _newSignalLength;
   }
 
-  function executeSignalLenghtProposal(uint256 _proposalID) public {
+  function executeSignalLengthProposal(uint256 _proposalID) public {
     Proposal storage proposal = proposals[_proposalID];
 
     require(proposal.updateCode == 6 && !proposal.isExecuted, "Wrong proposal ID");
@@ -770,7 +770,7 @@ contract StickLord is ERC721, ERC721Burnable {
 
     // if the proposal is approved, apply the update the state
     if (proposal.status == Status.Approved)
-      signalLenght = proposal.newUint;
+      signalLength = proposal.newUint;
 
     proposal.isExecuted = true;
   }

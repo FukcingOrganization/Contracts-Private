@@ -110,7 +110,7 @@ contract StickRound is Context, ReentrancyGuard {
   uint256[10] public levelRewardWeights;
   uint256 public totalRewardWeight;
 
-  uint256 public roundLenght;
+  uint256 public roundLength;
 
   bool isGenesisCallExecuted;
 
@@ -118,7 +118,7 @@ contract StickRound is Context, ReentrancyGuard {
     contracts = _contracts;  // Set the existing contracts
     roundCounter.increment(); // Start the rounds from 1
     rounds[roundCounter.current()].endingTime = _endOfTheFirstRound; // TEST -> Change it with unix value of Monday 00.00
-    roundLenght = 2 hours; // TEST: 7 days;
+    roundLength = 2 hours; // TEST: 7 days;
     levelRewardWeights = _levelWeights;
     totalRewardWeight = _totalWeight;
   }
@@ -263,7 +263,7 @@ contract StickRound is Context, ReentrancyGuard {
     // Now we have burnt the losers' funds and save the winner's balance. Time to start next Round!
     uint256 previousTime = _currentRound.endingTime;
     roundCounter.increment();
-    rounds[roundCounter.current()].endingTime = previousTime + roundLenght;
+    rounds[roundCounter.current()].endingTime = previousTime + roundLength;
     getBackerRewards(rounds[roundCounter.current()]);
   }
 
