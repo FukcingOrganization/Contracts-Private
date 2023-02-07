@@ -35,6 +35,7 @@ interface IClan {
   function proposeCooldownTimeUpdate(uint256 _newCooldownTime) external;
   function proposeMinBalanceToPropClanPointUpdate(uint256 _newAmount) external;
   function giveClanPoint(uint256 _clanID, uint256 _point, bool _isDecreasing) external;
+  function giveBatchClanPoints(uint256[] memory _clanIDs, uint256[] memory _points, bool[] memory _isDecreasing) external;
 }
 
 interface IClanLicense {
@@ -149,14 +150,16 @@ contract StickExecutors is Context, AccessControl {
     bytes32[] propBytes32Array;
     string propString;
     bool propBool;
+    bool[] propBoolArray;
     address propAddress;
     address[] propAddresses;
     uint256 propUint;
-    uint256[] propUintArray;
     uint256 propUint1;
     uint256 propUint2;
     uint256 propUint3;
     uint256 propUint4;
+    uint256[] propUintArray;
+    uint256[] propUintArray1;
   }
 
   Counters.Counter internal signalCounter;
@@ -222,7 +225,6 @@ contract StickExecutors is Context, AccessControl {
     
     super.renounceRole(role, account);
   }
-
   /**
    * Signal Tracker IDs
    * Contract Address Update: 1
@@ -732,7 +734,7 @@ contract StickExecutors is Context, AccessControl {
     }       
   }
   
-  function createGiveClanPoint(uint256 _clanID, uint256 _point, bool _isDecreasing) public onlyRole(EXECUTOR_ROLE) {
+  function createClanGiveClanPoint(uint256 _clanID, uint256 _point, bool _isDecreasing) public onlyRole(EXECUTOR_ROLE) {
     // Get the current signal
     Signal storage currentSignal = signals[signalTrackerID[37]];
 
@@ -768,6 +770,49 @@ contract StickExecutors is Context, AccessControl {
     // Execute proposal if the half of the executors signaled
     if (currentSignal.numOfSignals >= (numOfExecutors / 2)){
       IClan(contracts[1]).giveClanPoint(currentSignal.propUint, currentSignal.propUint1, currentSignal.propBool);
+      signalTrackerID[37] = 0; // To avoid further executions
+    }       
+  }
+
+  function createClanGiveBatchClanPoints(uint256[] memory _clanIDs, uint256[] memory _points, bool[] memory _isDecreasing) public onlyRole(EXECUTOR_ROLE) {
+    require(_clanIDs.length == _points.length, "Invalid array size!");
+    require(_clanIDs.length == _isDecreasing.length, "Invalid array size!");
+
+    // Get the current signal
+    Signal storage currentSignal = signals[signalTrackerID[37]];
+
+    // If current signal date passed, then start a new signal
+    if (block.timestamp > currentSignal.expires) {
+
+      signalTrackerID[37] = signalCounter.current();           // Save the current signal ID to the tracker
+      Signal storage newSignal = signals[signalTrackerID[37]]; // Get the signal
+      signalCounter.increment();  // Increment the counter for other signals
+
+      // Save data
+      newSignal.expires = block.timestamp + signalTime;
+      newSignal.signalTrackerID = 37;
+      newSignal.propUintArray = _clanIDs;
+      newSignal.propUintArray1 = _points;
+      newSignal.propBoolArray = _isDecreasing;
+
+      newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
+      newSignal.numOfSignals++;
+      return; // finish the function
+    }   
+
+    // If there is not enough signals, count this one as well. Then continue to check it again.
+    if (currentSignal.numOfSignals < (numOfExecutors / 2)){      
+      // If we are in the signal time, check caller's signal status
+      require(!currentSignal.isSignaled[_msgSender()], "You already signaled for this proposal");
+
+      // If not signaled, save it and increase the number of signals
+      currentSignal.isSignaled[_msgSender()] = true;
+      currentSignal.numOfSignals++;
+    }
+
+    // Execute proposal if the half of the executors signaled
+    if (currentSignal.numOfSignals >= (numOfExecutors / 2)){
+      IClan(contracts[1]).giveBatchClanPoints(currentSignal.propUintArray, currentSignal.propUintArray1, currentSignal.propBoolArray);
       signalTrackerID[37] = 0; // To avoid further executions
     }       
   }
@@ -869,7 +914,7 @@ contract StickExecutors is Context, AccessControl {
     ILord(contracts[7]).proposeBaseTaxRateUpdate(_newSignalLenght);
   }
   
-  function createWarLordCasualtyRateUpdateProposal(uint256 _newWarCasualtyRate) public onlyRole(EXECUTOR_ROLE) {
+  function createLordWarLordCasualtyRateUpdateProposal(uint256 _newWarCasualtyRate) public onlyRole(EXECUTOR_ROLE) {
     ILord(contracts[7]).proposeBaseTaxRateUpdate(_newWarCasualtyRate);
   }
 
@@ -901,7 +946,7 @@ contract StickExecutors is Context, AccessControl {
     IItems(contracts[11]).setTokenURI(_tokenID, _newURI);
   }
 
-  function createUpdateLevelRewardRates(uint256[10] memory _newLevelWeights, uint256 _newTotalWeight) public onlyRole(EXECUTOR_ROLE) {
+  function createRoundUpdateLevelRewardRates(uint256[10] memory _newLevelWeights, uint256 _newTotalWeight) public onlyRole(EXECUTOR_ROLE) {
     IRound(contracts[9]).updateLevelRewardRates(_newLevelWeights, _newTotalWeight);
   }
 

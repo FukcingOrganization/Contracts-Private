@@ -277,9 +277,33 @@ contract StickClan is Context, ReentrancyGuard {
       clan.point[roundNumber] += _point;
       rounds[roundNumber].totalClanPoint += _point;
     }
+  }
+  
+  function giveBatchClanPoints(uint256[] memory _clanIDs, uint256[] memory _points, bool[] memory _isDecreasing) public {
+    require(_msgSender() == contracts[5], "Only Executors can call this function!"); 
 
-    // If this was the first time of this clan, record the first round
-    if (clan.firstRound == 0) { clan.firstRound = roundNumber; }
+    for(uint256 i = 0; i < _clanIDs.length; i++) {      
+      require(_points[i] <= maxPointToChange, "Maximum amount of point exceeded!");
+      require(!clans[_clanIDs[i]].info.isDisbanded, "This clan is disbanded!");
+      
+      // Wait if the cooldown time is not passed. Avoids executors to change point as they wish!
+      require(block.timestamp > clanCooldownTime[_clanIDs[i]], "Wait for the cooldown time!");
+      clanCooldownTime[_clanIDs[i]] = block.timestamp + cooldownTime; // set a new cooldown time
+
+      // Update clan point before interact with them. Not member (0)
+      updatePointAndRound(_clanIDs[i], address(0));
+
+      Clan storage clan = clans[_clanIDs[i]];
+      
+      if (_isDecreasing[i]){
+        clan.point[roundNumber] -= _points[i];
+        rounds[roundNumber].totalClanPoint -= _points[i];
+      }
+      else {
+        clan.point[roundNumber] += _points[i];
+        rounds[roundNumber].totalClanPoint += _points[i];
+      }
+    }
   }
 
   function clanRewardClaim(uint256 _clanID, uint256 _roundNumber) internal {    
@@ -454,6 +478,34 @@ contract StickClan is Context, ReentrancyGuard {
     else {
       member.point[roundNumber] += _point;
       clan.totalMemberPoint[roundNumber] += _point;
+    }
+  }
+
+  function giveBatchMemberPoint(uint256 _clanID, address[] memory _memberAddresses, uint256[] memory _points, bool[] memory _isDecreasing) public nonReentrant() {
+    Clan storage clan = clans[_clanID];
+
+    require(!clan.info.isDisbanded, "This clan is disbanded!");
+    require(clan.member[_msgSender()].isExecutor, "You have no authority to give point for this clan!");
+    require(_memberAddresses.length == _points.length, "Invalid input! Check array sizes!");
+    require(_memberAddresses.length == _isDecreasing.length, "Invalid input! Check array sizes!");
+    
+    for(uint256 i = 0; i < _memberAddresses.length; i++) {      
+      MemberInfo storage member = clans[_clanID].member[_memberAddresses[i]];
+
+      require(clan.member[_memberAddresses[i]].isMember, "The address is not a member!");
+      
+      // Update clan and round point before interact with them.
+      updatePointAndRound(_clanID, _memberAddresses[i]);  
+
+      // Update member point and total member point of the clan
+      if (_isDecreasing[i]) {
+        member.point[roundNumber] -= _points[i];
+        clan.totalMemberPoint[roundNumber] -= _points[i];
+      }
+      else {
+        member.point[roundNumber] += _points[i];
+        clan.totalMemberPoint[roundNumber] += _points[i];
+      }
     }
   }
 
@@ -891,9 +943,6 @@ contract StickClan is Context, ReentrancyGuard {
         clan.point[roundNumber] += proposal.newUint;
         rounds[roundNumber].totalClanPoint += proposal.newUint;
       }
-    }
-
-    // If this was the first time of this clan to get point, record the first round
-    if (clan.firstRound == 0) { clan.firstRound = roundNumber; }    
+    } 
   }
 }
