@@ -303,7 +303,7 @@ contract StickDAO is ERC20 {
         updateProposalStatus(proposal);
 
         require(proposal.status == Status.OnGoing, "The proposal has ended my friend. Maybe another proposal?");
-        require(proposal.isVoted[_msgSender()] == false, "You have already voted dude! Why too aggressive?");
+        require(!proposal.isVoted[_msgSender()], "You have already voted dude! Why too aggressive?");
 
         proposal.isVoted[_msgSender()] = true;
 
@@ -332,7 +332,7 @@ contract StickDAO is ERC20 {
         updateProposalStatus(proposal);
 
         require(proposal.status == Status.OnGoing, "The proposal has ended my lord!");
-        require(proposal.isLordVoted[_lordID] == false, "My lord, you have already voted!");
+        require(!proposal.isLordVoted[_lordID], "My lord, you have already voted!");
 
         proposal.isLordVoted[_lordID] = true;
         
@@ -854,7 +854,7 @@ contract StickDAO is ERC20 {
     }
 
     function merkleCheck(SpendingProposal storage _proposal, bytes32[] calldata _merkleProof) internal returns (uint256) {
-        require(_proposal.claimed[_msgSender()] == false, "Dude! You have already claimed your allowance! Why too aggressive?");
+        require(!_proposal.claimed[_msgSender()], "Dude! You have already claimed your allowance! Why too aggressive?");
 
         uint256 allowanceAmount;
         bytes32 leaf = keccak256(abi.encodePacked(_msgSender()));

@@ -995,7 +995,7 @@ contract StickExecutors is Context, AccessControl {
 
     // if the proposal is approved, apply the update the state
     if (proposal.status == Status.Approved){
-      if (proposal.newBool == true){ 
+      if (proposal.newBool){ 
         _grantRole(EXECUTOR_ROLE, proposal.newAddress);
         isExecutor[proposal.newAddress] = true;
         numOfExecutors++;

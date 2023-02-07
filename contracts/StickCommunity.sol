@@ -123,7 +123,7 @@ contract StickCommunity is Context {
 
   function claimReward(uint256 _proposalID) public {
     Reward storage reward = rewards[_proposalID];
-    require(reward.isClaimed[_msgSender()] == false, "Dude, you have already claimed your shit. So back off!");
+    require(!reward.isClaimed[_msgSender()], "Dude, you have already claimed your shit. So back off!");
 
     if (!reward.approved) {
       updateRewardStatus(_proposalID);
@@ -150,12 +150,12 @@ contract StickCommunity is Context {
   // totalReward variable makes sure no more than approved reward can be claimed since merkletree doesn't provide it natively.
   function claimMerkleReward(uint256 _proposalID, bytes32[] calldata _merkleProof) public {
     MerkleReward storage mReward = merkleRewards[_proposalID];
-    require(mReward.isClaimed[_msgSender()] == false, "Dude, you have already claimed your shit. So back off!");
+    require(!mReward.isClaimed[_msgSender()], "Dude, you have already claimed your shit. So back off!");
     require(mReward.totalReward > 0, 
       "Everyone claimed all rewards. If you think there is a problem, reach out the Executors!"
     );
 
-    if (mReward.approved == false) {
+    if (!mReward.approved) {
       updateRewardStatus(_proposalID);
     }
     require(mReward.approved, "This merkle reward is not approved by Stick DAO. Sorry!");
@@ -194,7 +194,7 @@ contract StickCommunity is Context {
     Proposal storage proposal = proposals[_proposalID];
 
     require(proposal.updateCode == 3, "Wrong proposal ID");
-    require(proposal.isExecuted == false, "This proposal has already executed!");
+    require(!proposal.isExecuted, "This proposal has already executed!");
 
     // Get the result from DAO
     (bool txSuccess, bytes memory returnData) = contracts[4].call(

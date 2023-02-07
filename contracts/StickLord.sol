@@ -357,7 +357,7 @@ contract StickLord is ERC721, ERC721Burnable {
     reb = rebellions[rebellionOf[_lordID]];
 
     require(reb.status == RebellionStatus.Signaled, "The rebellion is not in the signal phase!");
-    require(reb.signaledClans[_clanID] == false, "You guys already signeled for this rebellion!");
+    require(!reb.signaledClans[_clanID], "You guys already signeled for this rebellion!");
     
     reb.signaledClans[_clanID] = true;  // mark them signelled
     reb.numberOfSignaledClans++;
@@ -455,7 +455,7 @@ contract StickLord is ERC721, ERC721Burnable {
     require(uint256(reb.status) > 2, "The rebellion is not finalized!");
 
     if (reb.status == RebellionStatus.Success) {
-      require(reb.rebelBackerClaimed[sender] == false, "You already claimed!");
+      require(!reb.rebelBackerClaimed[sender], "You already claimed!");
       reb.rebelBackerClaimed[sender] = true;
 
       uint256 contributionRate = reb.rebelBackers[sender] * 100 / reb.rebelFunds;
@@ -465,7 +465,7 @@ contract StickLord is ERC721, ERC721Burnable {
     // If it is not successful, it must be failed. But it can fail without and funding because of lack of signals.
     // Therefore, check is there any fund to send to avoid unnecessary gas usage
     else if (reb.totalFunds > 0) {
-      require(reb.lordBackerClaimed[sender] == false, "You already claimed!");
+      require(!reb.lordBackerClaimed[sender], "You already claimed!");
       reb.lordBackerClaimed[sender] = true;
 
       uint256 contributionRate = reb.lordBackers[sender] * 100 / reb.lordFunds;

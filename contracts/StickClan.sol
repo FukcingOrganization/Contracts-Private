@@ -283,7 +283,7 @@ contract StickClan is Context, ReentrancyGuard {
   }
 
   function clanRewardClaim(uint256 _clanID, uint256 _roundNumber) internal {    
-    require(rounds[_roundNumber].isClanClaimed[_clanID] == false, "Your clan already claimed its reward for this round!");
+    require(!rounds[_roundNumber].isClanClaimed[_clanID], "Your clan already claimed its reward for this round!");
     rounds[_roundNumber].isClanClaimed[_clanID] == true;  // If not claimed yet, mark it claimed.
 
     Clan storage clan = clans[_clanID];
@@ -326,7 +326,7 @@ contract StickClan is Context, ReentrancyGuard {
     require(clan.member[sender].isMember, "You are not a member of this clan!");
     // TEST: Set the final value: Now, you can only claim clan rewards after 2 rounds to ensure your earnings! 
     require(_roundNumber < roundNumber - 0/** 2 */, "You can't claim the reward until it finalizes. Rewards are getting finalized after 3 rounds!");
-    require(clan.isMemberClaimed[_roundNumber][sender] == false, "You already claimed your reward for this round!");
+    require(!clan.isMemberClaimed[_roundNumber][sender], "You already claimed your reward for this round!");
     clan.isMemberClaimed[_roundNumber][sender] == true;  // If not claimed yet, mark it claimed.
 
 
@@ -395,7 +395,7 @@ contract StickClan is Context, ReentrancyGuard {
     Clan storage clan = clans[_clanID];
     MemberInfo storage member = clan.member[_address];
 
-    require(clan.info.isDisbanded == false, "This clan is disbanded!");
+    require(!clan.info.isDisbanded, "This clan is disbanded!");
     require(clan.member[_msgSender()].isMod, "You have no authority to moderate memberships for this clan!");
     require(clan.info.leader != _address, "You can't change the membership status of the leader!");
 
@@ -417,7 +417,7 @@ contract StickClan is Context, ReentrancyGuard {
     Clan storage clan = clans[_clanID];
     MemberInfo storage member = clans[_clanID].member[_address];
 
-    require(clan.info.isDisbanded == false, "This clan is disbanded!");
+    require(!clan.info.isDisbanded, "This clan is disbanded!");
     require(_msgSender() == clan.info.leader, "You have no authority to give Executor Role for this clan!");
 
     if (_isExecutor) { member.isExecutor = true; }
@@ -428,7 +428,7 @@ contract StickClan is Context, ReentrancyGuard {
     Clan storage clan = clans[_clanID];
     MemberInfo storage member = clans[_clanID].member[_address];
 
-    require(clan.info.isDisbanded == false, "This clan is disbanded!");
+    require(!clan.info.isDisbanded, "This clan is disbanded!");
     require(_msgSender() == clan.info.leader, "You have no authority to give Executor Role for this clan!");
 
     if (_isMod) { member.isMod = true; }
@@ -439,7 +439,7 @@ contract StickClan is Context, ReentrancyGuard {
     Clan storage clan = clans[_clanID];
     MemberInfo storage member = clans[_clanID].member[_memberAddress];
 
-    require(clan.info.isDisbanded == false, "This clan is disbanded!");
+    require(!clan.info.isDisbanded, "This clan is disbanded!");
     require(clan.member[_msgSender()].isExecutor, "You have no authority to give point for this clan!");
     require(clan.member[_memberAddress].isMember, "The address is not a member!");
     
@@ -460,7 +460,7 @@ contract StickClan is Context, ReentrancyGuard {
   function signalRebellion(uint256 _clanID) public {
     Clan storage clan = clans[_clanID];
 
-    require(clan.info.isDisbanded == false, "This clan is disbanded!");    
+    require(!clan.info.isDisbanded, "This clan is disbanded!");    
     require(clan.member[_msgSender()].isExecutor, "You have no authority to signal a rebellion for this clan!");
 
     // Signal a rebellion,

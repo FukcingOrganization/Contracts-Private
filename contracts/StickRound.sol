@@ -181,7 +181,7 @@ contract StickRound is Context, ReentrancyGuard {
 
     Election storage election = round.levels[_levelNumber].election;
     // If the boss is not a candidate yet, make it a candidate for this level
-    if (election.isCandidate[_bossID] == false){
+    if (!election.isCandidate[_bossID]){
       election.isCandidate[_bossID] = true;
       election.candidateIDs.push(_bossID);
     }
@@ -209,7 +209,7 @@ contract StickRound is Context, ReentrancyGuard {
     );
 
     Election storage election = round.levels[_levelNumber].election;
-    require(election.isCandidate[_bossID] == true, "This Boss is not even a candidate!");
+    require(election.isCandidate[_bossID], "This Boss is not even a candidate!");
     require(election.backerFunds[_bossID][_msgSender()] >= _withdrawAmount, "You can't withdraw more than you deposited!");
 
     // If everything goes well, subtract funds
