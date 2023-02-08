@@ -17,6 +17,11 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
   - Executors can propose to update contract addresses, proposal types, and mint cost.
   */
 
+interface IDAO {
+  function newProposal(string memory _description, uint256 _proposalType) external returns(uint256);
+  function proposalResult(uint256 _proposalID) external returns(uint256);
+}
+
 /// @author Bora
 contract StickClanLicense is ERC1155, ERC1155Burnable {
 
@@ -140,14 +145,8 @@ contract StickClanLicense is ERC1155, ERC1155Burnable {
       Strings.toHexString(_newAddress), " from ", Strings.toHexString(contracts[_contractIndex]), "."
     )); 
 
-    // Create a new proposal - Call DAO contract (contracts[4]) - proposal type : 2 - Highly Important
-    (bool txSuccess, bytes memory returnData) = contracts[4].call(
-      abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, functionsProposalTypes[0])
-    );
-    require(txSuccess, "Transaction failed to make new proposal!");
-
-    // Save the ID to create proposal in here
-    (uint256 propID) = abi.decode(returnData, (uint256));
+    // Create a new proposal
+    uint256 propID = IDAO(contracts[4]).newProposal(proposalDescription, functionsProposalTypes[0]);
 
     // Save data to the proposal
     proposals[propID].updateCode = 1;
@@ -161,14 +160,7 @@ contract StickClanLicense is ERC1155, ERC1155Burnable {
     require(proposal.updateCode == 1 && !proposal.isExecuted, "Wrong proposal ID");
     
     // Get the result from DAO
-    (bool txSuccess, bytes memory returnData) = contracts[4].call(
-      abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
-    );
-    require(txSuccess, "Transaction failed to retrieve DAO result!");
-    (uint256 statusNum) = abi.decode(returnData, (uint256));
-
-    // Save it here
-    proposal.status = Status(statusNum);
+    proposal.status = Status(IDAO(contracts[4]).proposalResult(_proposalID));
 
     // Wait for the current one to finalize
     require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
@@ -189,14 +181,8 @@ contract StickClanLicense is ERC1155, ERC1155Burnable {
       Strings.toHexString(_newIndex), " from ", Strings.toHexString(functionsProposalTypes[_functionIndex]), "."
     )); 
 
-    // Create a new proposal - Call DAO contract (contracts[4]) - proposal type : 2 - Highly Important
-    (bool txSuccess, bytes memory returnData) = contracts[4].call(
-        abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, functionsProposalTypes[1])
-    );
-    require(txSuccess, "Transaction failed to make new proposal!");
-
-    // Save the ID
-    (uint256 propID) = abi.decode(returnData, (uint256));
+    // Create a new proposal
+    uint256 propID = IDAO(contracts[4]).newProposal(proposalDescription, functionsProposalTypes[1]);
 
     // Get data to the proposal
     proposals[propID].updateCode = 2;
@@ -209,15 +195,8 @@ contract StickClanLicense is ERC1155, ERC1155Burnable {
 
     require(proposal.updateCode == 2 && !proposal.isExecuted, "Wrong proposal ID");
 
-    // If there is already a proposal, Get its result from DAO
-    (bool txSuccess, bytes memory returnData) = contracts[4].call(
-      abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
-    );
-    require(txSuccess, "Transaction failed to retrieve DAO result!");
-    (uint256 statusNum) = abi.decode(returnData, (uint256));
-
-    // Save it here
-    proposal.status = Status(statusNum);
+    // Get its result from DAO
+    proposal.status = Status(IDAO(contracts[4]).proposalResult(_proposalID));
 
     // Wait for the current one to finalize
     require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
@@ -237,14 +216,8 @@ contract StickClanLicense is ERC1155, ERC1155Burnable {
       Strings.toHexString(_newMintCost), " from ", Strings.toHexString(mintCost), "."
     )); 
 
-    // Create a new proposal - DAO (contracts[4]) - Moderately Important Proposal (proposalTypes[1])
-    (bool txSuccess, bytes memory returnData) = contracts[4].call(
-      abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, functionsProposalTypes[2])
-    );
-    require(txSuccess, "Transaction failed to make new proposal!");
-
-    // Get the ID
-    (uint256 propID) = abi.decode(returnData, (uint256));
+    // Create a new proposal
+    uint256 propID = IDAO(contracts[4]).newProposal(proposalDescription, functionsProposalTypes[2]);
 
     // Save data to the local proposal
     proposals[propID].updateCode = 3;
@@ -257,15 +230,8 @@ contract StickClanLicense is ERC1155, ERC1155Burnable {
     require(proposal.updateCode == 3 && !proposal.isExecuted, "Wrong proposal ID");
 
     // Get the proposal result from DAO
-    (bool txSuccess, bytes memory returnData) = contracts[4].call(
-      abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
-    );
-    require(txSuccess, "Transaction failed to retrieve DAO result!");
-    (uint256 statusNum) = abi.decode(returnData, (uint256));
-
-    // Save the result here
-    proposal.status = Status(statusNum);
-
+    proposal.status = Status(IDAO(contracts[4]).proposalResult(_proposalID));
+    
     // Check if it is finalized or not
     require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
 

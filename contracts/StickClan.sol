@@ -49,6 +49,21 @@ interface IDAO {
   function proposalResult(uint256 _proposalID) external returns(uint256);
   function getMinBalanceToPropose() external view returns (uint256);
   function balanceOf(address account) external view returns (uint256);
+  function mintTokens(address _minter, uint256 _amount) external;
+}
+
+interface IRound {
+  function getCurrentRoundNumber() external returns (uint256);
+}
+
+interface ILord {
+  function clanRegistration(uint256 _lordID, uint256 _clanID) external;
+  function lordTaxInfo(uint256 _lordID) external view returns (address, uint256);
+  function signalRebellion(uint256 _lordID, uint256 _clanID) external;
+}
+
+interface IToken {
+  function clanMint() external returns (uint256);
 }
 
 contract StickClan is Context, ReentrancyGuard {
@@ -178,9 +193,7 @@ contract StickClan is Context, ReentrancyGuard {
     cooldownTime = 10 minutes; // TEST -> (7 days / 2);
     minBalanceToProposeClanPointChange = 100 ether;
 
-    (bool txSuccess0, bytes memory returnData) = contracts[9].call(abi.encodeWithSignature("getCurrentRoundNumber()"));
-    require(txSuccess0, "Transaction has failed to get current round number from Token contract!");
-    (roundNumber) = abi.decode(returnData, (uint256));
+    roundNumber = IRound(contracts[9]).getCurrentRoundNumber();
   }
 
   function DEBUG_setContract(address _contractAddress, uint256 _index) public {
@@ -301,9 +314,7 @@ contract StickClan is Context, ReentrancyGuard {
     uint256 clanID = clanCounter.current();
 
     // Register the clan to the lord
-    bytes memory payload = abi.encodeWithSignature("clanRegistration(uint256,uint256)", _lordID, clanID);
-    (bool txSuccess, ) = address(contracts[7]).call(payload);
-    require(txSuccess, "Transaction has fail to register clan to the Lord contract!");
+    ILord(contracts[7]).clanRegistration(_lordID, clanID);
 
     // Create the clan
     Clan storage clan = clans[clanID];
@@ -414,9 +425,7 @@ contract StickClan is Context, ReentrancyGuard {
     rounds[_roundNumber].claimedRewards += reward;  // Keep record of the claimed rewards
 
     // Get the address and the tax rate of the lord
-    (bool txSuccess1, bytes memory returnData1) = address(contracts[7]).call(abi.encodeWithSignature("lordTaxInfo(uint256)", clan.info.lordID));
-    require(txSuccess1, "Failed to get the address of the lord!");
-    (address lordAddress, uint256 taxRate) = abi.decode(returnData1, (address, uint256));
+    (address lordAddress, uint256 taxRate) = ILord(contracts[7]).lordTaxInfo(clan.info.lordID);
 
     // Get the lord tax and update the reward after tax //
     uint256 lordTax = reward * taxRate / 100;
@@ -427,8 +436,7 @@ contract StickClan is Context, ReentrancyGuard {
       IERC20(contracts[11]).transfer(lordAddress, lordTax);
 
       // Mint SDAO tokens as much as the lord tax reward
-      (bool txSuccess,) = contracts[4].call(abi.encodeWithSignature("mintTokens(address,uint256)", lordAddress, lordTax));
-      require(txSuccess, "Transaction failed to mint new SDAO tokens!");
+      IDAO(contracts[4]).mintTokens(lordAddress, lordTax);
     }
 
     // Then keep the remaining for the clan
@@ -463,24 +471,17 @@ contract StickClan is Context, ReentrancyGuard {
     clan.claimedRewards[_roundNumber] += reward; // Update the claimed rewards
 
     // Mint SDAO tokens as much as the clan member reward
-    (bool txSuccess,) = contracts[4].call(abi.encodeWithSignature("mintTokens(address,uint256)", sender, reward));
-    require(txSuccess, "Transaction failed to mint new SDAO tokens!");
+    IDAO(contracts[4]).mintTokens(sender, reward);
   }
 
   /// @dev Starts the new round if the time is up
   function checkAndUpdateRound() public {
-    (bool txSuccess0, bytes memory returnData) = contracts[9].call(abi.encodeWithSignature("getCurrentRoundNumber()"));
-    require(txSuccess0, "Transaction has failed to get current round number from Round contract!");
-    (uint256 currentRound) = abi.decode(returnData, (uint256));
+    uint256 currentRound = IRound(contracts[9]).getCurrentRoundNumber();
 
     // If the new round has started, get rewards from StickToken contract first
     if (currentRound > roundNumber){ 
       // Get the clans rewards from token
-      (bool txSuccess0, bytes memory returnData0) = contracts[11].call(abi.encodeWithSignature("clanMint()"));
-      require(txSuccess0, "Transaction has failed to get clan rewards from Token contract!");
-
-      // Save the reward to the round
-      (rounds[roundNumber].clanRewards) = abi.decode(returnData0, (uint256));
+      rounds[roundNumber].clanRewards = IToken(contracts[11]).clanMint();
 
       // Pass on the current total clan point to the next round
       rounds[currentRound].totalClanPoint = rounds[roundNumber].totalClanPoint;
@@ -614,10 +615,7 @@ contract StickClan is Context, ReentrancyGuard {
     require(clan.member[_msgSender()].isExecutor, "You have no authority to signal a rebellion for this clan!");
 
     // Signal a rebellion,
-    (bool txSuccess, ) = contracts[7].call(abi.encodeWithSignature(
-      "signalRebellion(uint256,uint256)", clan.info.lordID, _clanID)
-    );
-    require(txSuccess, "The transaction has failed when signalling");
+    ILord(contracts[7]).signalRebellion(clan.info.lordID, _clanID);
   }
 
   function transferLeadership(uint256 _clanID, address _newLeader) public  {
@@ -673,14 +671,8 @@ contract StickClan is Context, ReentrancyGuard {
       Strings.toHexString(_newAddress), " from ", Strings.toHexString(contracts[_contractIndex]), "."
     )); 
 
-    // Create a new proposal - Call DAO contract (contracts[4]) 
-    (bool txSuccess, bytes memory returnData) = contracts[4].call(
-      abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, functionsProposalTypes[0])
-    );
-    require(txSuccess, "Transaction failed to make new proposal!");
-
-    // Save the ID to create proposal in here
-    (uint256 propID) = abi.decode(returnData, (uint256));
+    // Create a new proposal
+    uint256 propID = IDAO(contracts[4]).newProposal(proposalDescription, functionsProposalTypes[0]);
 
     // Save data to the proposal
     proposals[propID].updateCode = 1;
@@ -694,14 +686,7 @@ contract StickClan is Context, ReentrancyGuard {
     require(proposal.updateCode == 1 && !proposal.isExecuted, "Wrong proposal ID");
     
     // Get the result from DAO
-    (bool txSuccess, bytes memory returnData) = contracts[4].call(
-      abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
-    );
-    require(txSuccess, "Transaction failed to retrieve DAO result!");
-    (uint256 statusNum) = abi.decode(returnData, (uint256));
-
-    // Save it here
-    proposal.status = Status(statusNum);
+    proposal.status = Status(IDAO(contracts[4]).proposalResult(_proposalID));
 
     // Wait for the current one to finalize
     require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
@@ -722,14 +707,8 @@ contract StickClan is Context, ReentrancyGuard {
       Strings.toHexString(_newIndex), " from ", Strings.toHexString(functionsProposalTypes[_functionIndex]), "."
     )); 
 
-    // Create a new proposal - Call DAO contract (contracts[4])
-    (bool txSuccess, bytes memory returnData) = contracts[4].call(
-        abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, functionsProposalTypes[1])
-    );
-    require(txSuccess, "Transaction failed to make new proposal!");
-
-    // Save the ID
-    (uint256 propID) = abi.decode(returnData, (uint256));
+    // Create a new proposal
+    uint256 propID = IDAO(contracts[4]).newProposal(proposalDescription, functionsProposalTypes[1]);
 
     // Get data to the proposal
     proposals[propID].updateCode = 2;
@@ -742,15 +721,8 @@ contract StickClan is Context, ReentrancyGuard {
 
     require(proposal.updateCode == 2 && !proposal.isExecuted, "Wrong proposal ID");
 
-    // If there is already a proposal, Get its result from DAO
-    (bool txSuccess, bytes memory returnData) = contracts[4].call(
-      abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
-    );
-    require(txSuccess, "Transaction failed to retrieve DAO result!");
-    (uint256 statusNum) = abi.decode(returnData, (uint256));
-
-    // Save it here
-    proposal.status = Status(statusNum);
+    // Get its result from DAO
+    proposal.status = Status(IDAO(contracts[4]).proposalResult(_proposalID));
 
     // Wait for the current one to finalize
     require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
@@ -770,14 +742,8 @@ contract StickClan is Context, ReentrancyGuard {
       Strings.toHexString(_newMaxPoint), " from ", Strings.toHexString(maxPointToChange), "."
     )); 
 
-    // Create a new proposal - DAO (contracts[4])
-    (bool txSuccess, bytes memory returnData) = contracts[4].call(
-         abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, functionsProposalTypes[2])
-    );
-    require(txSuccess, "Transaction failed to make new proposal!");
-
-    // Get the ID
-    (uint256 propID) = abi.decode(returnData, (uint256));
+    // Create a new proposal
+    uint256 propID = IDAO(contracts[4]).newProposal(proposalDescription, functionsProposalTypes[2]);
 
     // Save data to the local proposal
     proposals[propID].updateCode = 3;
@@ -790,14 +756,7 @@ contract StickClan is Context, ReentrancyGuard {
     require(proposal.updateCode == 3 && !proposal.isExecuted, "Wrong proposal ID");
 
     // Get the proposal result from DAO
-    (bool txSuccess, bytes memory returnData) = contracts[4].call(
-      abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
-    );
-    require(txSuccess, "Transaction failed to retrieve DAO result!");
-    (uint256 statusNum) = abi.decode(returnData, (uint256));
-
-    // Save the result here
-    proposal.status = Status(statusNum);
+    proposal.status = Status(IDAO(contracts[4]).proposalResult(_proposalID));
 
     // Check if it is finalized or not
     require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
@@ -817,14 +776,8 @@ contract StickClan is Context, ReentrancyGuard {
       Strings.toHexString(_newCooldownTime), " from ", Strings.toHexString(cooldownTime), "."
     )); 
 
-    // Create a new proposal - DAO (contracts[4])
-    (bool txSuccess, bytes memory returnData) = contracts[4].call(
-         abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, functionsProposalTypes[3])
-    );
-    require(txSuccess, "Transaction failed to make new proposal!");
-
-    // Get the ID
-    (uint256 propID) = abi.decode(returnData, (uint256));
+    // Create a new proposal
+    uint256 propID = IDAO(contracts[4]).newProposal(proposalDescription, functionsProposalTypes[3]);
 
     // Save data to the local proposal
     proposals[propID].updateCode = 4;
@@ -837,14 +790,7 @@ contract StickClan is Context, ReentrancyGuard {
     require(proposal.updateCode == 4 && !proposal.isExecuted, "Wrong proposal ID");
 
     // Get the proposal result from DAO
-    (bool txSuccess, bytes memory returnData) = contracts[4].call(
-      abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
-    );
-    require(txSuccess, "Transaction failed to retrieve DAO result!");
-    (uint256 statusNum) = abi.decode(returnData, (uint256));
-
-    // Save the result here
-    proposal.status = Status(statusNum);
+    proposal.status = Status(IDAO(contracts[4]).proposalResult(_proposalID));
 
     // Check if it is finalized or not
     require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
@@ -929,14 +875,8 @@ contract StickClan is Context, ReentrancyGuard {
       )); 
     }
 
-    // Create a new proposal - Call DAO contract (contracts[4]) - proposal type : 1 - Moderately Important
-    (bool txSuccess, bytes memory returnData) = contracts[4].call(
-      abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, functionsProposalTypes[5])
-    );
-    require(txSuccess, "Transaction failed to make new proposal!");
-
-    // Save the ID to create proposal in here
-    (uint256 propID) = abi.decode(returnData, (uint256));
+    // Create a new proposal
+    uint256 propID = IDAO(contracts[4]).newProposal(proposalDescription, functionsProposalTypes[5]);
 
     // Save data to the proposal
     proposals[propID].updateCode = 6;
@@ -958,14 +898,7 @@ contract StickClan is Context, ReentrancyGuard {
     require(proposal.updateCode == 6 && !proposal.isExecuted, "Wrong proposal ID");
     
     // Get the result from DAO
-    (bool txSuccess, bytes memory returnData) = contracts[4].call(
-      abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
-    );
-    require(txSuccess, "Transaction failed to retrieve DAO result!");
-    (uint256 statusNum) = abi.decode(returnData, (uint256));
-
-    // Save it here
-    proposal.status = Status(statusNum);
+    proposal.status = Status(IDAO(contracts[4]).proposalResult(_proposalID));
 
     // Wait for the current one to finalize
     require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");

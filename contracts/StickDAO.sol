@@ -389,15 +389,8 @@ contract StickDAO is ERC20 {
         require(proposal.status == Status.NotStarted, "The current monetary proposal is not finalized bro! Come back later!");
 
         // Checking the balance of DAO in the target token
-        bytes memory payload = abi.encodeWithSignature("balanceOf(address)", address(this));
-        (bool txSuccess, bytes memory returnData) = _tokenContractAddress.call(payload);
-        require(txSuccess, 
-            "Balance check transaction failed! Check the address of the target token bro. It should have balanceOf(address account) function!"
-        );
-
-        // Get the balance from returned data and check if DAO has enough balance to spend or not!
-        (uint256 DAObalance) = abi.decode(returnData, (uint256));
-        require (DAObalance >= _totalSpending, "DAO has not enough balance to spend! Sad, isn't it?");
+        uint256 tokenBalance = ERC20(_tokenContractAddress).balanceOf(address(this));
+        require (tokenBalance >= _totalSpending, "DAO has not enough balance to spend! Sad, isn't it?");
 
         // If all goes well, write the new proposal
         proposal.status = Status.OnGoing;
@@ -426,9 +419,7 @@ contract StickDAO is ERC20 {
         require(allowanceAmount + proposal.totalClaimedAmount <= proposal.amount, "The approved amount exceeding!");    
 
         // Send funds
-        bytes memory payload = abi.encodeWithSignature("transfer(address,uint256)", _msgSender(), allowanceAmount);
-        (bool txSuccess, ) = proposal.tokenAddress.call(payload);
-        require(txSuccess, "Token transfer transaction has failed!");
+        ERC20(proposal.tokenAddress).transfer(_msgSender(), allowanceAmount);
 
         // Keep track of claimed total amount
         proposal.totalClaimedAmount += allowanceAmount;
@@ -881,16 +872,9 @@ contract StickDAO is ERC20 {
 
     function getContractCoinBalance() public view returns (uint256){ return address(this).balance; }
 
-    function getContractTokenBalance(address _tokenContractAddress) public returns (uint256) {
+    function getContractTokenBalance(address _tokenContractAddress) public view returns (uint256) {
         // Checking the balance of DAO in the target token
-        bytes memory payload = abi.encodeWithSignature("balanceOf(address)", address(this));
-        (bool txSuccess, bytes memory returnData) = _tokenContractAddress.call(payload);
-        require(txSuccess, 
-            "Balance check transaction failed! Check the address of the target token. It should have balanceOf(address) function!"
-        );
-
-        (uint256 DAObalance) = abi.decode(returnData, (uint256));
-        return DAObalance;
+        return ERC20(_tokenContractAddress).balanceOf(address(this));
     }
 
     function getMinBalanceToPropose() public view returns (uint256) { return minBalanceToPropose; }

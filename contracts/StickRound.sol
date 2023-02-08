@@ -2,6 +2,7 @@
 pragma solidity ^0.8.4;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
@@ -30,7 +31,21 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
   *
   * -> Higher levels have higher backer reward which will result with higher funding and 
   * higher reward for players.
-  */
+*/
+
+
+interface IDAO {
+  function newProposal(string memory _description, uint256 _proposalType) external returns(uint256);
+  function proposalResult(uint256 _proposalID) external returns(uint256);
+}
+
+interface IBoss {
+  function bossRekt(uint256 _tokenID) external;
+}
+
+interface IToken {
+  function backerMint() external returns (uint256);
+}
 
 /**
  * @author Bora
@@ -251,12 +266,10 @@ contract StickRound is Context, ReentrancyGuard {
           } 
         }
         // Burn them all!
-        (bool txSuccess0, ) = address(contracts[11]).call(abi.encodeWithSignature("burn(uint256)", burnAmount));
-        require(txSuccess0, "Burn tx has failed!");  
+        ERC20Burnable(contracts[11]).burn(burnAmount);
 
         // Record the Rekt
-        (bool txSuccess1, ) = address(contracts[0]).call(abi.encodeWithSignature("bossRekt(uint256)", election.winnerID));
-        require(txSuccess1, "Rekt record tx has failed!");
+        IBoss(contracts[0]).bossRekt(election.winnerID);
       }
     }
 
@@ -372,10 +385,8 @@ contract StickRound is Context, ReentrancyGuard {
   }
 
   function getBackerRewards(Round storage _round) internal {
-    // Get the backer rewards from token
-    (bool txSuccess, bytes memory returnData) = contracts[11].call(abi.encodeWithSignature("backerMint()"));
-    require(txSuccess, "Transaction has failed to get backer rewards from Token contract!");
-    (_round.roundRewards) = abi.decode(returnData, (uint256));
+    // Get the backer rewards
+    _round.roundRewards = IToken(contracts[11]).backerMint();
 
     // Distribute it according to level weights
     for (uint256 i = 0; i < 10; i++) {
@@ -430,14 +441,8 @@ contract StickRound is Context, ReentrancyGuard {
       Strings.toHexString(_newAddress), " from ", Strings.toHexString(contracts[_contractIndex]), "."
     )); 
 
-    // Create a new proposal - Call DAO contract (contracts[4])
-    (bool txSuccess, bytes memory returnData) = contracts[4].call(
-      abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypeIndex)
-    );
-    require(txSuccess, "Transaction failed to make new proposal!");
-
-    // Save the ID to create proposal in here
-    (uint256 propID) = abi.decode(returnData, (uint256));
+    // Create a new proposal
+    uint256 propID = IDAO(contracts[4]).newProposal(proposalDescription, proposalTypeIndex);
 
     // Save data to the proposal
     proposals[propID].updateCode = 1;
@@ -451,14 +456,7 @@ contract StickRound is Context, ReentrancyGuard {
     require(proposal.updateCode == 1 && !proposal.isExecuted, "Wrong proposal ID");
     
     // Get the result from DAO
-    (bool txSuccess, bytes memory returnData) = contracts[4].call(
-      abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
-    );
-    require(txSuccess, "Transaction failed to retrieve DAO result!");
-    (uint256 statusNum) = abi.decode(returnData, (uint256));
-
-    // Save it here
-    proposal.status = Status(statusNum);
+    proposal.status = Status(IDAO(contracts[4]).proposalResult(_proposalID));
 
     // Wait for the current one to finalize
     require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
@@ -479,14 +477,8 @@ contract StickRound is Context, ReentrancyGuard {
       Strings.toHexString(_newTypeIndex), " from ", Strings.toHexString(proposalTypeIndex), "."
     )); 
 
-    // Create a new proposal - Call DAO contract (contracts[4])
-    (bool txSuccess, bytes memory returnData) = contracts[4].call(
-        abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypeIndex)
-    );
-    require(txSuccess, "Transaction failed to make new proposal!");
-
-    // Save the ID
-    (uint256 propID) = abi.decode(returnData, (uint256));
+    // Create a new proposal
+    uint256 propID = IDAO(contracts[4]).newProposal(proposalDescription, proposalTypeIndex);
 
     // Get data to the proposal
     proposals[propID].updateCode = 2;
@@ -498,15 +490,8 @@ contract StickRound is Context, ReentrancyGuard {
 
     require(proposal.updateCode == 2 && !proposal.isExecuted, "Wrong proposal ID");
 
-    // If there is already a proposal, Get its result from DAO
-    (bool txSuccess, bytes memory returnData) = contracts[4].call(
-      abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
-    );
-    require(txSuccess, "Transaction failed to retrieve DAO result!");
-    (uint256 statusNum) = abi.decode(returnData, (uint256));
-
-    // Save it here
-    proposal.status = Status(statusNum);
+    // Get its result from DAO
+    proposal.status = Status(IDAO(contracts[4]).proposalResult(_proposalID));
 
     // Wait for the current one to finalize
     require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");

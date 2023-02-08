@@ -13,6 +13,16 @@ import "@openzeppelin/contracts/utils/Strings.sol";
  * -> Everyone can rent a listed lord NFT except the owner of the lord.
  */
 
+
+interface IDAO {
+  function newProposal(string memory _description, uint256 _proposalType) external returns(uint256);
+  function proposalResult(uint256 _proposalID) external returns(uint256);
+}
+
+interface ILord {
+  function setUser(uint256 tokenId, address user, uint256 expires) external;
+}
+
 /**
  * @author Bora
  */
@@ -116,9 +126,7 @@ contract StickRent is Context {
     IERC20(contracts[11]).transferFrom(_msgSender(), listing.ownerAddress, listing.fee);
 
     // Rent the NFT
-    bytes memory payload = abi.encodeWithSignature("setUser(uint256,address,uint256)", listing.lordID, _msgSender(), (block.timestamp + listing.length));
-    (bool txSuccess, ) = contracts[7].call(payload);
-    require(txSuccess, "Transaction has fail to set rent from the Lord contract!");
+    ILord(contracts[7]).setUser(listing.lordID, _msgSender(), (block.timestamp + listing.length));
   }
 
   /**
@@ -139,14 +147,8 @@ contract StickRent is Context {
       Strings.toHexString(_newAddress), " from ", Strings.toHexString(contracts[_contractIndex]), "."
     )); 
 
-    // Create a new proposal - Call DAO contract (contracts[4])
-    (bool txSuccess, bytes memory returnData) = contracts[4].call(
-      abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypeIndex)
-    );
-    require(txSuccess, "Transaction failed to make new proposal!");
-
-    // Save the ID to create proposal in here
-    (uint256 propID) = abi.decode(returnData, (uint256));
+    // Create a new proposal
+    uint256 propID = IDAO(contracts[4]).newProposal(proposalDescription, proposalTypeIndex);
 
     // Save data to the proposal
     proposals[propID].updateCode = 1;
@@ -160,14 +162,7 @@ contract StickRent is Context {
     require(proposal.updateCode == 1 && !proposal.isExecuted, "Wrong proposal ID");
     
     // Get the result from DAO
-    (bool txSuccess, bytes memory returnData) = contracts[4].call(
-      abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
-    );
-    require(txSuccess, "Transaction failed to retrieve DAO result!");
-    (uint256 statusNum) = abi.decode(returnData, (uint256));
-
-    // Save it here
-    proposal.status = Status(statusNum);
+    proposal.status = Status(IDAO(contracts[4]).proposalResult(_proposalID));
 
     // Wait for the current one to finalize
     require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
@@ -188,14 +183,8 @@ contract StickRent is Context {
       Strings.toHexString(_newTypeIndex), " from ", Strings.toHexString(proposalTypeIndex), "."
     )); 
 
-    // Create a new proposal - Call DAO contract (contracts[4])
-    (bool txSuccess, bytes memory returnData) = contracts[4].call(
-        abi.encodeWithSignature("newProposal(string,uint256)", proposalDescription, proposalTypeIndex)
-    );
-    require(txSuccess, "Transaction failed to make new proposal!");
-
-    // Save the ID
-    (uint256 propID) = abi.decode(returnData, (uint256));
+    // Create a new proposal
+    uint256 propID = IDAO(contracts[4]).newProposal(proposalDescription, proposalTypeIndex);
 
     // Get data to the proposal
     proposals[propID].updateCode = 2;
@@ -207,15 +196,8 @@ contract StickRent is Context {
 
     require(proposal.updateCode == 2 && !proposal.isExecuted, "Wrong proposal ID");
 
-    // If there is already a proposal, Get its result from DAO
-    (bool txSuccess, bytes memory returnData) = contracts[4].call(
-      abi.encodeWithSignature("proposalResult(uint256)", _proposalID)
-    );
-    require(txSuccess, "Transaction failed to retrieve DAO result!");
-    (uint256 statusNum) = abi.decode(returnData, (uint256));
-
-    // Save it here
-    proposal.status = Status(statusNum);
+    // Get its result from DAO
+    proposal.status = Status(IDAO(contracts[4]).proposalResult(_proposalID));
 
     // Wait for the current one to finalize
     require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
