@@ -987,7 +987,7 @@ contract StickExecutors is Context, AccessControl {
     proposal.status = Status(IDAO(contracts[4]).proposalResult(_proposalID));
   
     // Wait for the current one to finalize
-    require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
+    require(proposal.status > Status.OnGoing, "The proposal still going on or not even started!");
   
     // if the current one is approved, apply the update the state
     if (proposal.status == Status.Approved)
@@ -1036,7 +1036,7 @@ contract StickExecutors is Context, AccessControl {
     proposal.status = Status(IDAO(contracts[4]).proposalResult(_proposalID));
 
     // Check if it is finalized or not
-    require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
+    require(proposal.status > Status.OnGoing, "The proposal still going on or not even started!");
 
     // if the proposal is approved, apply the update the state
     if (proposal.status == Status.Approved){

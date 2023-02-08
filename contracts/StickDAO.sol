@@ -505,7 +505,7 @@ contract StickDAO is ERC20 {
         proposal.status = Status(proposalResult(_proposalID));
 
         // Wait for the current one to finalize
-        require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
+        require(proposal.status > Status.OnGoing, "The proposal still going on or not even started!");
 
         // if approved, apply the update the state
         if (proposal.status == Status.Approved)
@@ -541,7 +541,7 @@ contract StickDAO is ERC20 {
         proposal.status = Status(proposalResult(_proposalID));
 
         // Wait for the current one to finalize
-        require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
+        require(proposal.status > Status.OnGoing, "The proposal still going on or not even started!");
 
         // if the current one is approved, apply the update the state
         if (proposal.status == Status.Approved)
@@ -575,7 +575,7 @@ contract StickDAO is ERC20 {
         proposal.status = Status(proposalResult(_proposalID));
 
         // Check if it is finalized or not
-        require(uint256(proposal.status) > 1, "The proposal still going on or not even started!");
+        require(proposal.status > Status.OnGoing, "The proposal still going on or not even started!");
 
         // if the proposal is approved, apply the update the state
         if (proposal.status == Status.Approved)
@@ -812,7 +812,7 @@ contract StickDAO is ERC20 {
     function proposalResult(uint256 _proposalID) public returns(uint256) {
         Proposal storage proposal = proposals[_proposalID];
         updateProposalStatus(proposal);
-        require (uint256(proposal.status) > 1, "Proposal is still going on or not even started dude!");
+        require (proposal.status > Status.OnGoing, "Proposal is still going on or not even started dude!");
 
         return uint256(proposal.status);
     }
@@ -820,7 +820,7 @@ contract StickDAO is ERC20 {
     function isProposalPassed(uint256 _proposalID) public returns(bool) {
         Proposal storage proposal = proposals[_proposalID];
         updateProposalStatus(proposal);
-        require (uint256(proposal.status) > 1, "Proposal is still going on or not even started dude!");
+        require (proposal.status > Status.OnGoing, "Proposal is still going on or not even started dude!");
 
         return proposal.status == Status.Approved;
     }
