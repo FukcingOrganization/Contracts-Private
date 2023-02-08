@@ -65,6 +65,7 @@ contract StickClan is Context, ReentrancyGuard {
     // Clan foundation info
     address leader;
     uint256 lordID;
+    uint256 firstRound;
 
     // Clan display info
     string name;
@@ -84,8 +85,8 @@ contract StickClan is Context, ReentrancyGuard {
 
     // Clan point and balance
     uint256 proposal_ID;
-    uint256 firstRound;
     uint256 balance;        
+    uint256 maxMemberCount;        
     address[] members;
     mapping(address => MemberInfo) member;
     Counters.Counter memberCounter;
@@ -118,7 +119,7 @@ contract StickClan is Context, ReentrancyGuard {
   }
 
   struct Round {
-    uint256 totalClanPoint;                // Total clan pts at the time
+    uint256 totalClanPoint;                 // Total clan pts at the time
     uint256 clanRewards;                    // Total clan reward at the time
     uint256 claimedRewards;                 // Total claimd reward at the time
     mapping(uint256 => bool) isClanClaimed; // Clan ID => is claimed?
@@ -190,6 +191,101 @@ contract StickClan is Context, ReentrancyGuard {
     contracts = _contracts;
   }
 
+  //////// View Functions ////////
+  ///@dev returns true if the clan claimed its reward for a specific round
+  function viewIsClanClaimed(uint256 _roundNumber, uint256 _clanID) public view returns(bool) {
+    return rounds[_roundNumber].isClanClaimed[_clanID];
+  }
+
+  ///@dev returns true if the member address claimed its reward for a specific round
+  function viewIsMemberClaimed(uint256 _roundNumber, uint256 _clanID, address _memberAddress) public view returns(bool) {
+    return clans[_clanID].isMemberClaimed[_roundNumber][_memberAddress];
+  }
+
+  ///@dev returns total and claimed rewards for a specific round
+  function viewClanRewards(uint256 _roundNumber, uint256 _clanID) public view returns(uint256, uint256) {
+    return (clans[_clanID].rewards[_roundNumber], clans[_clanID].claimedRewards[_roundNumber]);
+  }
+
+  ///@dev returns current and max clan member amount
+  function viewClanRewards(uint256 _clanID) public view returns(uint256, uint256) {
+    return (clans[_clanID].memberCounter.current(), clans[_clanID].maxMemberCount);
+  }
+
+  ///@dev returns current and max clan member amount
+  function viewClanInfo(uint256 _clanID) public view returns(
+    address, uint256, uint256, 
+    string memory, string memory, string memory, string memory, 
+    bool, bool, bool, bool) 
+  {
+    ClanInfo storage info = clans[_clanID].info;
+    return (info.leader, info.lordID, info.firstRound, 
+      info.name, info.description, info.motto, info.logoURI, 
+      info.canExecutorsSignalRebellion, 
+      info.canExecutorsSetPoint, 
+      info.canModerateMembers, 
+      info.isDisbanded
+    );
+  }
+
+  ///@dev returns current and max clan member amount
+  function getClanBalance(uint256 _clanID) public view returns(uint256) {
+    return (clans[_clanID].balance);
+  }
+  
+  ///@dev Returns the real clan of an address. Only members with point are real members, others are default
+  function getClanOf(address _address) public view returns (uint256) {
+    Clan storage clan = clans[declaredClan[_address]];
+    return clan.member[_address].isMember ? declaredClan[_address] : 0;
+  }
+
+  ///@dev Returns true if the member is an executor in its clan
+  function isMemberExecutor(address _memberAddress) public view returns (bool) {
+    Clan storage clan = clans[declaredClan[_memberAddress]];
+    return clan.member[_memberAddress].isExecutor;
+  }
+
+  ///@dev Returns true if the member is an executor in its clan
+  function isMemberMod(address _memberAddress) public view returns (bool) {
+    Clan storage clan = clans[declaredClan[_memberAddress]];
+    return clan.member[_memberAddress].isMod;
+  }
+
+  ///@dev Returns the member's point
+  function getMemberPoint(address _memberAddress) public returns (uint256) {
+    uint256 clanID = declaredClan[_memberAddress];
+    MemberInfo storage member = clans[declaredClan[_memberAddress]].member[_memberAddress];
+
+    // Update clan point before interact with them.
+    updatePointAndRound(clanID, _memberAddress); 
+
+    return member.point[roundNumber];
+  }
+
+  ///@dev returns Total Clan Point, Clan Point, Total Member Point, Member Addresses, Member Points, isMemberActive, isMemberExecutor, isMemberMod
+  function getClanPoints(uint256 _clanID) public view returns 
+    (uint256, uint256, uint256, address[] memory, uint256[] memory, bool[] memory, bool[] memory, bool[] memory) 
+  {
+    Clan storage clan = clans[_clanID];
+    //MemberInfo storage member = clans[_clanID].members[_address];
+
+    bool[] memory isMemberActive  = new bool[](clan.maxMemberCount);
+    bool[] memory isMemberExecutor  = new bool[](clan.maxMemberCount);
+    bool[] memory isMemberMod  = new bool[](clan.maxMemberCount);
+    uint256[] memory memberPoints  = new uint[](clan.maxMemberCount);
+
+    for (uint256 count = 0; count < clan.maxMemberCount; count++) {
+      MemberInfo storage member = clan.member[clan.members[count]]; // Get each registered member
+
+      isMemberActive[count] = member.isMember;
+      isMemberExecutor[count] = member.isExecutor;
+      isMemberMod[count] = member.isMod;
+      memberPoints[count] = member.point[roundNumber];
+    }
+
+    return (rounds[roundNumber].totalClanPoint, clan.point[roundNumber], clan.totalMemberPoint[roundNumber], clan.members, memberPoints, isMemberActive, isMemberExecutor, isMemberMod);
+  }
+
   function createClan(
     uint256 _lordID, 
     string memory _clanName, 
@@ -220,7 +316,7 @@ contract StickClan is Context, ReentrancyGuard {
     clan.info.motto = _clanMotto;
     clan.info.logoURI = _clanLogoURI;
     clan.members.push(_msgSender());
-    clan.firstRound = roundNumber;
+    clan.info.firstRound = roundNumber;
 
     // Sign the leader as a member of the clan as well and give full authority
     clan.member[_msgSender()].isMember = true;
@@ -228,6 +324,7 @@ contract StickClan is Context, ReentrancyGuard {
     clan.member[_msgSender()].isMod = true;
 
     clan.memberCounter.increment(); // Increament the counter to 1 from 0
+    clan.maxMemberCount++;
   }
 
   function declareClan(uint256 _clanID) public {
@@ -399,18 +496,18 @@ contract StickClan is Context, ReentrancyGuard {
     
     // Update clan point
     uint256 index = roundNumber;
-    while (clan.point[index] == 0 && index > clan.firstRound) { index--; }
+    while (clan.point[index] == 0 && index > clan.info.firstRound) { index--; }
     clan.point[roundNumber] = clan.point[index];
 
     // Update total member point of the clan
     index = roundNumber;
-    while (clan.totalMemberPoint[index] == 0 && index > clan.firstRound) { index--; }
+    while (clan.totalMemberPoint[index] == 0 && index > clan.info.firstRound) { index--; }
     clan.totalMemberPoint[roundNumber] = clan.totalMemberPoint[index];
     
     // Member point of the clan
     if (_memberAddress == address(0)) { return; }  // If the member address is null, then skip it
     index = roundNumber;
-    while (clan.member[_memberAddress].point[index] == 0 && index > clan.firstRound) { index--; }
+    while (clan.member[_memberAddress].point[index] == 0 && index > clan.info.firstRound) { index--; }
     clan.member[_memberAddress].point[roundNumber] = clan.member[_memberAddress].point[index];
   }
 
@@ -428,6 +525,7 @@ contract StickClan is Context, ReentrancyGuard {
       require(_clanID == declaredClan[_address], "The address you wish to set as member should declare its clan first!");
       clan.members.push(_msgSender());
       clan.memberCounter.increment();
+      clan.maxMemberCount++;
       member.isMember = true;
     }
     else if (member.isMember) { 
@@ -552,60 +650,6 @@ contract StickClan is Context, ReentrancyGuard {
   function updateClanLogoURI(uint256 _clanID, string memory _newLogoURI) public  {
     require(clans[_clanID].info.leader == _msgSender(), "You have no authority to update clan name for this clan!");
     clans[_clanID].info.logoURI = _newLogoURI;
-  }
-  
-  // Returns the real clan of an address. Only members with point are real members, others are default
-  function getClan(address _address) public view returns (uint256) {
-    Clan storage clan = clans[declaredClan[_address]];
-    return clan.member[_address].isMember ? declaredClan[_address] : 0;
-  }
-
-  // Returns true if the member is an executor in its clan
-  function isMemberExecutor(address _memberAddress) public view returns (bool) {
-    Clan storage clan = clans[declaredClan[_memberAddress]];
-    return clan.member[_memberAddress].isExecutor;
-  }
-
-  // Returns true if the member is an executor in its clan
-  function isMemberMod(address _memberAddress) public view returns (bool) {
-    Clan storage clan = clans[declaredClan[_memberAddress]];
-    return clan.member[_memberAddress].isMod;
-  }
-
-  // Returns the member's point
-  function getMemberPoint(address _memberAddress) public returns (uint256) {
-    uint256 clanID = declaredClan[_memberAddress];
-    MemberInfo storage member = clans[declaredClan[_memberAddress]].member[_memberAddress];
-
-    // Update clan point before interact with them.
-    updatePointAndRound(clanID, _memberAddress); 
-
-    return member.point[roundNumber];
-  }
-
-  // returns all the members' point along with IDs
-  function getPointsOf(uint256 _clanID) public view returns 
-    (uint256, uint256, uint256, bool[] memory, bool[] memory, bool[] memory, uint256[] memory) 
-  {
-    Clan storage clan = clans[_clanID];
-    //MemberInfo storage member = clans[_clanID].members[_address];
-
-    uint256 memberCount = clan.memberCounter.current();
-    bool[] memory isMemberActive  = new bool[](memberCount);
-    bool[] memory isMemberExecutor  = new bool[](memberCount);
-    bool[] memory isMemberMod  = new bool[](memberCount);
-    uint256[] memory memberPoints  = new uint[](memberCount);
-
-    for (uint256 count = 0; count < memberCount; count++) {
-      MemberInfo storage member = clan.member[clan.members[count]]; // Get each registered member
-
-      isMemberActive[count] = member.isMember;
-      isMemberExecutor[count] = member.isExecutor;
-      isMemberMod[count] = member.isMod;
-      memberPoints[count] = member.point[roundNumber];
-    }
-
-    return (rounds[roundNumber].totalClanPoint, clan.point[roundNumber], clan.totalMemberPoint[roundNumber], isMemberActive, isMemberExecutor,  isMemberMod, memberPoints);
   }
 
   /**

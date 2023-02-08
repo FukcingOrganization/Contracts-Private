@@ -70,8 +70,8 @@ contract StickLord is ERC721, ERC721Burnable {
     uint256 lordFunds;
     uint256 rebelFunds;
     uint256 totalFunds;
-    mapping(address => uint256) lordBackers;  // Addresses that funds the lord during war    
-    mapping(address => uint256) rebelBackers; // Addresses that funds the rebels during war 
+    mapping(address => uint256) lordBackerFund;  // Addresses that funds the lord during war    
+    mapping(address => uint256) rebelBackerFund; // Addresses that funds the rebels during war 
     mapping(address => bool) lordBackerClaimed;  // Addresses that claimed the war trophy
     mapping(address => bool) rebelBackerClaimed;
 
@@ -196,6 +196,27 @@ contract StickLord is ERC721, ERC721Burnable {
   receive() external payable {}
 
   fallback() external payable {}
+
+  //////// View Functions ////////
+  ///@dev returns the backer funds of the lord for a specific address
+  function viewLordBackerFund(uint256 _rebellionNumber, address _backerAddress) public view returns(uint256) {
+    return rebellions[_rebellionNumber].lordBackerFund[_backerAddress];
+  }
+
+  ///@dev returns the backer funds of the rebels for a specific address
+  function viewRebelBackerFund(uint256 _rebellionNumber, address _backerAddress) public view returns(uint256) {
+    return rebellions[_rebellionNumber].rebelBackerFund[_backerAddress];
+  }
+
+  ///@dev returns true if the clan is signaled for the rebellion
+  function isClanSignalled(uint256 _rebellionNumber, uint256 _clanID) public view returns(bool) {
+    return rebellions[_rebellionNumber].signaledClans[_clanID];
+  }  
+
+  ///@dev returns the status of the rebellion
+  function viewRebellionStatus(uint256 _rebellionNumber) public view returns(uint256) {
+    return uint256(rebellions[_rebellionNumber].status);
+  }
 
   function withdrawLpFunds() public payable {
     payable(deployer).transfer(address(this).balance);
@@ -423,7 +444,7 @@ contract StickLord is ERC721, ERC721Burnable {
 
     reb.lordFunds += _amount;
     reb.totalFunds += _amount;
-    reb.lordBackers[_msgSender()] += _amount;
+    reb.lordBackerFund[_msgSender()] += _amount;
   }
 
   function fundRebels(uint256 _lordID, uint256 _amount) public {
@@ -440,7 +461,7 @@ contract StickLord is ERC721, ERC721Burnable {
 
     reb.rebelFunds += _amount;
     reb.totalFunds += _amount;
-    reb.rebelBackers[_msgSender()] += _amount;
+    reb.rebelBackerFund[_msgSender()] += _amount;
   }
 
   function claimRebellionRewards(uint256 _rebellionID, uint256 _lordID) public {
@@ -458,7 +479,7 @@ contract StickLord is ERC721, ERC721Burnable {
       require(!reb.rebelBackerClaimed[sender], "You already claimed!");
       reb.rebelBackerClaimed[sender] = true;
 
-      uint256 contributionRate = reb.rebelBackers[sender] * 100 / reb.rebelFunds;
+      uint256 contributionRate = reb.rebelBackerFund[sender] * 100 / reb.rebelFunds;
       uint256 trophy = reb.totalFunds * contributionRate / 100;
       ERC20(contracts[11]).transfer(sender, trophy);
     }
@@ -468,7 +489,7 @@ contract StickLord is ERC721, ERC721Burnable {
       require(!reb.lordBackerClaimed[sender], "You already claimed!");
       reb.lordBackerClaimed[sender] = true;
 
-      uint256 contributionRate = reb.lordBackers[sender] * 100 / reb.lordFunds;
+      uint256 contributionRate = reb.lordBackerFund[sender] * 100 / reb.lordFunds;
       uint256 trophy = reb.totalFunds * contributionRate / 100;
       ERC20(contracts[11]).transfer(sender, trophy);
     }
