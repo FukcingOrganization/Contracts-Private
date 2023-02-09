@@ -193,7 +193,7 @@ contract StickClan is Context, ReentrancyGuard {
     cooldownTime = 10 minutes; // TEST -> (7 days / 2);
     minBalanceToProposeClanPointChange = 100 ether;
 
-    roundNumber = IRound(contracts[9]).getCurrentRoundNumber();
+    roundNumber = 1;  // Round number starts from 1
   }
 
   function DEBUG_setContract(address _contractAddress, uint256 _index) public {

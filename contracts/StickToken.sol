@@ -142,7 +142,9 @@ contract StickToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
     uint256 public communityTGErelease;         // 12,307,196   Unix time    -> ~142 days
     uint256 public testnetTGErelease;           // 4,102,399    Unix time    -> ~47 days
     uint256 public maxSupply = 100000000 ether;       // 100000000 million initial max supply
-    uint256 public teamAndTestnetCap = 3542878 ether; // ~3.5 million for both team and testnet allocation
+    // ~3.5 million for both team and testnet allocation. We implement a hardcap to ensure that they will not exceed this amount, ever.
+    uint256 public teamAndTestnetCap = 3542878 ether; 
+    uint256 public currentTotalMintPerSec; 
     
     constructor(
         address[13] memory _contracts,
@@ -150,6 +152,7 @@ contract StickToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
         uint256[] memory _teamMintPerSecond,
         bytes32[6] memory _testnetRoots,
         uint256[6] memory _testnetMintPerSecond,
+        uint256[6] memory _testnetNumberOfBeneficiaries,
         uint256[6] memory _mintPerSecond
     ) 
         ERC20("StickToken", "STICK") 
@@ -164,6 +167,16 @@ contract StickToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
         testnetMintPerSecond = _testnetMintPerSecond;
         mintPerSecond = _mintPerSecond;
         _mint(_msgSender(), 5000000 ether); // Mint 5m LP token
+
+        // Calculating initial total mint per second
+        for (uint256 i = 0; i < _teamAddress.length; i++) {
+            currentTotalMintPerSec += _teamMintPerSecond[i];
+        }
+
+        for (uint256 i = 0; i < 6; i++) {
+            currentTotalMintPerSec += _testnetMintPerSecond[i] * _testnetNumberOfBeneficiaries[i];
+            currentTotalMintPerSec += _mintPerSecond[i];    // For the other allocation like Community, Clan, etc.
+        }
     }
 
     function DEBUG_setContract(address _contractAddress, uint256 _index) public {
@@ -499,8 +512,16 @@ contract StickToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
         require(proposal.status > Status.OnGoing, "The proposal still going on or not even started!");
 
         // if approved, apply the update the state
-        if (proposal.status == Status.Approved)
+        if (proposal.status == Status.Approved){
+            // If the new value is higher, add the difference to currant total value. Else, subtract
+            if (proposal.newUint > mintPerSecond[proposal.index])
+                currentTotalMintPerSec += proposal.newUint - mintPerSecond[proposal.index];
+            else           
+                currentTotalMintPerSec -= mintPerSecond[proposal.index] - proposal.newUint;
+
+            // Apply the update
             mintPerSecond[proposal.index] = proposal.newUint;
+        }
 
         proposal.isExecuted = true;
     }
