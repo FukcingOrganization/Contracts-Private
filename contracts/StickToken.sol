@@ -156,15 +156,17 @@ contract StickToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
     ) 
         ERC20("StickToken", "STICK") 
     {
-        contracts = _contracts;  // Set the existing contracts
         deploymentTime = block.timestamp;   // Test -> Make it a first monday 00:00
         oneYearLater = deploymentTime + 31556926;   // Add 1 year
         twoYearsLater = oneYearLater + 31556926;    // Add 1 more year
+
+        contracts = _contracts;                     // Set the existing contracts
         teamAddress = _teamAddress;
         teamMintPerSecond = _teamMintPerSecond;
         testnetRoots = _testnetRoots;   
         testnetMintPerSecond = _testnetMintPerSecond;
         mintPerSecond = _mintPerSecond;
+
         _mint(_msgSender(), 5000000 ether); // Mint 5m LP token
 
         // Calculating initial total mint per second

@@ -513,7 +513,7 @@ contract StickClan is Context, ReentrancyGuard {
   }
 
   // Governance Functions
-  function setMemberInfo(uint256 _clanID, address _address, bool _isMember) public {
+  function setMember(uint256 _clanID, address _address, bool _setAsMember) public {
     Clan storage clan = clans[_clanID];
     MemberInfo storage member = clan.member[_address];
 
@@ -521,7 +521,7 @@ contract StickClan is Context, ReentrancyGuard {
     require(clan.member[_msgSender()].isMod, "You have no authority to moderate memberships for this clan!");
     require(clan.info.leader != _address, "You can't change the membership status of the leader!");
 
-    if (_isMember) {
+    if (_setAsMember) {
       require(!member.isMember, "The address is already a member!");
       require(_clanID == declaredClan[_address], "The address you wish to set as member should declare its clan first!");
       clan.members.push(_msgSender());
@@ -536,25 +536,25 @@ contract StickClan is Context, ReentrancyGuard {
     }
   }
 
-  function setClanExecutor(uint256 _clanID, address _address, bool _isExecutor) public  {
+  function setClanExecutor(uint256 _clanID, address _address, bool _setAsExecutor) public  {
     Clan storage clan = clans[_clanID];
     MemberInfo storage member = clans[_clanID].member[_address];
 
     require(!clan.info.isDisbanded, "This clan is disbanded!");
     require(_msgSender() == clan.info.leader, "You have no authority to give Executor Role for this clan!");
 
-    if (_isExecutor) { member.isExecutor = true; }
+    if (_setAsExecutor) { member.isExecutor = true; }
     else { member.isExecutor = false; }
   }
 
-  function setClanMod(uint256 _clanID, address _address, bool _isMod) public  {
+  function setClanMod(uint256 _clanID, address _address, bool _setAsMod) public  {
     Clan storage clan = clans[_clanID];
     MemberInfo storage member = clans[_clanID].member[_address];
 
     require(!clan.info.isDisbanded, "This clan is disbanded!");
     require(_msgSender() == clan.info.leader, "You have no authority to give Executor Role for this clan!");
 
-    if (_isMod) { member.isMod = true; }
+    if (_setAsMod) { member.isMod = true; }
     else { member.isMod = false; }
   }
 

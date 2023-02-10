@@ -133,7 +133,7 @@ contract StickRound is Context, ReentrancyGuard {
     contracts = _contracts;  // Set the existing contracts
     roundCounter.increment(); // Start the rounds from 1
     rounds[roundCounter.current()].endingTime = _endOfTheFirstRound; // TEST -> Change it with unix value of Monday 00.00
-    roundLength = 2 hours; // TEST: 7 days;
+    roundLength = 1 days; // TEST: 7 days;
     levelRewardWeights = _levelWeights;
     totalRewardWeight = _totalWeight;
   }
@@ -185,7 +185,7 @@ contract StickRound is Context, ReentrancyGuard {
     }
 
     // Close funding in the last day of the round to avoid mistakenly funding
-    require(round.endingTime - 1 minutes  > block.timestamp, // TEST -> Change it with 1 day
+    require(round.endingTime - 1 hours  > block.timestamp, // TEST -> Change it with 1 day
       "The funding round is closed for this round. Maybe next time sweetie!"
     );
     require(_levelNumber < 10, "Invalid level number!");  // 0 to 9
@@ -219,7 +219,7 @@ contract StickRound is Context, ReentrancyGuard {
     }
 
     // Close funding in the last day of the round to avoid mistakenly funding
-    require(round.endingTime - 1 minutes  > block.timestamp, // TEST -> Change it with 1 day
+    require(round.endingTime - 1 hours  > block.timestamp, // TEST -> Change it with 1 day
       "The funding round is closed for this round. Too late sweetie!"
     );
 
