@@ -141,7 +141,6 @@ contract StickToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
     uint256 public twoYearsLater;
     uint256 public communityTGErelease;         // 12,307,196   Unix time    -> ~142 days
     uint256 public testnetTGErelease;           // 4,102,399    Unix time    -> ~47 days
-    uint256 public maxSupply = 100000000 ether;       // 100000000 million initial max supply
     // ~3.5 million for both team and testnet allocation. We implement a hardcap to ensure that they will not exceed this amount, ever.
     uint256 public teamAndTestnetCap = 3542878 ether; 
     uint256 public currentTotalMintPerSec; 
@@ -216,7 +215,6 @@ contract StickToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
 
     function backerMint() public returns (uint256){
         require(_msgSender() == contracts[9], "Only the Round contract can call this function!");
-        require(totalSupply() <= maxSupply, "Max supply has been reached!");
 
         // Mint starts 7 days before the token deployment to reward backers and players for the initial round
         uint256 totalReward = (block.timestamp - (deploymentTime - 7 days)) * mintPerSecond[0]; // TEST -> make it 7 days
@@ -231,7 +229,6 @@ contract StickToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
 
     function clanMint() public returns (uint256){
         require(_msgSender() == contracts[1], "Only the Clan contract can call this function!");
-        require(totalSupply() <= maxSupply, "Max supply has been reached!");
 
         uint256 totalReward = (block.timestamp - deploymentTime) * mintPerSecond[1];
         uint256 currentReward = totalReward - totalMints[1];
@@ -253,7 +250,6 @@ contract StickToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
 
     function communityMint(uint256 _amount) public returns (bool){
         require(_msgSender() == contracts[5], "Only the Executors can call this function!");
-        require(totalSupply() <= maxSupply, "Max supply has been reached!");
 
         uint256 currentReward = availableCommunityMint();
 
@@ -268,7 +264,6 @@ contract StickToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
 
     function stakingMint() public returns (uint256){        
         require(_msgSender() == contracts[5], "Only the Executors can call this function!");
-        require(totalSupply() <= maxSupply, "Max supply has been reached!");
         
         uint256 totalReward = (block.timestamp - deploymentTime) * mintPerSecond[3];
         uint256 currentReward = totalReward - totalMints[3];
@@ -288,7 +283,6 @@ contract StickToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
 
     function daoMint(uint256 _amount) public returns (bool){        
         require(_msgSender() == contracts[5], "Only the Executors can call this function!");
-        require(totalSupply() <= maxSupply, "Max supply has been reached!");
         
         uint256 totalReward = (block.timestamp - deploymentTime) * mintPerSecond[4];
         uint256 currentReward = totalReward - totalMints[4];
@@ -520,46 +514,6 @@ contract StickToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
             // Apply the update
             mintPerSecond[proposal.index] = proposal.newUint;
         }
-
-        proposal.isExecuted = true;
-    }
-
-    function proposeToIncreaseMaxSupply(uint256 _newMaxSupply) public {
-        require(_msgSender() == contracts[5], "Only executors can call this function!");
-        require(block.timestamp > twoYearsLater, "You can't increase the max supply till end of the second year!");
-        require(_newMaxSupply > maxSupply, "New max supply can't be equal or lower than the current one");
-
-        // Max supply can be increased by maxiumum of 10% at a time
-        uint256 changeRate = (_newMaxSupply - maxSupply) * 100 / maxSupply;
-        require(changeRate <= 10, "New mint per second can only have 10% change!");
-
-        string memory proposalDescription = string(abi.encodePacked(
-            "MAX SUPPLY CHANGE !! NEW SUPPLY: ", Strings.toHexString(_newMaxSupply), 
-            ". The current supply is ", Strings.toHexString(maxSupply), "."
-        )); 
-
-        // Create a new proposal
-        uint256 propID = IDAO(contracts[4]).newProposal(proposalDescription, functionsProposalTypes[3]);
-
-        // Save data to the proposal
-        proposals[propID].updateCode = 4;
-        proposals[propID].newUint = _newMaxSupply;
-    }
-
-    function executeIncreaseMaxSupplyProposal(uint256 _proposalID) public {
-        Proposal storage proposal = proposals[_proposalID];
-
-        require(proposal.updateCode == 4 && !proposal.isExecuted, "Wrong proposal ID");
-
-        // Get the result from DAO
-        proposal.status = Status(IDAO(contracts[4]).proposalResult(_proposalID));
-
-        // Wait for the current one to finalize
-        require(proposal.status > Status.OnGoing, "The proposal still going on or not even started!");
-
-        // if the current one is approved, apply the update the state
-        if (proposal.status == Status.Approved)
-            maxSupply = proposal.newUint;
 
         proposal.isExecuted = true;
     }
