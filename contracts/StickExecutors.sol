@@ -102,8 +102,7 @@ interface ILord {
 interface IToken {
   function proposeMintPerSecondUpdate(uint256 _mintIndex, uint256 _newMintPerSecond) external;
   function snapshot() external;
-  function pause() external;
-  function unpause() external;
+  function updatePauseStatus(bool _pauseToken) external;
   function stakingMint() external returns (uint256);
   function daoMint(uint256 _amount) external returns (bool);
   function developmentMint(uint256 _amount) external returns (bool);
@@ -499,7 +498,7 @@ contract StickExecutors is Context, AccessControl {
 
     // Execute proposal if the half of the executors signaled
     if (currentSignal.numOfSignals >= (numOfExecutors / 2)){
-      ILord(contracts[7]).proposeBaseTaxRateUpdate(currentSignal.propUint);
+      ILord(contracts[7]).proposeTaxChangeRateUpdate(currentSignal.propUint);
       signalTrackerID[19] = 0; // To avoid further executions
     }       
   }
@@ -537,7 +536,7 @@ contract StickExecutors is Context, AccessControl {
 
     // Execute proposal if the half of the executors signaled
     if (currentSignal.numOfSignals >= (numOfExecutors / 2)){
-      ILord(contracts[7]).proposeBaseTaxRateUpdate(currentSignal.propUint);
+      ILord(contracts[7]).proposeRebellionLengthUpdate(currentSignal.propUint);
       signalTrackerID[20] = 0; // To avoid further executions
     }       
   }
@@ -575,7 +574,7 @@ contract StickExecutors is Context, AccessControl {
 
     // Execute proposal if the half of the executors signaled
     if (currentSignal.numOfSignals >= (numOfExecutors / 2)){
-      ILord(contracts[7]).proposeBaseTaxRateUpdate(currentSignal.propUint);
+      ILord(contracts[7]).proposeVictoryRateUpdate(currentSignal.propUint);
       signalTrackerID[22] = 0; // To avoid further executions
     }       
   }
@@ -619,7 +618,7 @@ contract StickExecutors is Context, AccessControl {
     }       
   }
 
-  function createTokenPause() public onlyRole(EXECUTOR_ROLE) {
+  function createTokenPause(bool _pauseToken) public onlyRole(EXECUTOR_ROLE) {
     // Get the current signal
     Signal storage currentSignal = signals[signalTrackerID[28]];
 
@@ -633,6 +632,7 @@ contract StickExecutors is Context, AccessControl {
       // Save data
       newSignal.expires = block.timestamp + signalTime;
       newSignal.signalTrackerID = 28;
+      newSignal.propBool = _pauseToken;
 
       newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
       newSignal.numOfSignals++;
@@ -651,45 +651,8 @@ contract StickExecutors is Context, AccessControl {
 
     // Execute proposal if the half of the executors signaled
     if (currentSignal.numOfSignals >= (numOfExecutors / 2)){
-      IToken(contracts[11]).pause();
+      IToken(contracts[11]).updatePauseStatus(currentSignal.propBool);
       signalTrackerID[28] = 0; // To avoid further executions
-    }       
-  }
-
-  function createTokenUnpause() public onlyRole(EXECUTOR_ROLE) {
-    // Get the current signal
-    Signal storage currentSignal = signals[signalTrackerID[29]];
-
-    // If current signal date passed, then start a new signal
-    if (block.timestamp > currentSignal.expires) {
-
-      signalTrackerID[29] = signalCounter.current();           // Save the current signal ID to the tracker
-      Signal storage newSignal = signals[signalTrackerID[29]]; // Get the signal
-      signalCounter.increment();  // Increment the counter for other signals
-
-      // Save data
-      newSignal.expires = block.timestamp + signalTime;
-      newSignal.signalTrackerID = 29;
-
-      newSignal.isSignaled[_msgSender()] = true;  // Save the executor address as signaled
-      newSignal.numOfSignals++;
-      return; // finish the function
-    }   
-
-    // If there is not enough signals, count this one as well. Then continue to check it again.
-    if (currentSignal.numOfSignals < (numOfExecutors / 2)){      
-      // If we are in the signal time, check caller's signal status
-      require(!currentSignal.isSignaled[_msgSender()], "You already signaled for this proposal");
-
-      // If not signaled, save it and increase the number of signals
-      currentSignal.isSignaled[_msgSender()] = true;
-      currentSignal.numOfSignals++;
-    }
-
-    // Execute proposal if the half of the executors signaled
-    if (currentSignal.numOfSignals >= (numOfExecutors / 2)){
-      IToken(contracts[11]).unpause();
-      signalTrackerID[29] = 0; // To avoid further executions
     }       
   }
   
@@ -911,11 +874,11 @@ contract StickExecutors is Context, AccessControl {
   }
   
   function createLordSignalLengthUpdateProposal(uint256 _newSignalLength) public onlyRole(EXECUTOR_ROLE) {
-    ILord(contracts[7]).proposeBaseTaxRateUpdate(_newSignalLength);
+    ILord(contracts[7]).proposeSignalLengthUpdate(_newSignalLength);
   }
   
   function createLordWarLordCasualtyRateUpdateProposal(uint256 _newWarCasualtyRate) public onlyRole(EXECUTOR_ROLE) {
-    ILord(contracts[7]).proposeBaseTaxRateUpdate(_newWarCasualtyRate);
+    ILord(contracts[7]).proposeWarCasualtyRateUpdate(_newWarCasualtyRate);
   }
 
   function createTokenSnapshot() public onlyRole(EXECUTOR_ROLE) {

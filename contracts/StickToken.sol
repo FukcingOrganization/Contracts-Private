@@ -196,14 +196,12 @@ contract StickToken is ERC20, ERC20Burnable, ERC20Snapshot, Pausable {
         _snapshot();
     }
 
-    function pause() public {
+    function updatePauseStatus(bool _pauseToken) public {
         require(_msgSender() == contracts[5], "Only executor contract can call this function!");
-        _pause();
-    }
-
-    function unpause() public {
-        require(_msgSender() == contracts[5], "Only executor contract can call this function!");
-        _unpause();
+        if (_pauseToken)
+            _pause();
+        else
+            _unpause();
     }
 
     function _beforeTokenTransfer(address from, address to, uint256 amount)

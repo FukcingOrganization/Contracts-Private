@@ -106,7 +106,6 @@ contract StickItems is ERC1155, ERC1155Burnable {
   }
 
   function uri(uint256 tokenID) public view virtual override returns (string memory) {
-    require(_msgSender() == contracts[5], "Only executors can call this function!");
     return items[tokenID].uri;      
   }
 
