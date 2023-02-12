@@ -91,7 +91,7 @@ contract StickClan is Context, ReentrancyGuard {
     // Admin settings of the Clan set by the leader
     bool canExecutorsSignalRebellion;
     bool canExecutorsSetPoint;
-    bool canModerateMembers;
+    bool canModsSetMembers;
     bool isDisbanded;
   }
 
@@ -236,7 +236,7 @@ contract StickClan is Context, ReentrancyGuard {
       info.name, info.description, info.motto, info.logoURI, 
       info.canExecutorsSignalRebellion, 
       info.canExecutorsSetPoint, 
-      info.canModerateMembers, 
+      info.canModsSetMembers, 
       info.isDisbanded
     );
   }
@@ -277,7 +277,7 @@ contract StickClan is Context, ReentrancyGuard {
 
   ///@dev returns Total Clan Point, Clan Point, Total Member Point, Member Addresses, Member Points, isMemberActive, isMemberExecutor, isMemberMod
   function getClanPoints(uint256 _clanID) public view returns 
-    (uint256, uint256, uint256, address[] memory, uint256[] memory, bool[] memory, bool[] memory, bool[] memory) 
+    (uint256, uint256, uint256, address, address[] memory, uint256[] memory, bool[] memory, bool[] memory, bool[] memory) 
   {
     Clan storage clan = clans[_clanID];
     //MemberInfo storage member = clans[_clanID].members[_address];
@@ -296,7 +296,26 @@ contract StickClan is Context, ReentrancyGuard {
       memberPoints[count] = member.point[roundNumber];
     }
 
-    return (rounds[roundNumber].totalClanPoint, clan.point[roundNumber], clan.totalMemberPoint[roundNumber], clan.members, memberPoints, isMemberActive, isMemberExecutor, isMemberMod);
+    return (rounds[roundNumber].totalClanPoint, clan.point[roundNumber], clan.totalMemberPoint[roundNumber], clan.info.leader, clan.members, memberPoints, isMemberActive, isMemberExecutor, isMemberMod);
+  }
+
+  function viewMemberReward(uint256 _clanID, uint256 _roundNumber) public view returns(uint256) {
+    address sender = _msgSender();
+
+    Clan storage clan = clans[_clanID];
+    
+    require(clan.member[sender].isMember, "You are not a member of this clan!");
+    // TEST: Set the final value: Now, you can only claim clan rewards after 2 rounds to ensure your earnings! 
+    require(_roundNumber < roundNumber - 0/** 2 */, "You can't claim the reward until it finalizes. Rewards are getting finalized after 3 rounds!");
+    require(!clan.isMemberClaimed[_roundNumber][sender], "You already claimed your reward for this round!");
+    clan.isMemberClaimed[_roundNumber][sender] == true;  // If not claimed yet, mark it claimed.
+    require(clan.rewards[_roundNumber] > 0, "Seems like your clan has no reward for this round. Please call the memberRewardClaim function to update and see updated situation!");  
+
+    // calculate the reward and send it to the member!
+    uint256 reward = // total reward of the clan * (member Point * 100 / total member point of the clan) / 100
+      clan.rewards[_roundNumber] * (clan.member[sender].point[_roundNumber] * 100 / clan.totalMemberPoint[_roundNumber]) / 100;
+    
+    return reward;
   }
 
   function createClan(
@@ -496,20 +515,26 @@ contract StickClan is Context, ReentrancyGuard {
     Clan storage clan = clans[_clanID];
     
     // Update clan point
-    uint256 index = roundNumber;
-    while (clan.point[index] == 0 && index > clan.info.firstRound) { index--; }
-    clan.point[roundNumber] = clan.point[index];
+    if (clan.point[roundNumber] == 0) {      
+      uint256 index = roundNumber;
+      while (clan.point[index] == 0 && index > clan.info.firstRound) { index--; }
+      clan.point[roundNumber] = clan.point[index];
+    }
 
     // Update total member point of the clan
-    index = roundNumber;
-    while (clan.totalMemberPoint[index] == 0 && index > clan.info.firstRound) { index--; }
-    clan.totalMemberPoint[roundNumber] = clan.totalMemberPoint[index];
+    if (clan.totalMemberPoint[roundNumber] == 0) {      
+      uint256 index = roundNumber;
+      while (clan.totalMemberPoint[index] == 0 && index > clan.info.firstRound) { index--; }
+      clan.totalMemberPoint[roundNumber] = clan.totalMemberPoint[index];
+    }
     
     // Member point of the clan
-    if (_memberAddress == address(0)) { return; }  // If the member address is null, then skip it
-    index = roundNumber;
-    while (clan.member[_memberAddress].point[index] == 0 && index > clan.info.firstRound) { index--; }
-    clan.member[_memberAddress].point[roundNumber] = clan.member[_memberAddress].point[index];
+    if (_memberAddress != address(0) && clan.member[_memberAddress].point[roundNumber] != 0) { 
+      uint256 index = roundNumber;
+      while (clan.member[_memberAddress].point[index] == 0 && index > clan.info.firstRound) { index--; }
+      clan.member[_memberAddress].point[roundNumber] = clan.member[_memberAddress].point[index];
+    }
+    
   }
 
   // Governance Functions
@@ -518,7 +543,7 @@ contract StickClan is Context, ReentrancyGuard {
     MemberInfo storage member = clan.member[_address];
 
     require(!clan.info.isDisbanded, "This clan is disbanded!");
-    require(clan.member[_msgSender()].isMod, "You have no authority to moderate memberships for this clan!");
+    require(clan.member[_msgSender()].isMod || clan.member[_msgSender()].isExecutor, "You have no authority to moderate memberships for this clan!");
     require(clan.info.leader != _address, "You can't change the membership status of the leader!");
 
     if (_setAsMember) {
@@ -630,23 +655,11 @@ contract StickClan is Context, ReentrancyGuard {
   }
 
   // Update Clan Info
-  function updateClanName(uint256 _clanID, string memory _newName) public  {
+  function updateClanInfo(uint256 _clanID, string memory _newName, string memory _newDescription, string memory _newMotto, string memory _newLogoURI) public  {
     require(clans[_clanID].info.leader == _msgSender(), "You have no authority to update clan name for this clan!");
     clans[_clanID].info.name = _newName;
-  }
-  
-  function updateClanDescription(uint256 _clanID, string memory _newDescription) public  {
-    require(clans[_clanID].info.leader == _msgSender(), "You have no authority to update clan name for this clan!");
     clans[_clanID].info.description = _newDescription;
-  }
-  
-  function updateClanMotto(uint256 _clanID, string memory _newMotto) public  {
-    require(clans[_clanID].info.leader == _msgSender(), "You have no authority to update clan name for this clan!");
     clans[_clanID].info.motto = _newMotto;
-  }
-  
-  function updateClanLogoURI(uint256 _clanID, string memory _newLogoURI) public  {
-    require(clans[_clanID].info.leader == _msgSender(), "You have no authority to update clan name for this clan!");
     clans[_clanID].info.logoURI = _newLogoURI;
   }
 

@@ -139,7 +139,7 @@
 					},
 					{
 						"internalType": "bool",
-						"name": "canModerateMembers",
+						"name": "canModsSetMembers",
 						"type": "bool"
 					},
 					{
@@ -476,6 +476,11 @@
 				"internalType": "uint256",
 				"name": "",
 				"type": "uint256"
+			},
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
 			},
 			{
 				"internalType": "address[]",
@@ -1017,21 +1022,18 @@
 			},
 			{
 				"internalType": "string",
+				"name": "_newName",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
 				"name": "_newDescription",
 				"type": "string"
-			}
-		],
-		"name": "updateClanDescription",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
+			},
 			{
-				"internalType": "uint256",
-				"name": "_clanID",
-				"type": "uint256"
+				"internalType": "string",
+				"name": "_newMotto",
+				"type": "string"
 			},
 			{
 				"internalType": "string",
@@ -1039,43 +1041,7 @@
 				"type": "string"
 			}
 		],
-		"name": "updateClanLogoURI",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "_clanID",
-				"type": "uint256"
-			},
-			{
-				"internalType": "string",
-				"name": "_newMotto",
-				"type": "string"
-			}
-		],
-		"name": "updateClanMotto",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "_clanID",
-				"type": "uint256"
-			},
-			{
-				"internalType": "string",
-				"name": "_newName",
-				"type": "string"
-			}
-		],
-		"name": "updateClanName",
+		"name": "updateClanInfo",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
@@ -1268,6 +1234,30 @@
 				"internalType": "bool",
 				"name": "",
 				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "_clanID",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "_roundNumber",
+				"type": "uint256"
+			}
+		],
+		"name": "viewMemberReward",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
 			}
 		],
 		"stateMutability": "view",

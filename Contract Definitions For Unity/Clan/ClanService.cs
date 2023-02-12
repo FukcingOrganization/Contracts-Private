@@ -1080,116 +1080,38 @@ namespace Contracts.Contracts.Clan
              return ContractHandler.SendRequestAndWaitForReceiptAsync(transferLeadershipFunction, cancellationToken);
         }
 
-        public Task<string> UpdateClanDescriptionRequestAsync(UpdateClanDescriptionFunction updateClanDescriptionFunction)
+        public Task<string> UpdateClanInfoRequestAsync(UpdateClanInfoFunction updateClanInfoFunction)
         {
-             return ContractHandler.SendRequestAsync(updateClanDescriptionFunction);
+             return ContractHandler.SendRequestAsync(updateClanInfoFunction);
         }
 
-        public Task<TransactionReceipt> UpdateClanDescriptionRequestAndWaitForReceiptAsync(UpdateClanDescriptionFunction updateClanDescriptionFunction, CancellationTokenSource cancellationToken = null)
+        public Task<TransactionReceipt> UpdateClanInfoRequestAndWaitForReceiptAsync(UpdateClanInfoFunction updateClanInfoFunction, CancellationTokenSource cancellationToken = null)
         {
-             return ContractHandler.SendRequestAndWaitForReceiptAsync(updateClanDescriptionFunction, cancellationToken);
+             return ContractHandler.SendRequestAndWaitForReceiptAsync(updateClanInfoFunction, cancellationToken);
         }
 
-        public Task<string> UpdateClanDescriptionRequestAsync(BigInteger clanID, string newDescription)
+        public Task<string> UpdateClanInfoRequestAsync(BigInteger clanID, string newName, string newDescription, string newMotto, string newLogoURI)
         {
-            var updateClanDescriptionFunction = new UpdateClanDescriptionFunction();
-                updateClanDescriptionFunction.ClanID = clanID;
-                updateClanDescriptionFunction.NewDescription = newDescription;
+            var updateClanInfoFunction = new UpdateClanInfoFunction();
+                updateClanInfoFunction.ClanID = clanID;
+                updateClanInfoFunction.NewName = newName;
+                updateClanInfoFunction.NewDescription = newDescription;
+                updateClanInfoFunction.NewMotto = newMotto;
+                updateClanInfoFunction.NewLogoURI = newLogoURI;
             
-             return ContractHandler.SendRequestAsync(updateClanDescriptionFunction);
+             return ContractHandler.SendRequestAsync(updateClanInfoFunction);
         }
 
-        public Task<TransactionReceipt> UpdateClanDescriptionRequestAndWaitForReceiptAsync(BigInteger clanID, string newDescription, CancellationTokenSource cancellationToken = null)
+        public Task<TransactionReceipt> UpdateClanInfoRequestAndWaitForReceiptAsync(BigInteger clanID, string newName, string newDescription, string newMotto, string newLogoURI, CancellationTokenSource cancellationToken = null)
         {
-            var updateClanDescriptionFunction = new UpdateClanDescriptionFunction();
-                updateClanDescriptionFunction.ClanID = clanID;
-                updateClanDescriptionFunction.NewDescription = newDescription;
+            var updateClanInfoFunction = new UpdateClanInfoFunction();
+                updateClanInfoFunction.ClanID = clanID;
+                updateClanInfoFunction.NewName = newName;
+                updateClanInfoFunction.NewDescription = newDescription;
+                updateClanInfoFunction.NewMotto = newMotto;
+                updateClanInfoFunction.NewLogoURI = newLogoURI;
             
-             return ContractHandler.SendRequestAndWaitForReceiptAsync(updateClanDescriptionFunction, cancellationToken);
-        }
-
-        public Task<string> UpdateClanLogoURIRequestAsync(UpdateClanLogoURIFunction updateClanLogoURIFunction)
-        {
-             return ContractHandler.SendRequestAsync(updateClanLogoURIFunction);
-        }
-
-        public Task<TransactionReceipt> UpdateClanLogoURIRequestAndWaitForReceiptAsync(UpdateClanLogoURIFunction updateClanLogoURIFunction, CancellationTokenSource cancellationToken = null)
-        {
-             return ContractHandler.SendRequestAndWaitForReceiptAsync(updateClanLogoURIFunction, cancellationToken);
-        }
-
-        public Task<string> UpdateClanLogoURIRequestAsync(BigInteger clanID, string newLogoURI)
-        {
-            var updateClanLogoURIFunction = new UpdateClanLogoURIFunction();
-                updateClanLogoURIFunction.ClanID = clanID;
-                updateClanLogoURIFunction.NewLogoURI = newLogoURI;
-            
-             return ContractHandler.SendRequestAsync(updateClanLogoURIFunction);
-        }
-
-        public Task<TransactionReceipt> UpdateClanLogoURIRequestAndWaitForReceiptAsync(BigInteger clanID, string newLogoURI, CancellationTokenSource cancellationToken = null)
-        {
-            var updateClanLogoURIFunction = new UpdateClanLogoURIFunction();
-                updateClanLogoURIFunction.ClanID = clanID;
-                updateClanLogoURIFunction.NewLogoURI = newLogoURI;
-            
-             return ContractHandler.SendRequestAndWaitForReceiptAsync(updateClanLogoURIFunction, cancellationToken);
-        }
-
-        public Task<string> UpdateClanMottoRequestAsync(UpdateClanMottoFunction updateClanMottoFunction)
-        {
-             return ContractHandler.SendRequestAsync(updateClanMottoFunction);
-        }
-
-        public Task<TransactionReceipt> UpdateClanMottoRequestAndWaitForReceiptAsync(UpdateClanMottoFunction updateClanMottoFunction, CancellationTokenSource cancellationToken = null)
-        {
-             return ContractHandler.SendRequestAndWaitForReceiptAsync(updateClanMottoFunction, cancellationToken);
-        }
-
-        public Task<string> UpdateClanMottoRequestAsync(BigInteger clanID, string newMotto)
-        {
-            var updateClanMottoFunction = new UpdateClanMottoFunction();
-                updateClanMottoFunction.ClanID = clanID;
-                updateClanMottoFunction.NewMotto = newMotto;
-            
-             return ContractHandler.SendRequestAsync(updateClanMottoFunction);
-        }
-
-        public Task<TransactionReceipt> UpdateClanMottoRequestAndWaitForReceiptAsync(BigInteger clanID, string newMotto, CancellationTokenSource cancellationToken = null)
-        {
-            var updateClanMottoFunction = new UpdateClanMottoFunction();
-                updateClanMottoFunction.ClanID = clanID;
-                updateClanMottoFunction.NewMotto = newMotto;
-            
-             return ContractHandler.SendRequestAndWaitForReceiptAsync(updateClanMottoFunction, cancellationToken);
-        }
-
-        public Task<string> UpdateClanNameRequestAsync(UpdateClanNameFunction updateClanNameFunction)
-        {
-             return ContractHandler.SendRequestAsync(updateClanNameFunction);
-        }
-
-        public Task<TransactionReceipt> UpdateClanNameRequestAndWaitForReceiptAsync(UpdateClanNameFunction updateClanNameFunction, CancellationTokenSource cancellationToken = null)
-        {
-             return ContractHandler.SendRequestAndWaitForReceiptAsync(updateClanNameFunction, cancellationToken);
-        }
-
-        public Task<string> UpdateClanNameRequestAsync(BigInteger clanID, string newName)
-        {
-            var updateClanNameFunction = new UpdateClanNameFunction();
-                updateClanNameFunction.ClanID = clanID;
-                updateClanNameFunction.NewName = newName;
-            
-             return ContractHandler.SendRequestAsync(updateClanNameFunction);
-        }
-
-        public Task<TransactionReceipt> UpdateClanNameRequestAndWaitForReceiptAsync(BigInteger clanID, string newName, CancellationTokenSource cancellationToken = null)
-        {
-            var updateClanNameFunction = new UpdateClanNameFunction();
-                updateClanNameFunction.ClanID = clanID;
-                updateClanNameFunction.NewName = newName;
-            
-             return ContractHandler.SendRequestAndWaitForReceiptAsync(updateClanNameFunction, cancellationToken);
+             return ContractHandler.SendRequestAndWaitForReceiptAsync(updateClanInfoFunction, cancellationToken);
         }
 
         public Task<string> UpdatePointAndRoundRequestAsync(UpdatePointAndRoundFunction updatePointAndRoundFunction)
@@ -1289,6 +1211,21 @@ namespace Contracts.Contracts.Clan
                 viewIsMemberClaimedFunction.MemberAddress = memberAddress;
             
             return ContractHandler.QueryAsync<ViewIsMemberClaimedFunction, bool>(viewIsMemberClaimedFunction, blockParameter);
+        }
+
+        public Task<BigInteger> ViewMemberRewardQueryAsync(ViewMemberRewardFunction viewMemberRewardFunction, BlockParameter blockParameter = null)
+        {
+            return ContractHandler.QueryAsync<ViewMemberRewardFunction, BigInteger>(viewMemberRewardFunction, blockParameter);
+        }
+
+        
+        public Task<BigInteger> ViewMemberRewardQueryAsync(BigInteger clanID, BigInteger roundNumber, BlockParameter blockParameter = null)
+        {
+            var viewMemberRewardFunction = new ViewMemberRewardFunction();
+                viewMemberRewardFunction.ClanID = clanID;
+                viewMemberRewardFunction.RoundNumber = roundNumber;
+            
+            return ContractHandler.QueryAsync<ViewMemberRewardFunction, BigInteger>(viewMemberRewardFunction, blockParameter);
         }
     }
 }
