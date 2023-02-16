@@ -143,7 +143,6 @@ contract StickLord is ERC721, ERC721Burnable {
 
   mapping(uint256 => Proposal) public proposals;// Proposal ID => Proposal
 
-  mapping(uint256 => uint256) public numberOfClans; // that the lord has | Lord ID => number of clans
   mapping(uint256 => uint256[]) public clansOf; // that the lord has | Lord ID => Clan IDs in array []
   // Lord ID => number of licensese in cirulation (not used therefore not burnt)
   mapping(uint256 => uint256) public numberOfGlories; // Lord ID => number of glories

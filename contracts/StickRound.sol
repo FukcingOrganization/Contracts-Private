@@ -58,6 +58,7 @@ contract StickRound is Context, ReentrancyGuard {
     mapping(uint256 => bool) isCandidate;       // candidate ID => isCandidate?
     mapping(uint256 => uint256) candidateFunds; // candidate ID => total amount of fund
     mapping(uint256 => mapping(address => uint256)) backerFunds; // ID => backer => fund Amount
+    mapping(uint256 => uint256) numberOfBackers; // candidate ID => number of backers
     uint256 winnerID;
   }
 
@@ -200,6 +201,9 @@ contract StickRound is Context, ReentrancyGuard {
       election.isCandidate[_bossID] = true;
       election.candidateIDs.push(_bossID);
     }
+    // If the backer funding this lord for the first time, increase the number of backers of this boss
+    if (election.backerFunds[_bossID][_msgSender()] == 0) { election.numberOfBackers[_bossID]++; }
+
     // Add funds
     election.candidateFunds[_bossID] += _fundAmount;
     election.backerFunds[_bossID][_msgSender()] += _fundAmount;
@@ -230,6 +234,9 @@ contract StickRound is Context, ReentrancyGuard {
     // If everything goes well, subtract funds
     election.candidateFunds[_bossID] -= _withdrawAmount;
     election.backerFunds[_bossID][_msgSender()] -= _withdrawAmount;
+
+    // If no bakcer funds left, decrease the number of backers of this boss
+    if (election.backerFunds[_bossID][_msgSender()] == 0) { election.numberOfBackers[_bossID]--; }
 
     require(IERC20(contracts[11]).transfer(_msgSender(), _withdrawAmount), "Something went wrong while you're trying to withdraw!");
 
@@ -336,11 +343,17 @@ contract StickRound is Context, ReentrancyGuard {
     require(IERC20(contracts[11]).transfer(sender, reward), "Something went wrong while you're trying to get your reward!");
   }
 
-  function getPlayerRewards(bytes32[] calldata _merkleProof, uint256 _roundNumber) public view returns (uint256[10] memory) {
+  function viewPlayerRewards(bytes32[] calldata _merkleProof, uint256 _roundNumber) public view returns (
+    uint256[10] memory, // Player's rewards
+    uint256[10] memory, // Total player rewards
+    uint256[10] memory  // Number of players
+  ) {
     require(block.timestamp > rounds[_roundNumber].endingTime, "Wait for the end of the round!");
     require(rounds[_roundNumber].endingTime != 0, "Invalied round number!"); // If there is no end time
 
-    uint256[10] memory rewards;
+    uint256[10] memory playerRewards;
+    uint256[10] memory totalPlayerRewards;
+    uint256[10] memory numOfPlayers;
 
     Round storage round = rounds[_roundNumber];
     address sender = _msgSender();
@@ -348,36 +361,57 @@ contract StickRound is Context, ReentrancyGuard {
     for (uint i = 0; i < 10; i++){
       Level storage level = round.levels[i]; // Get the level
 
+      totalPlayerRewards[i] = level.playerReward;
+      numOfPlayers[i] = level.numberOfPlayers;
+
       // Check the merkle tree to validate the sender has played this level
       bytes32 leaf = keccak256(abi.encodePacked(sender));
       if (MerkleProof.verify(_merkleProof, level.merkleRoot, leaf)){  // if played, get the reward
-        rewards[i] = level.playerReward / level.numberOfPlayers;
+        playerRewards[i] = level.playerReward / level.numberOfPlayers;
       }
     }
 
-    return rewards;
+    return (playerRewards, totalPlayerRewards, numOfPlayers);
   }
 
-  function getBackerRewards(uint256 _roundNumber) public view returns (uint256[10] memory) {
-    require(rounds[_roundNumber].endingTime != 0, "Invalied round number!"); // If there is no end time
+  function viewBackerRewardInfo(uint256 _roundNumber, address _backer) public view returns (
+    uint256[10] memory, // Backer Rewards
+    uint256[10] memory, // Backer's Funds
+    uint256[10] memory, // Total Funds
+    uint256[10] memory  // Number of backers
+  ) {
+    require(_roundNumber < roundCounter.current(), "You can't retrive values from an ongoing round!"); // If there is no end time
 
     uint256[10] memory rewards;
+    uint256[10] memory backerFunds;
+    uint256[10] memory totalFunds;
+    uint256[10] memory numOfBackers;
 
     Round storage round = rounds[_roundNumber];
-    address sender = _msgSender();
 
     for (uint i = 0; i < 10; i++){
-      Level storage level = round.levels[i];     // Get the level
+      Level storage level = round.levels[i];      // Get the level
       Election storage election = level.election; // Get the election
 
-      // Collect the reward from this level's election
-      // Formula: rewardAmount = backerReward * backerfund(sender's on the winner Boss) / total fund (on the winner Boss)
-      rewards[i] = level.backerReward * 
-        election.backerFunds[election.winnerID][sender] / election.candidateFunds[election.winnerID]
-      ;
+      backerFunds[i] = election.backerFunds[election.winnerID][_backer];
+      totalFunds[i] = election.candidateFunds[election.winnerID];      
+      rewards[i] = level.backerReward * backerFunds[i] / totalFunds[i];
+      numOfBackers[i] = election.numberOfBackers[election.winnerID];
     }
 
-    return rewards;
+    return (rewards, backerFunds, totalFunds, numOfBackers);
+  }
+
+  function viewCurrentBackerRewards() public view returns (uint256[10] memory) {
+    uint256[10] memory backerFunds;
+
+    Round storage round = rounds[roundCounter.current()];
+
+    for (uint i = 0; i < 10; i++){
+      backerFunds[i] = round.levels[i].backerReward;
+    }
+
+    return backerFunds;
   }
 
   function returnMerkleRoot(uint256 _roundNumber, uint256 _levelNumber) public view returns (bytes32) {

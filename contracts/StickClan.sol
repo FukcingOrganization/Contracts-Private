@@ -179,7 +179,7 @@ contract StickClan is Context, ReentrancyGuard {
   mapping(uint256 => Clan) public clans;          // Clan ID => Clan info
   mapping(address => uint256) public declaredClan;      // ID of the clan of an address
   mapping(uint256 => uint256) public clanCooldownTime;  // Cooldown time for each clan | Clan ID => Cooldown time
-  mapping(address => mapping(uint256 => uint256)) public collectedTaxes;  // Receiver => Lord ID => Amount
+  mapping(uint256 => uint256) public collectedTaxes;    // Lord ID => Amount
 
   uint256 public maxPointToChange;        // Maximum point that can be given in a propsal
   uint256 public cooldownTime;            // Cool down time to give clan point by executors
@@ -446,13 +446,15 @@ contract StickClan is Context, ReentrancyGuard {
     // Get the address and the tax rate of the lord
     (address lordAddress, uint256 taxRate) = ILord(contracts[7]).lordTaxInfo(clan.info.lordID);
 
-    // Get the lord tax and update the reward after tax //
-    uint256 lordTax = reward * taxRate / 100;
-    reward -= lordTax;
 
     // Then transfer the taxes if there lord address exist. (which means lord is alive)
-    if (lordAddress != address(0)){      
+    if (lordAddress != address(0)){  
+      // Get the lord tax and update the reward after tax //
+      uint256 lordTax = reward * taxRate / 100;
+      reward -= lordTax;    
+
       IERC20(contracts[11]).transfer(lordAddress, lordTax);
+      collectedTaxes[clan.info.lordID] += lordTax;
 
       // Mint SDAO tokens as much as the lord tax reward
       IDAO(contracts[4]).mintTokens(lordAddress, lordTax);
