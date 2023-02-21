@@ -3,10 +3,11 @@ pragma solidity ^0.8.4;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
-import "IERC4907.sol";
+import "../IERC4907.sol";
 
 
 /**
@@ -53,7 +54,7 @@ interface IClanLicense {
 /**
  * @author Bora
 */
-contract StickLord is ERC721, ERC721Burnable {  
+contract StickLord is ERC721, ERC721Burnable, ERC721Enumerable {  
   using Counters for Counters.Counter;
 
   Counters.Counter private _tokenIdCounter;
@@ -155,7 +156,6 @@ contract StickLord is ERC721, ERC721Burnable {
   string baseURI;
   address deployer;
 
-  uint256 public totalSupply;
   uint256 public maxSupply;
   uint256 public baseMintCost;
   uint256 public mintCostIncrement;
@@ -191,6 +191,17 @@ contract StickLord is ERC721, ERC721Burnable {
 
     // Test
     deployer = _msgSender(); 
+  }
+  
+  function _beforeTokenTransfer(address from, address to, uint256 tokenId, uint256 batchSize)
+    internal
+    override(ERC721, ERC721Enumerable)
+  {
+    super._beforeTokenTransfer(from, to, tokenId, batchSize);
+  }
+
+  function supportsInterface(bytes4 interfaceId) public view override(ERC721, ERC721Enumerable) returns (bool) {
+    return interfaceId == type(IERC4907).interfaceId || super.supportsInterface(interfaceId);
   }
 
   function DEBUG_setContract(address _contractAddress, uint256 _index) public {
@@ -243,11 +254,6 @@ contract StickLord is ERC721, ERC721Burnable {
     customLordURI[_lordId] = _customURI;
   }
 
-  function _burn(uint256 tokenId) internal override {
-    totalSupply--;
-    super._burn(tokenId);
-  }
-
   function teamAndCommunityMint() internal {
     _tokenIdCounter.increment();  // Start the token ID from 1 by increasing the counter initially
 
@@ -256,7 +262,6 @@ contract StickLord is ERC721, ERC721Burnable {
       _safeMint(_msgSender(), tokenId);
 
       _tokenIdCounter.increment();
-      totalSupply++;
     }
   }
 
@@ -264,13 +269,12 @@ contract StickLord is ERC721, ERC721Burnable {
     uint256 tokenId = _tokenIdCounter.current();
 
     // Calculate the current mint cost
-    uint256 mintCost = baseMintCost + ((totalSupply - 50) * mintCostIncrement);
+    uint256 mintCost = baseMintCost + ((totalSupply() - 50) * mintCostIncrement);
 
     require(tokenId <= maxSupply, "Sorry mate, there can ever be only 500 Lords, and they are all out!");
     require(msg.value >= mintCost, "Not sufficient mint cost!");   
     
     _tokenIdCounter.increment();            // Increase the ID counter
-    totalSupply++;                          // Increase the totalSupply
     _safeMint(_msgSender(), tokenId);       // Mint the Lord
     
     uint256 change = msg.value - mintCost;  // Get the change
@@ -308,7 +312,7 @@ contract StickLord is ERC721, ERC721Burnable {
   function DAOvote(uint256 _proposalID, bool _isApproving, uint256 _lordID) public {
     require(userOf(_lordID) == _msgSender(), "Who are you fooling? You have no right to vote for this Lord!");
 
-    IDAO(contracts[4]).lordVote(_proposalID, _isApproving, _lordID, totalSupply);
+    IDAO(contracts[4]).lordVote(_proposalID, _isApproving, _lordID, totalSupply());
   }
 
   /// @notice userOf function returns the renter or the owner if there is no current renter.
@@ -357,11 +361,6 @@ contract StickLord is ERC721, ERC721Burnable {
   /// @return The user expires for this NFT
   function userExpires(uint256 tokenId) public view virtual returns(uint256){
     return _users[tokenId].expires;
-  }
-
-  /// @dev See {IERC165-supportsInterface}.
-  function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
-    return interfaceId == type(IERC4907).interfaceId || super.supportsInterface(interfaceId);
   }
 
   function isRented(uint256 _lordID) public view returns (bool) {
@@ -467,7 +466,7 @@ contract StickLord is ERC721, ERC721Burnable {
   }
 
   function claimRebellionRewards(uint256 _rebellionID, uint256 _lordID) public {
-    require(_lordID >= totalSupply, "This lord has not minted yet!");
+    require(_lordID >= totalSupply(), "This lord has not minted yet!");
     address sender = _msgSender();
 
     Rebellion storage reb = rebellions[_rebellionID];
