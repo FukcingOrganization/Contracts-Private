@@ -879,13 +879,7 @@ contract StickDAO is ERC20 {
 
     function getMinBalanceToPropose() public view returns (uint256) { return minBalanceToPropose; }
 
-    function viewLastProposals(uint256 _proposalAmount) public view returns (
-        uint256[] memory,   // id
-        string[] memory,    // description
-        uint256[] memory,   // start time
-        uint256[] memory,   // ending time
-        uint256[] memory    // current status
-    ) {
+    function calculatePropVariables(uint256 _proposalAmount) internal view returns (uint256, uint256, uint256) {        
         uint256 start;
         uint256 end;
         
@@ -900,6 +894,20 @@ contract StickDAO is ERC20 {
             end = proposalCounter.current() - 1;
         }
 
+        return (_proposalAmount, start, end);
+    }
+
+    function viewLastProposalsBasics(uint256 _proposalAmount) external view returns (
+        uint256[] memory,   // id
+        string[] memory,    // description
+        uint256[] memory,   // start time
+        uint256[] memory,   // ending time
+        uint256[] memory   // current status
+    ) {      
+        uint256 start;
+        uint256 end;
+
+        (_proposalAmount, start, end) = calculatePropVariables(_proposalAmount);
         // Create arrays
         uint256[] memory ids = new uint256[](_proposalAmount);
         string[] memory descriptions = new string[](_proposalAmount);
@@ -917,6 +925,30 @@ contract StickDAO is ERC20 {
         }
 
         return (ids, descriptions, startTime, endingTime, status);
+    }
+
+    function viewLastProposalsNumbers(uint256 _proposalAmount) external view returns (
+        uint256[] memory,   // participant number
+        uint256[] memory,   // total Votes
+        uint256[] memory    // yay count
+    ) {
+        uint256 start;
+        uint256 end;
+
+        (_proposalAmount, start, end) = calculatePropVariables(_proposalAmount);
+        // Create arrays
+        uint256[] memory participants = new uint256[](_proposalAmount);
+        uint256[] memory totalVotes = new uint256[](_proposalAmount);
+        uint256[] memory yayCounts = new uint256[](_proposalAmount);
+
+        // Fill them up
+        for (uint i = start; i <= end; i++) {
+            participants[i] = proposals[i].participants;
+            totalVotes[i] = proposals[i].totalVotes;
+            yayCounts[i] = proposals[i].yayCount;
+        }
+
+        return (participants, totalVotes, yayCounts);
     }
 
 }
