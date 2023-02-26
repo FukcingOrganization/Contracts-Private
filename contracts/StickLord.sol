@@ -239,6 +239,11 @@ contract StickLord is ERC721, ERC721Burnable, ERC721Enumerable {
     return uint256(rebellions[_rebellionNumber].status);
   }
 
+  ///@dev returns the number of clans of a lord
+  function viewNumberOfClans(uint256 _lordID) public view returns (uint256) {
+    return clansOf[_lordID].length;
+  }
+
   function withdrawLpFunds() public payable {
     payable(deployer).transfer(address(this).balance);
   }

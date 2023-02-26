@@ -879,4 +879,44 @@ contract StickDAO is ERC20 {
 
     function getMinBalanceToPropose() public view returns (uint256) { return minBalanceToPropose; }
 
+    function viewLastProposals(uint256 _proposalAmount) public view returns (
+        uint256[] memory,   // id
+        string[] memory,    // description
+        uint256[] memory,   // start time
+        uint256[] memory,   // ending time
+        uint256[] memory    // current status
+    ) {
+        uint256 start;
+        uint256 end;
+        
+        // Determine the start and the end index according to the proposal counter
+        if ((proposalCounter.current() - _proposalAmount) > 0) {
+            start = proposalCounter.current() - _proposalAmount;    
+            end = start + _proposalAmount - 1;                      
+        }
+        else {
+            start = 1;
+            _proposalAmount = proposalCounter.current() - 1;    // Update given amount
+            end = proposalCounter.current() - 1;
+        }
+
+        // Create arrays
+        uint256[] memory ids = new uint256[](_proposalAmount);
+        string[] memory descriptions = new string[](_proposalAmount);
+        uint256[] memory startTime = new uint256[](_proposalAmount);
+        uint256[] memory endingTime = new uint256[](_proposalAmount);
+        uint256[] memory status = new uint256[](_proposalAmount);
+
+        // Fill them up
+        for (uint i = start; i <= end; i++) {
+            ids[i] = proposals[i].id;
+            descriptions[i] = proposals[i].description;
+            startTime[i] = proposals[i].startTime;
+            endingTime[i] = startTime[i] + proposalTypes[proposals[i].proposalType].length;
+            status[i] = uint256(proposals[i].status);
+        }
+
+        return (ids, descriptions, startTime, endingTime, status);
+    }
+
 }
