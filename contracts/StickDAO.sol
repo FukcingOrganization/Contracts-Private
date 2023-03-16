@@ -189,8 +189,8 @@ contract StickDAO is ERC20 {
      */
     address[13] public contracts; 
     
-    Counters.Counter private proposalCounter;
-    Counters.Counter private spendingProposalCounter;
+    Counters.Counter public proposalCounter;
+    Counters.Counter public spendingProposalCounter;
 
     mapping(uint256 => Proposal) public proposals; // proposalID => Proposal
     mapping(uint256 => ProposalTracker) public proposalTrackers; // proposalID => Proposal Tracker

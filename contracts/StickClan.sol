@@ -339,6 +339,7 @@ contract StickClan is Context, ReentrancyGuard {
     Clan storage clan = clans[clanID];
     clanCounter.increment();
 
+    declaredClan[_msgSender()] = clanID;
     clan.info.leader = _msgSender();
     clan.info.lordID = _lordID;
     clan.info.name = _clanName;
@@ -362,7 +363,10 @@ contract StickClan is Context, ReentrancyGuard {
     require(!clans[_clanID].info.isDisbanded, "This clan is disbanded!");
     
     address sender = _msgSender();
-    Clan storage currClan = clans[declaredClan[sender]];
+    Clan storage currClan = clans[declaredClan[sender]];    
+    require(currClan.info.leader != _msgSender(), 
+      "You can not declare another clan while you are the leader of your own clan! Transfer the leadership first!"
+    );
 
     // Erase data from the current clan
     if (currClan.member[sender].isMember) {
